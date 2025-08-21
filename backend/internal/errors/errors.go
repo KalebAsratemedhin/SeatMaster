@@ -24,3 +24,17 @@ var (
 	ErrDatabaseConnection = errors.New("database connection failed")
 	ErrDatabaseQuery      = errors.New("database query failed")
 )
+
+// Event errors
+var (
+	ErrEventNotFound = errors.New("event not found")
+	ErrEventAccess   = errors.New("access denied to event")
+	ErrEventFull     = errors.New("event has reached maximum guest capacity")
+)
+
+// Guest errors
+var (
+	ErrGuestNotFound      = errors.New("guest not found")
+	ErrGuestAlreadyExists = errors.New("guest already exists for this event")
+	ErrAccessDenied       = errors.New("access denied to this resource")
+)

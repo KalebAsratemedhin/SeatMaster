@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/seatmaster/backend/internal/config"
 	"github.com/seatmaster/backend/internal/database"
 	"github.com/seatmaster/backend/internal/database/models"
@@ -50,6 +51,7 @@ func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, e
 		Password:  string(hashedPassword),
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
+		Phone:     &req.Phone,
 	}
 
 	result = s.db.Create(user)
@@ -88,7 +90,7 @@ func (s *AuthService) SignIn(req *models.SignInRequest) (*models.AuthResponse, e
 	}, nil
 }
 
-func (s *AuthService) GetUserByID(userID uint) (*models.User, error) {
+func (s *AuthService) GetUserByID(userID uuid.UUID) (*models.User, error) {
 	var user models.User
 	result := s.db.First(&user, userID)
 	if result.Error != nil {
@@ -101,10 +103,68 @@ func (s *AuthService) GetUserByID(userID uint) (*models.User, error) {
 	return &user, nil
 }
 
-func (s *AuthService) generateJWT(userID uint) (string, error) {
+func (s *AuthService) UpdateProfile(userID uuid.UUID, req *models.UpdateProfileRequest) (*models.User, error) {
+	var user models.User
+	result := s.db.First(&user, userID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, customerrors.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("error finding user: %w", result.Error)
+	}
+
+	// Update fields
+	user.FirstName = req.FirstName
+	user.LastName = req.LastName
+	user.Phone = &req.Phone
+	user.ProfilePic = &req.ProfilePic
+	user.UpdatedAt = time.Now()
+
+	result = s.db.Save(&user)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to update profile: %w", result.Error)
+	}
+
+	return &user, nil
+}
+
+func (s *AuthService) ChangePassword(userID uuid.UUID, req *models.ChangePasswordRequest) error {
+	var user models.User
+	result := s.db.First(&user, userID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return customerrors.ErrUserNotFound
+		}
+		return fmt.Errorf("error finding user: %w", result.Error)
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.CurrentPassword)); err != nil {
+		return customerrors.ErrInvalidCredentials
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash new password: %w", err)
+	}
+
+	// Update password
+	user.Password = string(hashedPassword)
+	user.UpdatedAt = time.Now()
+
+	result = s.db.Save(&user)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update password: %w", result.Error)
+	}
+
+	return nil
+}
+
+func (s *AuthService) generateJWT(userID uuid.UUID) (string, error) {
 	// Create token claims
 	claims := jwt.MapClaims{
-		"user_id": userID,
+		"user_id": userID.String(),
 		"exp":     time.Now().Add(s.config.JWT.Expiry).Unix(),
 		"iat":     time.Now().Unix(),
 		"jti":     generateJTI(),
@@ -121,7 +181,7 @@ func (s *AuthService) generateJWT(userID uint) (string, error) {
 	return tokenString, nil
 }
 
-func (s *AuthService) ValidateToken(tokenString string) (uint, error) {
+func (s *AuthService) ValidateToken(tokenString string) (uuid.UUID, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -130,18 +190,24 @@ func (s *AuthService) ValidateToken(tokenString string) (uint, error) {
 	})
 
 	if err != nil {
-		return 0, fmt.Errorf("%w: %v", customerrors.ErrTokenInvalid, err)
+		return uuid.Nil, fmt.Errorf("%w: %v", customerrors.ErrTokenInvalid, err)
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userID, ok := claims["user_id"].(float64)
+		userIDStr, ok := claims["user_id"].(string)
 		if !ok {
-			return 0, fmt.Errorf("%w: invalid user_id in token", customerrors.ErrTokenInvalid)
+			return uuid.Nil, fmt.Errorf("%w: invalid user_id in token", customerrors.ErrTokenInvalid)
 		}
-		return uint(userID), nil
+
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("%w: invalid user_id format", customerrors.ErrTokenInvalid)
+		}
+
+		return userID, nil
 	}
 
-	return 0, customerrors.ErrTokenInvalid
+	return uuid.Nil, customerrors.ErrTokenInvalid
 }
 
 func generateJTI() string {

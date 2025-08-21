@@ -9,6 +9,100 @@ definitions:
       user:
         $ref: '#/definitions/models.User'
     type: object
+  models.ChangePasswordRequest:
+    description: Password change request data
+    properties:
+      current_password:
+        example: oldpassword123
+        type: string
+      new_password:
+        example: newpassword123
+        minLength: 6
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  models.CreateEventRequest:
+    description: Event creation request data
+    properties:
+      allow_self_rsvp:
+        example: false
+        type: boolean
+      categories:
+        example:
+        - wedding
+        - celebration
+        items:
+          type: string
+        type: array
+      date:
+        example: "2024-06-15T18:00:00Z"
+        type: string
+      description:
+        example: A beautiful celebration of love
+        maxLength: 1000
+        type: string
+      location:
+        example: Grand Hotel Ballroom
+        maxLength: 255
+        type: string
+      max_guests:
+        example: 100
+        minimum: 1
+        type: integer
+      name:
+        example: John & Jane's Wedding
+        maxLength: 255
+        minLength: 1
+        type: string
+      require_approval:
+        example: false
+        type: boolean
+      tags:
+        example:
+        - formal
+        - outdoor
+        items:
+          type: string
+        maxItems: 50
+        type: array
+      visibility:
+        allOf:
+        - $ref: '#/definitions/models.EventVisibility'
+        enum:
+        - private
+        - public
+        example: private
+    required:
+    - date
+    - location
+    - name
+    - visibility
+    type: object
+  models.CreateGuestRequest:
+    description: Guest creation request data
+    properties:
+      email:
+        example: john.doe@example.com
+        type: string
+      name:
+        example: John Doe
+        maxLength: 255
+        minLength: 1
+        type: string
+      notes:
+        example: Vegetarian, allergic to nuts
+        maxLength: 1000
+        type: string
+      phone:
+        example: "+1234567890"
+        maxLength: 20
+        type: string
+    required:
+    - email
+    - name
+    type: object
   models.CreateUserRequest:
     description: User registration request data
     properties:
@@ -25,11 +119,251 @@ definitions:
         example: password123
         minLength: 6
         type: string
+      phone:
+        example: "+1234567890"
+        type: string
     required:
     - email
     - first_name
     - last_name
     - password
+    type: object
+  models.Event:
+    description: Event information and details
+    properties:
+      allow_self_rsvp:
+        description: Guest Management Options
+        type: boolean
+      categories:
+        description: Discovery and Organization (for public events)
+        items:
+          type: string
+        type: array
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      date:
+        example: "2024-06-15T18:00:00Z"
+        type: string
+      description:
+        example: A beautiful celebration of love
+        type: string
+      guests:
+        description: Guest Management
+        items:
+          $ref: '#/definitions/models.Guest'
+        type: array
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      location:
+        example: Grand Hotel Ballroom
+        type: string
+      max_guests:
+        type: integer
+      name:
+        example: John & Jane's Wedding
+        type: string
+      owner:
+        $ref: '#/definitions/models.User'
+      owner_id:
+        type: string
+      require_approval:
+        type: boolean
+      slug:
+        example: john-jane-wedding-2024
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      visibility:
+        allOf:
+        - $ref: '#/definitions/models.EventVisibility'
+        description: Visibility and Access Control
+    type: object
+  models.EventResponse:
+    description: Event response data
+    properties:
+      event:
+        $ref: '#/definitions/models.Event'
+    type: object
+  models.EventVisibility:
+    enum:
+    - private
+    - public
+    type: string
+    x-enum-varnames:
+    - EventVisibilityPrivate
+    - EventVisibilityPublic
+  models.EventsResponse:
+    description: Multiple events response data
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/models.Event'
+        type: array
+      total:
+        type: integer
+    type: object
+  models.Guest:
+    description: Guest information and RSVP status
+    properties:
+      approved:
+        type: boolean
+      created_at:
+        description: Timestamps
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      email:
+        example: john.doe@example.com
+        type: string
+      event:
+        $ref: '#/definitions/models.Event'
+      event_id:
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        description: Guest Information
+        example: John Doe
+        type: string
+      notes:
+        example: Vegetarian, allergic to nuts
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      rsvp_date:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      rsvp_status:
+        allOf:
+        - $ref: '#/definitions/models.RSVPStatus'
+        description: RSVP Status
+      seat:
+        $ref: '#/definitions/models.Seat'
+      seat_id:
+        description: Seating (for future implementation)
+        type: string
+      source:
+        allOf:
+        - $ref: '#/definitions/models.GuestSource'
+        description: Source and Approval
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  models.GuestRSVPResponse:
+    description: Guest RSVP response data
+    properties:
+      guest:
+        $ref: '#/definitions/models.Guest'
+      message:
+        example: RSVP updated successfully
+        type: string
+    type: object
+  models.GuestResponse:
+    description: Guest response data
+    properties:
+      guest:
+        $ref: '#/definitions/models.Guest'
+    type: object
+  models.GuestSource:
+    enum:
+    - owner_added
+    - invitation
+    - self_rsvp
+    type: string
+    x-enum-comments:
+      GuestSourceInvitation: Registered via invitation
+      GuestSourceOwnerAdded: Added by owner manually
+      GuestSourceSelfRSVP: Self-registered (public events only)
+    x-enum-descriptions:
+    - Added by owner manually
+    - Registered via invitation
+    - Self-registered (public events only)
+    x-enum-varnames:
+    - GuestSourceOwnerAdded
+    - GuestSourceInvitation
+    - GuestSourceSelfRSVP
+  models.GuestSummary:
+    description: Guest RSVP summary data
+    properties:
+      confirmation_rate:
+        type: number
+      confirmed:
+        type: integer
+      declined:
+        type: integer
+      maybe:
+        type: integer
+      pending:
+        type: integer
+      total_guests:
+        type: integer
+    type: object
+  models.GuestsResponse:
+    description: Multiple guests response data
+    properties:
+      guests:
+        items:
+          $ref: '#/definitions/models.Guest'
+        type: array
+      total:
+        type: integer
+    type: object
+  models.RSVPStatus:
+    enum:
+    - pending
+    - accept
+    - decline
+    - maybe
+    type: string
+    x-enum-varnames:
+    - RSVPStatusPending
+    - RSVPStatusAccept
+    - RSVPStatusDecline
+    - RSVPStatusMaybe
+  models.Seat:
+    description: Seat information for event seating arrangements
+    properties:
+      column_number:
+        example: 1
+        type: integer
+      created_at:
+        description: Timestamps
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      event:
+        $ref: '#/definitions/models.Event'
+      event_id:
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_available:
+        description: Seating Status
+        type: boolean
+      is_reserved:
+        type: boolean
+      row_number:
+        example: A
+        type: string
+      seat_number:
+        description: Seat Information
+        example: A1
+        type: string
+      section:
+        example: Main Floor
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
     type: object
   models.SignInRequest:
     description: User login request data
@@ -44,6 +378,125 @@ definitions:
     - email
     - password
     type: object
+  models.UpdateEventRequest:
+    description: Event update request data
+    properties:
+      allow_self_rsvp:
+        example: true
+        type: boolean
+      categories:
+        example:
+        - wedding
+        - celebration
+        items:
+          type: string
+        type: array
+      date:
+        example: "2024-06-15T18:00:00Z"
+        type: string
+      description:
+        example: A beautiful celebration of love
+        maxLength: 1000
+        type: string
+      location:
+        example: Grand Hotel Ballroom
+        maxLength: 255
+        type: string
+      max_guests:
+        example: 150
+        minimum: 1
+        type: integer
+      name:
+        example: John & Jane's Wedding
+        maxLength: 255
+        minLength: 1
+        type: string
+      require_approval:
+        example: false
+        type: boolean
+      tags:
+        example:
+        - formal
+        - outdoor
+        items:
+          type: string
+        maxItems: 50
+        type: array
+      visibility:
+        allOf:
+        - $ref: '#/definitions/models.EventVisibility'
+        enum:
+        - private
+        - public
+        example: public
+    type: object
+  models.UpdateGuestRSVPRequest:
+    description: Guest RSVP update request data
+    properties:
+      notes:
+        example: Looking forward to it!
+        maxLength: 1000
+        type: string
+      rsvp_status:
+        allOf:
+        - $ref: '#/definitions/models.RSVPStatus'
+        enum:
+        - pending
+        - accept
+        - decline
+        - maybe
+        example: accept
+    required:
+    - rsvp_status
+    type: object
+  models.UpdateGuestRequest:
+    description: Guest update request data
+    properties:
+      email:
+        example: john.doe@example.com
+        type: string
+      name:
+        example: John Doe
+        maxLength: 255
+        minLength: 1
+        type: string
+      notes:
+        example: Vegetarian, allergic to nuts
+        maxLength: 1000
+        type: string
+      phone:
+        example: "+1234567890"
+        maxLength: 20
+        type: string
+      rsvp_status:
+        allOf:
+        - $ref: '#/definitions/models.RSVPStatus'
+        enum:
+        - pending
+        - accept
+        - decline
+        - maybe
+        example: accept
+    type: object
+  models.UpdateProfileRequest:
+    description: Profile update request data
+    properties:
+      first_name:
+        example: John
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      profile_pic:
+        example: https://example.com/profile.jpg
+        type: string
+    required:
+    - first_name
+    - last_name
+    type: object
   models.User:
     description: User account information
     properties:
@@ -57,10 +510,16 @@ definitions:
         example: John
         type: string
       id:
-        example: 1
-        type: integer
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
       last_name:
         example: Doe
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      profile_pic:
+        example: https://example.com/profile.jpg
         type: string
       updated_at:
         example: "2024-01-01T00:00:00Z"
@@ -185,6 +644,692 @@ paths:
       summary: User registration
       tags:
       - auth
+  /events:
+    get:
+      consumes:
+      - application/json
+      description: Get all events owned by the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User events
+          schema:
+            $ref: '#/definitions/models.EventsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user events
+      tags:
+      - events
+    post:
+      consumes:
+      - application/json
+      description: Create a new event
+      parameters:
+      - description: Event creation data
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateEventRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Event created successfully
+          schema:
+            $ref: '#/definitions/models.EventResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create event
+      tags:
+      - events
+  /events/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Event deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete event
+      tags:
+      - events
+    get:
+      consumes:
+      - application/json
+      description: Get event details by ID
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Event details
+          schema:
+            $ref: '#/definitions/models.EventResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get event
+      tags:
+      - events
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing event (partial update)
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Event update data
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateEventRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Event updated successfully
+          schema:
+            $ref: '#/definitions/models.EventResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update event
+      tags:
+      - events
+  /events/{id}/guests:
+    get:
+      consumes:
+      - application/json
+      description: Get all guests for a specific event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Event guests
+          schema:
+            $ref: '#/definitions/models.GuestsResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get event guests
+      tags:
+      - guests
+    post:
+      consumes:
+      - application/json
+      description: Create a new guest for an event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Guest creation data
+        in: body
+        name: guest
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateGuestRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Guest created successfully
+          schema:
+            $ref: '#/definitions/models.GuestResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create guest
+      tags:
+      - guests
+  /events/{id}/guests/{guestId}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a guest from an event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Guest ID (UUID)
+        in: path
+        name: guestId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Guest deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Guest not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete guest
+      tags:
+      - guests
+    get:
+      consumes:
+      - application/json
+      description: Get guest details by ID
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Guest ID (UUID)
+        in: path
+        name: guestId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Guest details
+          schema:
+            $ref: '#/definitions/models.GuestResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Guest not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get guest
+      tags:
+      - guests
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing guest (partial update)
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Guest ID (UUID)
+        in: path
+        name: guestId
+        required: true
+        type: string
+      - description: Guest update data
+        in: body
+        name: guest
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateGuestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Guest updated successfully
+          schema:
+            $ref: '#/definitions/models.GuestResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Guest not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update guest
+      tags:
+      - guests
+  /events/{id}/guests/{guestId}/approve:
+    post:
+      consumes:
+      - application/json
+      description: Approve a pending guest for an event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Guest ID (UUID)
+        in: path
+        name: guestId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Guest approved successfully
+          schema:
+            $ref: '#/definitions/models.GuestResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Guest not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Approve guest
+      tags:
+      - guests
+  /events/{id}/guests/{guestId}/rsvp:
+    patch:
+      consumes:
+      - application/json
+      description: Update a guest's RSVP status
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Guest ID (UUID)
+        in: path
+        name: guestId
+        required: true
+        type: string
+      - description: RSVP update data
+        in: body
+        name: rsvp
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateGuestRSVPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: RSVP updated successfully
+          schema:
+            $ref: '#/definitions/models.GuestRSVPResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Guest not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update guest RSVP
+      tags:
+      - guests
+  /events/{id}/guests/summary:
+    get:
+      consumes:
+      - application/json
+      description: Get summary statistics of guest RSVP statuses for an event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Guest summary statistics
+          schema:
+            $ref: '#/definitions/models.GuestSummary'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get guest summary
+      tags:
+      - guests
+  /events/public:
+    get:
+      consumes:
+      - application/json
+      description: Get all public events for discovery
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Public events
+          schema:
+            $ref: '#/definitions/models.EventsResponse'
+      summary: Get public events
+      tags:
+      - events
+  /profile:
+    get:
+      consumes:
+      - application/json
+      description: Get the current authenticated user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - profile
+    put:
+      consumes:
+      - application/json
+      description: Update the current authenticated user's profile information
+      parameters:
+      - description: Profile update data
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - profile
+  /profile/password:
+    put:
+      consumes:
+      - application/json
+      description: Change the current authenticated user's password
+      parameters:
+      - description: Password change data
+        in: body
+        name: password
+        required: true
+        schema:
+          $ref: '#/definitions/models.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password changed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Change user password
+      tags:
+      - profile
 schemes:
 - http
 - https

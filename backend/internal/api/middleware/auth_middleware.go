@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	customerrors "github.com/seatmaster/backend/internal/errors"
 	"github.com/seatmaster/backend/internal/services"
 
@@ -16,7 +17,7 @@ type AuthMiddleware struct {
 
 // UserContext holds user information in the request context
 type UserContext struct {
-	UserID uint
+	UserID uuid.UUID
 }
 
 // GetUserFromContext safely extracts user information from gin context
