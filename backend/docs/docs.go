@@ -1578,6 +1578,13 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
+                },
+                "user": {
+                    "$ref": "#/definitions/models.User"
+                },
+                "user_id": {
+                    "description": "User relationship (only if guest is a platform user) - NEW FIELD",
+                    "type": "string"
                 }
             }
         },
@@ -1608,22 +1615,22 @@ const docTemplate = `{
             "enum": [
                 "owner_added",
                 "invitation",
-                "self_rsvp"
+                "user_registration"
             ],
             "x-enum-comments": {
                 "GuestSourceInvitation": "Registered via invitation",
                 "GuestSourceOwnerAdded": "Added by owner manually",
-                "GuestSourceSelfRSVP": "Self-registered (public events only)"
+                "GuestSourceUserRegistration": "Self-registered by authenticated platform user"
             },
             "x-enum-descriptions": [
                 "Added by owner manually",
                 "Registered via invitation",
-                "Self-registered (public events only)"
+                "Self-registered by authenticated platform user"
             ],
             "x-enum-varnames": [
                 "GuestSourceOwnerAdded",
                 "GuestSourceInvitation",
-                "GuestSourceSelfRSVP"
+                "GuestSourceUserRegistration"
             ]
         },
         "models.GuestSummary": {

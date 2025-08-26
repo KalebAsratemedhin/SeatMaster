@@ -344,3 +344,211 @@ func (s *GuestService) verifyEventOwnership(eventID, ownerID uuid.UUID) (*models
 
 	return &event, nil
 }
+
+// RegisterUserForEvent registers an authenticated user for an event
+func (s *GuestService) RegisterUserForEvent(eventID, userID uuid.UUID, req *models.UserEventRegistrationRequest) (*models.UserEventRegistrationResponse, error) {
+	// Verify event exists and is public
+	var event models.Event
+	result := s.db.First(&event, eventID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, customerrors.ErrEventNotFound
+		}
+		return nil, fmt.Errorf("error finding event: %w", result.Error)
+	}
+
+	// Check if event is public
+	if event.Visibility != models.EventVisibilityPublic {
+		return nil, customerrors.ErrAccessDenied
+	}
+
+	// Check if user is already registered for this event
+	var existingGuest models.Guest
+	if err := s.db.Where("event_id = ? AND user_id = ?", eventID, userID).First(&existingGuest).Error; err == nil {
+		return nil, customerrors.ErrGuestAlreadyExists
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check existing registration: %w", err)
+	}
+
+	// Get user information
+	var user models.User
+	if err := s.db.First(&user, userID).Error; err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Check if guest limit is reached
+	if event.MaxGuests != nil {
+		var guestCount int64
+		if err := s.db.Model(&models.Guest{}).Where("event_id = ?", eventID).Count(&guestCount).Error; err != nil {
+			return nil, fmt.Errorf("failed to count guests: %w", err)
+		}
+
+		// Account for plus-one if provided
+		additionalGuests := 1
+		if req.PlusOne != nil {
+			additionalGuests = 2
+		}
+
+		if guestCount+int64(additionalGuests) > int64(*event.MaxGuests) {
+			return nil, customerrors.ErrEventFull
+		}
+	}
+
+	// Create main guest registration
+	guest := &models.Guest{
+		EventID:    eventID,
+		UserID:     &userID,
+		Name:       fmt.Sprintf("%s %s", user.FirstName, user.LastName),
+		Email:      user.Email,
+		Phone:      user.Phone,
+		Notes:      req.Notes,
+		RSVPStatus: models.RSVPStatusPending,
+		Source:     models.GuestSourceUserRegistration,
+		Approved:   !event.RequireApproval, // Auto-approve if approval not required
+	}
+
+	result = s.db.Create(guest)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to create guest registration: %w", result.Error)
+	}
+
+	// Load the created guest
+	if err := s.db.Preload("User").First(guest, guest.ID).Error; err != nil {
+		return nil, fmt.Errorf("failed to load created guest: %w", err)
+	}
+
+	response := &models.UserEventRegistrationResponse{
+		Guest:   guest,
+		Message: "Successfully registered for event",
+	}
+
+	// Handle plus-one registration if provided
+	if req.PlusOne != nil {
+		plusOne := &models.Guest{
+			EventID:    eventID,
+			Name:       req.PlusOne.Name,
+			Email:      "", // Plus-one doesn't have email
+			Phone:      nil,
+			Notes:      req.PlusOne.Notes,
+			RSVPStatus: models.RSVPStatusPending,
+			Source:     models.GuestSourceUserRegistration,
+			Approved:   !event.RequireApproval,
+		}
+
+		result = s.db.Create(plusOne)
+		if result.Error != nil {
+			return nil, fmt.Errorf("failed to create plus-one registration: %w", result.Error)
+		}
+
+		response.PlusOne = plusOne
+		response.Message = "Successfully registered for event with plus-one"
+	}
+
+	return response, nil
+}
+
+// GetUserRegistrations retrieves all event registrations for a specific user
+func (s *GuestService) GetUserRegistrations(userID uuid.UUID) ([]models.Guest, error) {
+	var guests []models.Guest
+	result := s.db.Where("user_id = ?", userID).
+		Preload("Event").
+		Order("created_at DESC").
+		Find(&guests)
+	if result.Error != nil {
+		return nil, fmt.Errorf("error finding user registrations: %w", result.Error)
+	}
+
+	return guests, nil
+}
+
+// GetUserRegistrationCount returns the total number of registrations for a user
+func (s *GuestService) GetUserRegistrationCount(userID uuid.UUID) (int64, error) {
+	var count int64
+	result := s.db.Model(&models.Guest{}).Where("user_id = ?", userID).Count(&count)
+	if result.Error != nil {
+		return 0, fmt.Errorf("error counting user registrations: %w", result.Error)
+	}
+
+	return count, nil
+}
+
+// UpdateUserRegistration updates a user's event registration
+func (s *GuestService) UpdateUserRegistration(guestID, userID uuid.UUID, req *models.UpdateGuestRequest) (*models.Guest, error) {
+	var guest models.Guest
+	result := s.db.First(&guest, guestID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, customerrors.ErrGuestNotFound
+		}
+		return nil, fmt.Errorf("error finding guest: %w", result.Error)
+	}
+
+	// Verify user owns this registration by checking if UserID matches
+	if guest.UserID == nil || *guest.UserID != userID {
+		return nil, customerrors.ErrAccessDenied
+	}
+
+	// Update only provided fields (partial update)
+	if req.Name != nil {
+		guest.Name = *req.Name
+	}
+	if req.Email != nil {
+		// Check if new email conflicts with existing guest
+		var existingGuest models.Guest
+		if err := s.db.Where("event_id = ? AND email = ? AND id != ?", guest.EventID, *req.Email, guestID).First(&existingGuest).Error; err == nil {
+			return nil, customerrors.ErrGuestAlreadyExists
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("failed to check email conflict: %w", err)
+		}
+		guest.Email = *req.Email
+	}
+	if req.Phone != nil {
+		guest.Phone = req.Phone
+	}
+	if req.Notes != nil {
+		guest.Notes = req.Notes
+	}
+	if req.RSVPStatus != nil {
+		guest.RSVPStatus = *req.RSVPStatus
+		if *req.RSVPStatus != models.RSVPStatusPending {
+			now := time.Now()
+			guest.RSVPDate = &now
+		}
+	}
+
+	result = s.db.Save(&guest)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to update registration: %w", result.Error)
+	}
+
+	// Load the updated guest with user information
+	if err := s.db.Preload("User").First(&guest, guest.ID).Error; err != nil {
+		return nil, fmt.Errorf("failed to load updated guest: %w", err)
+	}
+
+	return &guest, nil
+}
+
+// CancelUserRegistration cancels a user's event registration
+func (s *GuestService) CancelUserRegistration(guestID, userID uuid.UUID) error {
+	var guest models.Guest
+	result := s.db.First(&guest, guestID)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return customerrors.ErrGuestNotFound
+		}
+		return fmt.Errorf("error finding guest: %w", result.Error)
+	}
+
+	// Verify user owns this registration by checking if UserID matches
+	if guest.UserID == nil || *guest.UserID != userID {
+		return customerrors.ErrAccessDenied
+	}
+
+	result = s.db.Delete(&guest)
+	if result.Error != nil {
+		return fmt.Errorf("failed to cancel registration: %w", result.Error)
+	}
+
+	return nil
+}

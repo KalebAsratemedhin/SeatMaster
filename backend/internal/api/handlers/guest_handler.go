@@ -456,3 +456,199 @@ func (h *GuestHandler) GetGuestSummary(c *gin.Context) {
 
 	c.JSON(http.StatusOK, summary)
 }
+
+func (h *GuestHandler) RegisterForEvent(c *gin.Context) {
+	// Get user context from middleware
+	userCtx, exists := middleware.GetUserFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Parse event ID
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID format"})
+		return
+	}
+
+	var req models.UserEventRegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Validation failed", "details": err.Error()})
+		return
+	}
+
+	// Register user for event
+	response, err := h.guestService.RegisterUserForEvent(eventID, userCtx.UserID, &req)
+	if err != nil {
+		switch err.Error() {
+		case "event not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		case "access denied to this resource":
+			c.JSON(http.StatusForbidden, gin.H{"error": "Event is not public"})
+		case "guest already exists for this event":
+			c.JSON(http.StatusBadRequest, gin.H{"error": "You are already registered for this event"})
+		case "event has reached maximum guest capacity":
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register for event"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusCreated, response)
+}
+
+func (h *GuestHandler) GetUserRegistrations(c *gin.Context) {
+	// Get user context from middleware
+	userCtx, exists := middleware.GetUserFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Get user registrations
+	registrations, err := h.guestService.GetUserRegistrations(userCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve registrations"})
+		return
+	}
+
+	// Get total count
+	total, err := h.guestService.GetUserRegistrationCount(userCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get registration count"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"registrations": registrations,
+		"total":         total,
+	})
+}
+
+func (h *GuestHandler) UpdateUserRegistration(c *gin.Context) {
+	// Get user context from middleware
+	userCtx, exists := middleware.GetUserFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Parse event ID
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID format"})
+		return
+	}
+
+	var req models.UpdateGuestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Validation failed", "details": err.Error()})
+		return
+	}
+
+	// Get all guests for the event to find the user's registration
+	guests, err := h.guestService.GetGuestsByEvent(eventID, userCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event guests"})
+		return
+	}
+
+	// Find the guest registration for this user
+	var userGuest *models.Guest
+	for _, guest := range guests {
+		if guest.UserID != nil && *guest.UserID == userCtx.UserID {
+			userGuest = &guest
+			break
+		}
+	}
+
+	if userGuest == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	// Update registration
+	updatedGuest, err := h.guestService.UpdateUserRegistration(userGuest.ID, userCtx.UserID, &req)
+	if err != nil {
+		switch err.Error() {
+		case "guest not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "Registration not found"})
+		case "access denied to this resource":
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case "guest already exists for this event":
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update registration"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, models.GuestResponse{Guest: updatedGuest})
+}
+
+func (h *GuestHandler) CancelUserRegistration(c *gin.Context) {
+	// Get user context from middleware
+	userCtx, exists := middleware.GetUserFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Parse event ID
+	eventID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID format"})
+		return
+	}
+
+	// Get all guests for the event to find the user's registration
+	guests, err := h.guestService.GetGuestsByEvent(eventID, userCtx.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event guests"})
+		return
+	}
+
+	// Find the guest registration for this user
+	var userGuest *models.Guest
+	for _, guest := range guests {
+		if guest.UserID != nil && *guest.UserID == userCtx.UserID {
+			userGuest = &guest
+			break
+		}
+	}
+
+	if userGuest == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	// Cancel registration
+	err = h.guestService.CancelUserRegistration(userGuest.ID, userCtx.UserID)
+	if err != nil {
+		switch err.Error() {
+		case "guest not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "Registration not found"})
+		case "access denied to this resource":
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel registration"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Registration cancelled successfully"})
+}

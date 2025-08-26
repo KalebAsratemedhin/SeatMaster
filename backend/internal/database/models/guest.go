@@ -21,9 +21,9 @@ const (
 type GuestSource string
 
 const (
-	GuestSourceOwnerAdded GuestSource = "owner_added" // Added by owner manually
-	GuestSourceInvitation GuestSource = "invitation"  // Registered via invitation
-	GuestSourceSelfRSVP   GuestSource = "self_rsvp"   // Self-registered (public events only)
+	GuestSourceOwnerAdded       GuestSource = "owner_added"       // Added by owner manually
+	GuestSourceInvitation       GuestSource = "invitation"        // Registered via invitation
+	GuestSourceUserRegistration GuestSource = "user_registration" // Self-registered by authenticated platform user
 )
 
 // Guest represents a guest at an event
@@ -32,6 +32,10 @@ type Guest struct {
 	ID      uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()" example:"550e8400-e29b-41d4-a716-446655440000"`
 	EventID uuid.UUID `json:"event_id" gorm:"type:uuid;not null"`
 	Event   Event     `json:"event" gorm:"foreignKey:EventID"`
+
+	// User relationship (only if guest is a platform user) - NEW FIELD
+	UserID *uuid.UUID `json:"user_id" gorm:"type:uuid;index"`
+	User   *User      `json:"user" gorm:"foreignKey:UserID"`
 
 	// Guest Information
 	Name  string  `json:"name" gorm:"not null" example:"John Doe"`
@@ -112,4 +116,26 @@ type GuestSummary struct {
 	Pending          int64   `json:"pending"`
 	Maybe            int64   `json:"maybe"`
 	ConfirmationRate float64 `json:"confirmation_rate"`
+}
+
+// UserEventRegistrationRequest represents the request for a user to register for an event
+// @Description User event registration request data
+type UserEventRegistrationRequest struct {
+	Notes   *string         `json:"notes" validate:"omitempty,max=1000" example:"Vegetarian, allergic to nuts"`
+	PlusOne *PlusOneRequest `json:"plus_one" validate:"omitempty"`
+}
+
+// PlusOneRequest represents additional guest information for plus-one registrations
+// @Description Plus-one guest information
+type PlusOneRequest struct {
+	Name  string  `json:"name" validate:"required,min=1,max=255" example:"Jane Doe"`
+	Notes *string `json:"notes" validate:"omitempty,max=1000" example:"Also vegetarian"`
+}
+
+// UserEventRegistrationResponse represents the response after user registration
+// @Description User event registration response data
+type UserEventRegistrationResponse struct {
+	Guest   *Guest `json:"guest"`
+	PlusOne *Guest `json:"plus_one,omitempty"`
+	Message string `json:"message" example:"Successfully registered for event"`
 }

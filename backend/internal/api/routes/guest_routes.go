@@ -10,16 +10,21 @@ import (
 // SetupGuestRoutes configures all guest-related routes
 func SetupGuestRoutes(router *gin.Engine, guestHandler *handlers.GuestHandler, authMiddleware *middleware.AuthMiddleware) {
 	// Guest routes (authentication required)
-	guests := router.Group("/events/:id/guests")
+	guests := router.Group("/events/:id")
 	guests.Use(authMiddleware.AuthRequired())
 	{
-		guests.POST("", guestHandler.CreateGuest)                    // Create guest
-		guests.GET("", guestHandler.GetGuests)                       // Get event guests
-		guests.GET("/summary", guestHandler.GetGuestSummary)         // Get guest summary
-		guests.GET("/:guestId", guestHandler.GetGuest)               // Get specific guest
-		guests.PATCH("/:guestId", guestHandler.UpdateGuest)          // Update guest
-		guests.PATCH("/:guestId/rsvp", guestHandler.UpdateGuestRSVP) // Update guest RSVP
-		guests.POST("/:guestId/approve", guestHandler.ApproveGuest)  // Approve guest
-		guests.DELETE("/:guestId", guestHandler.DeleteGuest)         // Delete guest
+		guests.POST("/guests", guestHandler.CreateGuest)                    // Create guest
+		guests.GET("/guests", guestHandler.GetGuests)                       // Get event guests
+		guests.GET("/guests/summary", guestHandler.GetGuestSummary)         // Get guest summary
+		guests.GET("/guests/:guestId", guestHandler.GetGuest)               // Get specific guest
+		guests.PATCH("/guests/:guestId", guestHandler.UpdateGuest)          // Update guest
+		guests.PATCH("/guests/:guestId/rsvp", guestHandler.UpdateGuestRSVP) // Update guest RSVP
+		guests.POST("/guests/:guestId/approve", guestHandler.ApproveGuest)  // Approve guest
+		guests.DELETE("/guests/:guestId", guestHandler.DeleteGuest)         // Delete guest
+		guests.POST("/register", guestHandler.RegisterForEvent)
+		guests.PATCH("/registration", guestHandler.UpdateUserRegistration)
+		guests.DELETE("/registration", guestHandler.CancelUserRegistration)
+		guests.GET("/user/registrations", guestHandler.GetUserRegistrations)
 	}
+
 }

@@ -257,6 +257,11 @@ definitions:
       updated_at:
         example: "2024-01-01T00:00:00Z"
         type: string
+      user:
+        $ref: '#/definitions/models.User'
+      user_id:
+        description: User relationship (only if guest is a platform user) - NEW FIELD
+        type: string
     type: object
   models.GuestRSVPResponse:
     description: Guest RSVP response data
@@ -277,20 +282,20 @@ definitions:
     enum:
     - owner_added
     - invitation
-    - self_rsvp
+    - user_registration
     type: string
     x-enum-comments:
       GuestSourceInvitation: Registered via invitation
       GuestSourceOwnerAdded: Added by owner manually
-      GuestSourceSelfRSVP: Self-registered (public events only)
+      GuestSourceUserRegistration: Self-registered by authenticated platform user
     x-enum-descriptions:
     - Added by owner manually
     - Registered via invitation
-    - Self-registered (public events only)
+    - Self-registered by authenticated platform user
     x-enum-varnames:
     - GuestSourceOwnerAdded
     - GuestSourceInvitation
-    - GuestSourceSelfRSVP
+    - GuestSourceUserRegistration
   models.GuestSummary:
     description: Guest RSVP summary data
     properties:
