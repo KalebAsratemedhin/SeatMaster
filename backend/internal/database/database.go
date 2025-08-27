@@ -65,23 +65,32 @@ func (db *DB) InitTables() error {
 
 	// Let GORM handle the migration - it should create new tables with UUID structure
 	// If tables exist with old structure, GORM will attempt to migrate them
-	err := db.AutoMigrate(&models.User{}, &models.Event{}, &models.Guest{}, &models.Seat{})
+	err := db.AutoMigrate(&models.User{}, &models.Event{}, &models.Guest{}, &models.Seat{}, &models.Invitation{})
 	if err != nil {
 		// If migration fails due to type conflicts, we need to handle it
 		if strings.Contains(err.Error(), "cannot cast type bigint to uuid") {
 			log.Println("Migration failed due to UUID type conflict. Dropping existing tables to recreate with UUID structure...")
 
 			// Drop existing tables and recreate
-			if err := db.Migrator().DropTable(&models.Seat{}); err != nil {
+			// Drop tables in reverse order to avoid foreign key constraints
+			err = db.Migrator().DropTable(&models.Seat{})
+			if err != nil {
 				return fmt.Errorf("failed to drop seats table: %w", err)
 			}
-			if err := db.Migrator().DropTable(&models.Guest{}); err != nil {
+			err = db.Migrator().DropTable(&models.Guest{})
+			if err != nil {
 				return fmt.Errorf("failed to drop guests table: %w", err)
 			}
-			if err := db.Migrator().DropTable(&models.Event{}); err != nil {
+			err = db.Migrator().DropTable(&models.Invitation{})
+			if err != nil {
+				return fmt.Errorf("failed to drop invitations table: %w", err)
+			}
+			err = db.Migrator().DropTable(&models.Event{})
+			if err != nil {
 				return fmt.Errorf("failed to drop events table: %w", err)
 			}
-			if err := db.Migrator().DropTable(&models.User{}); err != nil {
+			err = db.Migrator().DropTable(&models.User{})
+			if err != nil {
 				return fmt.Errorf("failed to drop users table: %w", err)
 			}
 

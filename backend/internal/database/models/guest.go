@@ -132,10 +132,29 @@ type PlusOneRequest struct {
 	Notes *string `json:"notes" validate:"omitempty,max=1000" example:"Also vegetarian"`
 }
 
-// UserEventRegistrationResponse represents the response after user registration
-// @Description User event registration response data
+// UserEventRegistrationResponse represents the response when a user registers for an event
 type UserEventRegistrationResponse struct {
-	Guest   *Guest `json:"guest"`
-	PlusOne *Guest `json:"plus_one,omitempty"`
-	Message string `json:"message" example:"Successfully registered for event"`
+	Guest   GuestRegistrationItem `json:"guest"`
+	Message string                `json:"message" example:"Successfully registered for event"`
+}
+
+// GuestRegistrationItem represents a guest registration item for user registrations list
+// This excludes the full Event object to avoid unnecessary data
+type GuestRegistrationItem struct {
+	ID         uuid.UUID   `json:"id"`
+	EventID    uuid.UUID   `json:"event_id"`
+	UserID     *uuid.UUID  `json:"user_id"`
+	User       *User       `json:"user"`
+	Name       string      `json:"name"`
+	Email      string      `json:"email"`
+	Phone      *string     `json:"phone"`
+	Notes      *string     `json:"notes"`
+	RSVPStatus RSVPStatus  `json:"rsvp_status"`
+	RSVPDate   *time.Time  `json:"rsvp_date"`
+	SeatID     *uuid.UUID  `json:"seat_id"`
+	Seat       *Seat       `json:"seat"`
+	Source     GuestSource `json:"source"`
+	Approved   bool        `json:"approved"`
+	CreatedAt  time.Time   `json:"created_at"`
+	UpdatedAt  time.Time   `json:"updated_at"`
 }

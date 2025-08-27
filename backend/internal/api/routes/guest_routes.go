@@ -9,6 +9,13 @@ import (
 
 // SetupGuestRoutes configures all guest-related routes
 func SetupGuestRoutes(router *gin.Engine, guestHandler *handlers.GuestHandler, authMiddleware *middleware.AuthMiddleware) {
+	// User's own registrations (not tied to specific event) - NEW ROUTES
+	userRegistrations := router.Group("/events")
+	userRegistrations.Use(authMiddleware.AuthRequired())
+	{
+		userRegistrations.GET("/user/registrations", guestHandler.GetUserRegistrations)
+	}
+
 	// Guest routes (authentication required)
 	guests := router.Group("/events/:id")
 	guests.Use(authMiddleware.AuthRequired())
@@ -24,7 +31,5 @@ func SetupGuestRoutes(router *gin.Engine, guestHandler *handlers.GuestHandler, a
 		guests.POST("/register", guestHandler.RegisterForEvent)
 		guests.PATCH("/registration", guestHandler.UpdateUserRegistration)
 		guests.DELETE("/registration", guestHandler.CancelUserRegistration)
-		guests.GET("/user/registrations", guestHandler.GetUserRegistrations)
 	}
-
 }

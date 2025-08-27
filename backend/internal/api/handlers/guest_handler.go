@@ -457,6 +457,21 @@ func (h *GuestHandler) GetGuestSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, summary)
 }
 
+// RegisterForEvent handles user registration for a public event
+// @Summary Register for event
+// @Description Register the current user for a public event
+// @Tags user-registrations
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Event ID (UUID)"
+// @Param registration body models.UserEventRegistrationRequest true "Registration data"
+// @Success 201 {object} models.UserEventRegistrationResponse "Registration successful"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden - Event is not public"
+// @Failure 404 {object} map[string]interface{} "Event not found"
+// @Router /events/{id}/register [post]
 func (h *GuestHandler) RegisterForEvent(c *gin.Context) {
 	// Get user context from middleware
 	userCtx, exists := middleware.GetUserFromContext(c)
@@ -505,6 +520,17 @@ func (h *GuestHandler) RegisterForEvent(c *gin.Context) {
 	c.JSON(http.StatusCreated, response)
 }
 
+// GetUserRegistrations handles retrieving all registrations for the current user
+// @Summary Get user registrations
+// @Description Get all event registrations for the current user
+// @Tags user-registrations
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "User registrations with total count"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /events/user/registrations [get]
 func (h *GuestHandler) GetUserRegistrations(c *gin.Context) {
 	// Get user context from middleware
 	userCtx, exists := middleware.GetUserFromContext(c)
@@ -533,6 +559,21 @@ func (h *GuestHandler) GetUserRegistrations(c *gin.Context) {
 	})
 }
 
+// UpdateUserRegistration handles updating a user's event registration
+// @Summary Update user registration
+// @Description Update the current user's event registration
+// @Tags user-registrations
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Event ID (UUID)"
+// @Param registration body models.UpdateGuestRequest true "Registration update data"
+// @Success 200 {object} models.GuestResponse "Registration updated successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 404 {object} map[string]interface{} "Registration not found"
+// @Router /events/{id}/registration [patch]
 func (h *GuestHandler) UpdateUserRegistration(c *gin.Context) {
 	// Get user context from middleware
 	userCtx, exists := middleware.GetUserFromContext(c)
@@ -600,6 +641,20 @@ func (h *GuestHandler) UpdateUserRegistration(c *gin.Context) {
 	c.JSON(http.StatusOK, models.GuestResponse{Guest: updatedGuest})
 }
 
+// CancelUserRegistration handles cancelling a user's event registration
+// @Summary Cancel user registration
+// @Description Cancel the current user's event registration
+// @Tags user-registrations
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Event ID (UUID)"
+// @Success 200 {object} map[string]interface{} "Registration cancelled successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden"
+// @Failure 404 {object} map[string]interface{} "Registration not found"
+// @Router /events/{id}/registration [delete]
 func (h *GuestHandler) CancelUserRegistration(c *gin.Context) {
 	// Get user context from middleware
 	userCtx, exists := middleware.GetUserFromContext(c)

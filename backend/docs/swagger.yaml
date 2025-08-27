@@ -1,5 +1,30 @@
 basePath: /
 definitions:
+  models.AcceptInvitationRequest:
+    properties:
+      notes:
+        example: Vegetarian, allergic to nuts
+        type: string
+      rsvp_status:
+        allOf:
+        - $ref: '#/definitions/models.RSVPStatus'
+        enum:
+        - pending
+        - accept
+        - decline
+        - maybe
+        example: accept
+    required:
+    - rsvp_status
+    type: object
+  models.AcceptInvitationResponse:
+    properties:
+      guest:
+        $ref: '#/definitions/models.Guest'
+      message:
+        example: Successfully accepted invitation
+        type: string
+    type: object
   models.AuthResponse:
     description: Authentication response with user data and JWT token
     properties:
@@ -102,6 +127,29 @@ definitions:
     required:
     - email
     - name
+    type: object
+  models.CreateInvitationRequest:
+    properties:
+      email:
+        example: guest@example.com
+        type: string
+      expires_in_days:
+        example: 30
+        maximum: 90
+        minimum: 1
+        type: integer
+      prefilled_name:
+        example: John Doe
+        type: string
+      prefilled_notes:
+        example: Vegetarian
+        type: string
+      prefilled_phone:
+        example: "+1234567890"
+        type: string
+    required:
+    - email
+    - expires_in_days
     type: object
   models.CreateUserRequest:
     description: User registration request data
@@ -272,6 +320,41 @@ definitions:
         example: RSVP updated successfully
         type: string
     type: object
+  models.GuestRegistrationItem:
+    properties:
+      approved:
+        type: boolean
+      created_at:
+        type: string
+      email:
+        type: string
+      event_id:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+      phone:
+        type: string
+      rsvp_date:
+        type: string
+      rsvp_status:
+        $ref: '#/definitions/models.RSVPStatus'
+      seat:
+        $ref: '#/definitions/models.Seat'
+      seat_id:
+        type: string
+      source:
+        $ref: '#/definitions/models.GuestSource'
+      updated_at:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+      user_id:
+        type: string
+    type: object
   models.GuestResponse:
     description: Guest response data
     properties:
@@ -321,6 +404,81 @@ definitions:
         type: array
       total:
         type: integer
+    type: object
+  models.InvitationListItem:
+    properties:
+      accepted_at:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      prefilled_name:
+        type: string
+      sent_at:
+        type: string
+      status:
+        $ref: '#/definitions/models.InviteStatus'
+    type: object
+  models.InvitationResponse:
+    properties:
+      accepted_at:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      event_id:
+        type: string
+      expired_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      prefilled_name:
+        type: string
+      prefilled_notes:
+        type: string
+      prefilled_phone:
+        type: string
+      sent_at:
+        type: string
+      status:
+        $ref: '#/definitions/models.InviteStatus'
+      updated_at:
+        type: string
+    type: object
+  models.InviteStatus:
+    enum:
+    - sent
+    - accepted
+    - expired
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - InviteStatusSent
+    - InviteStatusAccepted
+    - InviteStatusExpired
+    - InviteStatusCancelled
+  models.PlusOneRequest:
+    description: Plus-one guest information
+    properties:
+      name:
+        example: Jane Doe
+        maxLength: 255
+        minLength: 1
+        type: string
+      notes:
+        example: Also vegetarian
+        maxLength: 1000
+        type: string
+    required:
+    - name
     type: object
   models.RSVPStatus:
     enum:
@@ -483,6 +641,23 @@ definitions:
         - maybe
         example: accept
     type: object
+  models.UpdateInvitationRequest:
+    properties:
+      expires_in_days:
+        example: 30
+        maximum: 90
+        minimum: 1
+        type: integer
+      prefilled_name:
+        example: John Doe
+        type: string
+      prefilled_notes:
+        example: Vegetarian
+        type: string
+      prefilled_phone:
+        example: "+1234567890"
+        type: string
+    type: object
   models.UpdateProfileRequest:
     description: Profile update request data
     properties:
@@ -528,6 +703,24 @@ definitions:
         type: string
       updated_at:
         example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  models.UserEventRegistrationRequest:
+    description: User event registration request data
+    properties:
+      notes:
+        example: Vegetarian, allergic to nuts
+        maxLength: 1000
+        type: string
+      plus_one:
+        $ref: '#/definitions/models.PlusOneRequest'
+    type: object
+  models.UserEventRegistrationResponse:
+    properties:
+      guest:
+        $ref: '#/definitions/models.GuestRegistrationItem'
+      message:
+        example: Successfully registered for event
         type: string
     type: object
 host: localhost:8080
@@ -1213,6 +1406,437 @@ paths:
       summary: Get guest summary
       tags:
       - guests
+  /events/{id}/invitations:
+    get:
+      consumes:
+      - application/json
+      description: Get all invitations for a specific event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of invitations
+          schema:
+            items:
+              $ref: '#/definitions/models.InvitationListItem'
+            type: array
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get event invitations
+      tags:
+      - invitations
+    post:
+      consumes:
+      - application/json
+      description: Create a new invitation for an event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Invitation data
+        in: body
+        name: invitation
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateInvitationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Invitation created successfully
+          schema:
+            $ref: '#/definitions/models.InvitationResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create invitation
+      tags:
+      - invitations
+  /events/{id}/invitations/{invitationId}:
+    delete:
+      consumes:
+      - application/json
+      description: Cancel an existing invitation
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Invitation ID (UUID)
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Invitation cancelled successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Invitation not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel invitation
+      tags:
+      - invitations
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific invitation
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Invitation ID (UUID)
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Invitation details
+          schema:
+            $ref: '#/definitions/models.InvitationResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Invitation not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get invitation details
+      tags:
+      - invitations
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing invitation
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Invitation ID (UUID)
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      - description: Invitation update data
+        in: body
+        name: invitation
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateInvitationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Invitation updated successfully
+          schema:
+            $ref: '#/definitions/models.InvitationResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Invitation not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update invitation
+      tags:
+      - invitations
+  /events/{id}/invitations/{invitationId}/resend:
+    post:
+      consumes:
+      - application/json
+      description: Resend an invitation with a new token
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Invitation ID (UUID)
+        in: path
+        name: invitationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Invitation resent successfully
+          schema:
+            $ref: '#/definitions/models.InvitationResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Invitation not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Resend invitation
+      tags:
+      - invitations
+  /events/{id}/register:
+    post:
+      consumes:
+      - application/json
+      description: Register the current user for a public event
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Registration data
+        in: body
+        name: registration
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserEventRegistrationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Registration successful
+          schema:
+            $ref: '#/definitions/models.UserEventRegistrationResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Event is not public
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Event not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Register for event
+      tags:
+      - user-registrations
+  /events/{id}/registration:
+    delete:
+      consumes:
+      - application/json
+      description: Cancel the current user's event registration
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Registration cancelled successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Registration not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel user registration
+      tags:
+      - user-registrations
+    patch:
+      consumes:
+      - application/json
+      description: Update the current user's event registration
+      parameters:
+      - description: Event ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Registration update data
+        in: body
+        name: registration
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateGuestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Registration updated successfully
+          schema:
+            $ref: '#/definitions/models.GuestResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Registration not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user registration
+      tags:
+      - user-registrations
   /events/public:
     get:
       consumes:
@@ -1228,6 +1852,102 @@ paths:
       summary: Get public events
       tags:
       - events
+  /events/user/registrations:
+    get:
+      consumes:
+      - application/json
+      description: Get all event registrations for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User registrations with total count
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user registrations
+      tags:
+      - user-registrations
+  /invitations/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Get invitation details using the invitation token (public)
+      parameters:
+      - description: Invitation token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Invitation details
+          schema:
+            $ref: '#/definitions/models.InvitationResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Invitation not found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get invitation by token
+      tags:
+      - invitations
+  /invitations/{token}/accept:
+    post:
+      consumes:
+      - application/json
+      description: Accept an invitation using the invitation token (public)
+      parameters:
+      - description: Invitation token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: Acceptance data (RSVP status required, notes optional)
+        in: body
+        name: acceptance
+        required: true
+        schema:
+          $ref: '#/definitions/models.AcceptInvitationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Invitation accepted successfully
+          schema:
+            $ref: '#/definitions/models.AcceptInvitationResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Invitation not found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Accept invitation
+      tags:
+      - invitations
   /profile:
     get:
       consumes:

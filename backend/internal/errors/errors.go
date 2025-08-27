@@ -38,3 +38,13 @@ var (
 	ErrGuestAlreadyExists = errors.New("guest already exists for this event")
 	ErrAccessDenied       = errors.New("access denied to this resource")
 )
+
+var (
+	ErrInvitationNotFound          = errors.New("invitation not found")
+	ErrInvitationAlreadyExists     = errors.New("invitation already exists for this email and event")
+	ErrInvitationCannotBeUpdated   = errors.New("invitation cannot be updated in its current status")
+	ErrInvitationCannotBeCancelled = errors.New("invitation cannot be cancelled in its current status")
+	ErrInvitationCannotBeAccepted  = errors.New("invitation cannot be accepted in its current status")
+	ErrInvitationCannotBeResent    = errors.New("invitation cannot be resent in its current status")
+	ErrInvitationExpired           = errors.New("invitation has expired")
+)

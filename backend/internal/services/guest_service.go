@@ -66,8 +66,8 @@ func (s *GuestService) CreateGuest(eventID, ownerID uuid.UUID, req *models.Creat
 		return nil, fmt.Errorf("failed to create guest: %w", result.Error)
 	}
 
-	// Load the guest with event information
-	if err := s.db.Preload("Event").First(guest, guest.ID).Error; err != nil {
+	// Load the created guest with event information
+	if err := s.db.Preload("Event").Preload("Event.Owner").First(guest, guest.ID).Error; err != nil {
 		return nil, fmt.Errorf("failed to load created guest: %w", err)
 	}
 
@@ -77,7 +77,7 @@ func (s *GuestService) CreateGuest(eventID, ownerID uuid.UUID, req *models.Creat
 // GetGuestByID retrieves a guest by ID
 func (s *GuestService) GetGuestByID(guestID, ownerID uuid.UUID) (*models.Guest, error) {
 	var guest models.Guest
-	result := s.db.Preload("Event").First(&guest, guestID)
+	result := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guestID)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, customerrors.ErrGuestNotFound
@@ -102,6 +102,9 @@ func (s *GuestService) GetGuestsByEvent(eventID, ownerID uuid.UUID) ([]models.Gu
 
 	var guests []models.Guest
 	result := s.db.Where("event_id = ?", eventID).
+		Preload("Event").
+		Preload("Event.Owner").
+		Preload("User").
 		Order("name ASC").
 		Find(&guests)
 	if result.Error != nil {
@@ -114,7 +117,7 @@ func (s *GuestService) GetGuestsByEvent(eventID, ownerID uuid.UUID) ([]models.Gu
 // UpdateGuest updates an existing guest
 func (s *GuestService) UpdateGuest(guestID, ownerID uuid.UUID, req *models.UpdateGuestRequest) (*models.Guest, error) {
 	var guest models.Guest
-	result := s.db.Preload("Event").First(&guest, guestID)
+	result := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guestID)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, customerrors.ErrGuestNotFound
@@ -161,7 +164,7 @@ func (s *GuestService) UpdateGuest(guestID, ownerID uuid.UUID, req *models.Updat
 	}
 
 	// Load the updated guest with event information
-	if err := s.db.Preload("Event").First(&guest, guest.ID).Error; err != nil {
+	if err := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guest.ID).Error; err != nil {
 		return nil, fmt.Errorf("failed to load updated guest: %w", err)
 	}
 
@@ -171,7 +174,7 @@ func (s *GuestService) UpdateGuest(guestID, ownerID uuid.UUID, req *models.Updat
 // UpdateGuestRSVP updates a guest's RSVP status
 func (s *GuestService) UpdateGuestRSVP(guestID, ownerID uuid.UUID, req *models.UpdateGuestRSVPRequest) (*models.Guest, error) {
 	var guest models.Guest
-	result := s.db.Preload("Event").First(&guest, guestID)
+	result := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guestID)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, customerrors.ErrGuestNotFound
@@ -200,7 +203,7 @@ func (s *GuestService) UpdateGuestRSVP(guestID, ownerID uuid.UUID, req *models.U
 	}
 
 	// Load the updated guest with event information
-	if err := s.db.Preload("Event").First(&guest, guest.ID).Error; err != nil {
+	if err := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guest.ID).Error; err != nil {
 		return nil, fmt.Errorf("failed to load updated guest: %w", err)
 	}
 
@@ -210,7 +213,7 @@ func (s *GuestService) UpdateGuestRSVP(guestID, ownerID uuid.UUID, req *models.U
 // DeleteGuest removes a guest from an event
 func (s *GuestService) DeleteGuest(guestID, ownerID uuid.UUID) error {
 	var guest models.Guest
-	result := s.db.Preload("Event").First(&guest, guestID)
+	result := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guestID)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return customerrors.ErrGuestNotFound
@@ -234,7 +237,7 @@ func (s *GuestService) DeleteGuest(guestID, ownerID uuid.UUID) error {
 // ApproveGuest approves a pending guest
 func (s *GuestService) ApproveGuest(guestID, ownerID uuid.UUID) (*models.Guest, error) {
 	var guest models.Guest
-	result := s.db.Preload("Event").First(&guest, guestID)
+	result := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guestID)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, customerrors.ErrGuestNotFound
@@ -265,7 +268,7 @@ func (s *GuestService) ApproveGuest(guestID, ownerID uuid.UUID) (*models.Guest, 
 	}
 
 	// Load the updated guest with event information
-	if err := s.db.Preload("Event").First(&guest, guest.ID).Error; err != nil {
+	if err := s.db.Preload("Event").Preload("Event.Owner").First(&guest, guest.ID).Error; err != nil {
 		return nil, fmt.Errorf("failed to load updated guest: %w", err)
 	}
 
@@ -417,48 +420,68 @@ func (s *GuestService) RegisterUserForEvent(eventID, userID uuid.UUID, req *mode
 		return nil, fmt.Errorf("failed to load created guest: %w", err)
 	}
 
+	// Create response
 	response := &models.UserEventRegistrationResponse{
-		Guest:   guest,
+		Guest: models.GuestRegistrationItem{
+			ID:         guest.ID,
+			EventID:    guest.EventID,
+			UserID:     guest.UserID,
+			User:       &user,
+			Name:       guest.Name,
+			Email:      guest.Email,
+			Phone:      guest.Phone,
+			Notes:      guest.Notes,
+			RSVPStatus: guest.RSVPStatus,
+			RSVPDate:   guest.RSVPDate,
+			SeatID:     guest.SeatID,
+			Seat:       guest.Seat,
+			Source:     guest.Source,
+			Approved:   guest.Approved,
+			CreatedAt:  guest.CreatedAt,
+			UpdatedAt:  guest.UpdatedAt,
+		},
 		Message: "Successfully registered for event",
-	}
-
-	// Handle plus-one registration if provided
-	if req.PlusOne != nil {
-		plusOne := &models.Guest{
-			EventID:    eventID,
-			Name:       req.PlusOne.Name,
-			Email:      "", // Plus-one doesn't have email
-			Phone:      nil,
-			Notes:      req.PlusOne.Notes,
-			RSVPStatus: models.RSVPStatusPending,
-			Source:     models.GuestSourceUserRegistration,
-			Approved:   !event.RequireApproval,
-		}
-
-		result = s.db.Create(plusOne)
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to create plus-one registration: %w", result.Error)
-		}
-
-		response.PlusOne = plusOne
-		response.Message = "Successfully registered for event with plus-one"
 	}
 
 	return response, nil
 }
 
 // GetUserRegistrations retrieves all event registrations for a specific user
-func (s *GuestService) GetUserRegistrations(userID uuid.UUID) ([]models.Guest, error) {
+func (s *GuestService) GetUserRegistrations(userID uuid.UUID) ([]models.GuestRegistrationItem, error) {
 	var guests []models.Guest
 	result := s.db.Where("user_id = ?", userID).
-		Preload("Event").
+		Preload("User").
 		Order("created_at DESC").
 		Find(&guests)
 	if result.Error != nil {
 		return nil, fmt.Errorf("error finding user registrations: %w", result.Error)
 	}
 
-	return guests, nil
+	// Convert to GuestRegistrationItem to exclude event data
+	var items []models.GuestRegistrationItem
+	for _, guest := range guests {
+		item := models.GuestRegistrationItem{
+			ID:         guest.ID,
+			EventID:    guest.EventID,
+			UserID:     guest.UserID,
+			User:       guest.User,
+			Name:       guest.Name,
+			Email:      guest.Email,
+			Phone:      guest.Phone,
+			Notes:      guest.Notes,
+			RSVPStatus: guest.RSVPStatus,
+			RSVPDate:   guest.RSVPDate,
+			SeatID:     guest.SeatID,
+			Seat:       guest.Seat,
+			Source:     guest.Source,
+			Approved:   guest.Approved,
+			CreatedAt:  guest.CreatedAt,
+			UpdatedAt:  guest.UpdatedAt,
+		}
+		items = append(items, item)
+	}
+
+	return items, nil
 }
 
 // GetUserRegistrationCount returns the total number of registrations for a user
@@ -522,7 +545,7 @@ func (s *GuestService) UpdateUserRegistration(guestID, userID uuid.UUID, req *mo
 	}
 
 	// Load the updated guest with user information
-	if err := s.db.Preload("User").First(&guest, guest.ID).Error; err != nil {
+	if err := s.db.Preload("User").Preload("Event").Preload("Event.Owner").First(&guest, guest.ID).Error; err != nil {
 		return nil, fmt.Errorf("failed to load updated guest: %w", err)
 	}
 

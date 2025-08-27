@@ -41,6 +41,11 @@ func SetupRoutes(
 	guestHandler := handlers.NewGuestHandler(guestService)
 	SetupGuestRoutes(router, guestHandler, authMiddleware)
 
+	// Initialize invitation handler and setup routes
+	invitationService := services.NewInvitationService(db)
+	invitationHandler := handlers.NewInvitationHandler(invitationService)
+	SetupInvitationRoutes(router, invitationHandler, authMiddleware)
+
 	// Future route groups can be added here:
 	// SetupUserRoutes(router, userHandler, authMiddleware)
 
