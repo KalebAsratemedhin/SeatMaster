@@ -48,3 +48,22 @@ var (
 	ErrInvitationCannotBeResent    = errors.New("invitation cannot be resent in its current status")
 	ErrInvitationExpired           = errors.New("invitation has expired")
 )
+
+// Venue errors
+var (
+	ErrVenueNotFound = errors.New("venue not found")
+	ErrVenueAccess   = errors.New("access denied to venue")
+)
+
+// Room errors
+var (
+	ErrRoomNotFound = errors.New("room not found")
+	ErrRoomAccess   = errors.New("access denied to room")
+)
+
+// Seat errors
+var (
+	ErrSeatNotFound = errors.New("seat not found")
+	ErrSeatAccess   = errors.New("access denied to seat")
+	ErrSeatOccupied = errors.New("seat is already occupied")
+)

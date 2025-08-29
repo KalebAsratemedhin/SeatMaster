@@ -46,6 +46,21 @@ func SetupRoutes(
 	invitationHandler := handlers.NewInvitationHandler(invitationService)
 	SetupInvitationRoutes(router, invitationHandler, authMiddleware)
 
+	// Initialize venue handler and setup routes
+	venueService := services.NewVenueService(db)
+	venueHandler := handlers.NewVenueHandler(venueService)
+	SetupVenueRoutes(router, venueHandler, authMiddleware)
+
+	// Initialize room handler and setup routes
+	roomService := services.NewRoomService(db)
+	roomHandler := handlers.NewRoomHandler(roomService)
+	SetupRoomRoutes(router, roomHandler, authMiddleware)
+
+	// Initialize seat handler and setup routes
+	seatService := services.NewSeatService(db)
+	seatHandler := handlers.NewSeatHandler(seatService)
+	SetupSeatRoutes(router, seatHandler, authMiddleware)
+
 	// Future route groups can be added here:
 	// SetupUserRoutes(router, userHandler, authMiddleware)
 

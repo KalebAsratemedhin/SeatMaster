@@ -1741,6 +1741,215 @@
                 }
             }
         },
+        "/events/{id}/seating": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all seat assignments for an event",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seating"
+                ],
+                "summary": "Get seat assignments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SeatingAssignmentsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/events/{id}/seating/assign": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a guest to a specific seat for an event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seating"
+                ],
+                "summary": "Assign guest to seat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Seat ID",
+                        "name": "seatId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Seating assignment data",
+                        "name": "assignment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateSeatingAssignmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.SeatingAssignmentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/events/{id}/seating/assign/{seatId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a guest from a specific seat",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seating"
+                ],
+                "summary": "Unassign guest from seat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Event ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Seat ID",
+                        "name": "seatId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/invitations/{token}": {
             "get": {
                 "description": "Get invitation details using the invitation token (public)",
@@ -2004,6 +2213,1069 @@
                     }
                 }
             }
+        },
+        "/venues": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all venues owned by the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "venues"
+                ],
+                "summary": "Get user's venues",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.VenuesResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new venue for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "venues"
+                ],
+                "summary": "Create a new venue",
+                "parameters": [
+                    {
+                        "description": "Venue creation data",
+                        "name": "venue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateVenueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.VenueResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/venues/public": {
+            "get": {
+                "description": "Retrieve all public venues",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "venues"
+                ],
+                "summary": "Get public venues",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.VenuesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/venues/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a specific venue by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "venues"
+                ],
+                "summary": "Get venue by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.VenueResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an existing venue",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "venues"
+                ],
+                "summary": "Delete venue",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing venue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "venues"
+                ],
+                "summary": "Update venue",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Venue update data",
+                        "name": "venue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateVenueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.VenueResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/venues/{id}/rooms": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all rooms in a specific venue",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Get rooms in venue",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RoomsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new room in a venue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Create a new room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Room creation data",
+                        "name": "room",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateRoomRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.RoomResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/venues/{id}/rooms/{roomId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a specific room by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Get room by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RoomResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an existing room",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Delete room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Update room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Room update data",
+                        "name": "room",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateRoomRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RoomResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/venues/{id}/rooms/{roomId}/seats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all seats in a specific room",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seats"
+                ],
+                "summary": "Get seats in room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SeatsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new seat in a room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seats"
+                ],
+                "summary": "Create a new seat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Seat creation data",
+                        "name": "seat",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateSeatRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.SeatResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/venues/{id}/rooms/{roomId}/seats/grid": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create multiple seats in a grid layout",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seats"
+                ],
+                "summary": "Create a grid of seats",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Seat grid creation data",
+                        "name": "grid",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateSeatGridRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.SeatsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/venues/{id}/rooms/{roomId}/seats/{seatId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an existing seat",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seats"
+                ],
+                "summary": "Delete seat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Seat ID",
+                        "name": "seatId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing seat",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "seats"
+                ],
+                "summary": "Update seat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Venue ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Seat ID",
+                        "name": "seatId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Seat update data",
+                        "name": "seat",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateSeatRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SeatResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2216,6 +3488,229 @@
                 }
             }
         },
+        "models.CreateRoomRequest": {
+            "description": "Room creation request data",
+            "type": "object",
+            "required": [
+                "capacity",
+                "name",
+                "room_type"
+            ],
+            "properties": {
+                "capacity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 200
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Spacious ballroom with high ceilings"
+                },
+                "floor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Main Ballroom"
+                },
+                "room_type": {
+                    "enum": [
+                        "general",
+                        "ballroom",
+                        "conference",
+                        "theater",
+                        "banquet",
+                        "outdoor"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.RoomType"
+                        }
+                    ],
+                    "example": "ballroom"
+                }
+            }
+        },
+        "models.CreateSeatGridRequest": {
+            "description": "Seat grid creation request data",
+            "type": "object",
+            "required": [
+                "category",
+                "end_number",
+                "end_row",
+                "spacing_x",
+                "spacing_y",
+                "start_number",
+                "start_row",
+                "start_x",
+                "start_y"
+            ],
+            "properties": {
+                "category": {
+                    "enum": [
+                        "standard",
+                        "vip",
+                        "accessible",
+                        "premium",
+                        "economy",
+                        "standing"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SeatCategory"
+                        }
+                    ],
+                    "example": "standard"
+                },
+                "end_number": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 20
+                },
+                "end_row": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 1,
+                    "example": "Z"
+                },
+                "spacing_x": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "example": 1.2
+                },
+                "spacing_y": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "example": 1.2
+                },
+                "start_number": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
+                "start_row": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 1,
+                    "example": "A"
+                },
+                "start_x": {
+                    "type": "number",
+                    "example": 0
+                },
+                "start_y": {
+                    "type": "number",
+                    "example": 0
+                }
+            }
+        },
+        "models.CreateSeatRequest": {
+            "description": "Seat creation request data",
+            "type": "object",
+            "required": [
+                "category",
+                "number",
+                "row",
+                "status",
+                "x",
+                "y"
+            ],
+            "properties": {
+                "category": {
+                    "enum": [
+                        "standard",
+                        "vip",
+                        "accessible",
+                        "premium",
+                        "economy",
+                        "standing"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SeatCategory"
+                        }
+                    ],
+                    "example": "standard"
+                },
+                "height": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "example": 1
+                },
+                "number": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 1,
+                    "example": "1"
+                },
+                "rotation": {
+                    "type": "number",
+                    "example": 0
+                },
+                "row": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 1,
+                    "example": "A"
+                },
+                "status": {
+                    "enum": [
+                        "available",
+                        "occupied",
+                        "reserved",
+                        "blocked",
+                        "maintenance"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SeatStatus"
+                        }
+                    ],
+                    "example": "available"
+                },
+                "width": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "example": 1
+                },
+                "x": {
+                    "type": "number",
+                    "example": 10.5
+                },
+                "y": {
+                    "type": "number",
+                    "example": 15.2
+                }
+            }
+        },
+        "models.CreateSeatingAssignmentRequest": {
+            "description": "Seating assignment creation request data",
+            "type": "object",
+            "required": [
+                "guest_id",
+                "seat_id"
+            ],
+            "properties": {
+                "guest_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "notes": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "VIP guest - front row preference"
+                },
+                "seat_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
         "models.CreateUserRequest": {
             "description": "User registration request data",
             "type": "object",
@@ -2246,6 +3741,70 @@
                 "phone": {
                     "type": "string",
                     "example": "+1234567890"
+                }
+            }
+        },
+        "models.CreateVenueRequest": {
+            "description": "Venue creation request data",
+            "type": "object",
+            "required": [
+                "address",
+                "city",
+                "country",
+                "name",
+                "postal_code",
+                "state"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "123 Main Street"
+                },
+                "city": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "New York"
+                },
+                "country": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "USA"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Elegant ballroom with modern amenities"
+                },
+                "is_public": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Grand Hotel Ballroom"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "+1-555-123-4567"
+                },
+                "postal_code": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "10001"
+                },
+                "state": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "NY"
+                },
+                "website": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "https://grandhotel.com"
                 }
             }
         },
@@ -2705,16 +4264,223 @@
                 "RSVPStatusMaybe"
             ]
         },
-        "models.Seat": {
-            "description": "Seat information for event seating arrangements",
+        "models.Room": {
+            "description": "Room information and details",
             "type": "object",
             "properties": {
-                "column_number": {
+                "capacity": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Spacious ballroom with high ceilings"
+                },
+                "floor": {
                     "type": "integer",
                     "example": 1
                 },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Main Ballroom"
+                },
+                "room_type": {
+                    "$ref": "#/definitions/models.RoomType"
+                },
+                "seats": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Seat"
+                    }
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "venue": {
+                    "$ref": "#/definitions/models.Venue"
+                },
+                "venue_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RoomResponse": {
+            "description": "Room response data",
+            "type": "object",
+            "properties": {
+                "room": {
+                    "$ref": "#/definitions/models.Room"
+                }
+            }
+        },
+        "models.RoomType": {
+            "type": "string",
+            "enum": [
+                "general",
+                "ballroom",
+                "conference",
+                "theater",
+                "banquet",
+                "outdoor"
+            ],
+            "x-enum-varnames": [
+                "RoomTypeGeneral",
+                "RoomTypeBallroom",
+                "RoomTypeConference",
+                "RoomTypeTheater",
+                "RoomTypeBanquet",
+                "RoomTypeOutdoor"
+            ]
+        },
+        "models.RoomsResponse": {
+            "description": "Multiple rooms response data",
+            "type": "object",
+            "properties": {
+                "rooms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Room"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Seat": {
+            "description": "Seat information and details",
+            "type": "object",
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/models.SeatCategory"
+                },
                 "created_at": {
-                    "description": "Timestamps",
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "guest": {
+                    "$ref": "#/definitions/models.Guest"
+                },
+                "guest_id": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "number",
+                    "example": 1
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "number": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "room": {
+                    "$ref": "#/definitions/models.Room"
+                },
+                "room_id": {
+                    "type": "string"
+                },
+                "rotation": {
+                    "type": "number",
+                    "example": 0
+                },
+                "row": {
+                    "type": "string",
+                    "example": "A"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.SeatStatus"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "width": {
+                    "type": "number",
+                    "example": 1
+                },
+                "x": {
+                    "description": "Position X coordinate",
+                    "type": "number",
+                    "example": 10.5
+                },
+                "y": {
+                    "description": "Position Y coordinate",
+                    "type": "number",
+                    "example": 15.2
+                }
+            }
+        },
+        "models.SeatCategory": {
+            "type": "string",
+            "enum": [
+                "standard",
+                "vip",
+                "accessible",
+                "premium",
+                "economy",
+                "standing"
+            ],
+            "x-enum-varnames": [
+                "SeatCategoryStandard",
+                "SeatCategoryVIP",
+                "SeatCategoryAccessible",
+                "SeatCategoryPremium",
+                "SeatCategoryEconomy",
+                "SeatCategoryStanding"
+            ]
+        },
+        "models.SeatResponse": {
+            "description": "Seat response data",
+            "type": "object",
+            "properties": {
+                "seat": {
+                    "$ref": "#/definitions/models.Seat"
+                }
+            }
+        },
+        "models.SeatStatus": {
+            "type": "string",
+            "enum": [
+                "available",
+                "occupied",
+                "reserved",
+                "blocked",
+                "maintenance"
+            ],
+            "x-enum-varnames": [
+                "SeatStatusAvailable",
+                "SeatStatusOccupied",
+                "SeatStatusReserved",
+                "SeatStatusBlocked",
+                "SeatStatusMaintenance"
+            ]
+        },
+        "models.SeatingAssignment": {
+            "description": "Seating assignment information and details",
+            "type": "object",
+            "properties": {
+                "assigned_at": {
+                    "type": "string"
+                },
+                "assigned_by": {
+                    "type": "string"
+                },
+                "assigned_by_user": {
+                    "$ref": "#/definitions/models.User"
+                },
+                "created_at": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
                 },
@@ -2724,33 +4490,68 @@
                 "event_id": {
                     "type": "string"
                 },
+                "guest": {
+                    "$ref": "#/definitions/models.Guest"
+                },
+                "guest_id": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
-                "is_available": {
-                    "description": "Seating Status",
-                    "type": "boolean"
-                },
-                "is_reserved": {
-                    "type": "boolean"
-                },
-                "row_number": {
+                "notes": {
                     "type": "string",
-                    "example": "A"
+                    "example": "VIP guest - front row preference"
                 },
-                "seat_number": {
-                    "description": "Seat Information",
-                    "type": "string",
-                    "example": "A1"
+                "seat": {
+                    "$ref": "#/definitions/models.Seat"
                 },
-                "section": {
-                    "type": "string",
-                    "example": "Main Floor"
+                "seat_id": {
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
+        "models.SeatingAssignmentResponse": {
+            "description": "Seating assignment response data",
+            "type": "object",
+            "properties": {
+                "seating_assignment": {
+                    "$ref": "#/definitions/models.SeatingAssignment"
+                }
+            }
+        },
+        "models.SeatingAssignmentsResponse": {
+            "description": "Multiple seating assignments response data",
+            "type": "object",
+            "properties": {
+                "seating_assignments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SeatingAssignment"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.SeatsResponse": {
+            "description": "Multiple seats response data",
+            "type": "object",
+            "properties": {
+                "seats": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Seat"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -2961,6 +4762,176 @@
                 }
             }
         },
+        "models.UpdateRoomRequest": {
+            "description": "Room update request data",
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 250
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Spacious ballroom with high ceilings"
+                },
+                "floor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Main Ballroom"
+                },
+                "room_type": {
+                    "enum": [
+                        "general",
+                        "ballroom",
+                        "conference",
+                        "theater",
+                        "banquet",
+                        "outdoor"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.RoomType"
+                        }
+                    ],
+                    "example": "ballroom"
+                }
+            }
+        },
+        "models.UpdateSeatRequest": {
+            "description": "Seat update request data",
+            "type": "object",
+            "properties": {
+                "category": {
+                    "enum": [
+                        "standard",
+                        "vip",
+                        "accessible",
+                        "premium",
+                        "economy",
+                        "standing"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SeatCategory"
+                        }
+                    ],
+                    "example": "vip"
+                },
+                "height": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "example": 1.2
+                },
+                "number": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 1,
+                    "example": "2"
+                },
+                "rotation": {
+                    "type": "number",
+                    "example": 45
+                },
+                "row": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 1,
+                    "example": "B"
+                },
+                "status": {
+                    "enum": [
+                        "available",
+                        "occupied",
+                        "reserved",
+                        "blocked",
+                        "maintenance"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SeatStatus"
+                        }
+                    ],
+                    "example": "reserved"
+                },
+                "width": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "example": 1.2
+                },
+                "x": {
+                    "type": "number",
+                    "example": 12
+                },
+                "y": {
+                    "type": "number",
+                    "example": 18
+                }
+            }
+        },
+        "models.UpdateVenueRequest": {
+            "description": "Venue update request data",
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "123 Main Street"
+                },
+                "city": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "New York"
+                },
+                "country": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "USA"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Elegant ballroom with modern amenities"
+                },
+                "is_public": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Grand Hotel Ballroom"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "+1-555-123-4567"
+                },
+                "postal_code": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "10001"
+                },
+                "state": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "NY"
+                },
+                "website": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "https://grandhotel.com"
+                }
+            }
+        },
         "models.User": {
             "description": "User account information",
             "type": "object",
@@ -3022,6 +4993,99 @@
                 "message": {
                     "type": "string",
                     "example": "Successfully registered for event"
+                }
+            }
+        },
+        "models.Venue": {
+            "description": "Venue information and details",
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "123 Main Street"
+                },
+                "city": {
+                    "type": "string",
+                    "example": "New York"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "USA"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Elegant ballroom with modern amenities"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Grand Hotel Ballroom"
+                },
+                "owner": {
+                    "$ref": "#/definitions/models.User"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1-555-123-4567"
+                },
+                "postal_code": {
+                    "type": "string",
+                    "example": "10001"
+                },
+                "rooms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Room"
+                    }
+                },
+                "state": {
+                    "type": "string",
+                    "example": "NY"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://grandhotel.com"
+                }
+            }
+        },
+        "models.VenueResponse": {
+            "description": "Venue response data",
+            "type": "object",
+            "properties": {
+                "venue": {
+                    "$ref": "#/definitions/models.Venue"
+                }
+            }
+        },
+        "models.VenuesResponse": {
+            "description": "Multiple venues response data",
+            "type": "object",
+            "properties": {
+                "total": {
+                    "type": "integer"
+                },
+                "venues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Venue"
+                    }
                 }
             }
         }

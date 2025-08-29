@@ -151,6 +151,175 @@ definitions:
     - email
     - expires_in_days
     type: object
+  models.CreateRoomRequest:
+    description: Room creation request data
+    properties:
+      capacity:
+        example: 200
+        minimum: 1
+        type: integer
+      description:
+        example: Spacious ballroom with high ceilings
+        maxLength: 1000
+        type: string
+      floor:
+        example: 1
+        minimum: 0
+        type: integer
+      name:
+        example: Main Ballroom
+        maxLength: 255
+        minLength: 1
+        type: string
+      room_type:
+        allOf:
+        - $ref: '#/definitions/models.RoomType'
+        enum:
+        - general
+        - ballroom
+        - conference
+        - theater
+        - banquet
+        - outdoor
+        example: ballroom
+    required:
+    - capacity
+    - name
+    - room_type
+    type: object
+  models.CreateSeatGridRequest:
+    description: Seat grid creation request data
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/models.SeatCategory'
+        enum:
+        - standard
+        - vip
+        - accessible
+        - premium
+        - economy
+        - standing
+        example: standard
+      end_number:
+        example: 20
+        minimum: 1
+        type: integer
+      end_row:
+        example: Z
+        maxLength: 10
+        minLength: 1
+        type: string
+      spacing_x:
+        example: 1.2
+        minimum: 0.1
+        type: number
+      spacing_y:
+        example: 1.2
+        minimum: 0.1
+        type: number
+      start_number:
+        example: 1
+        minimum: 1
+        type: integer
+      start_row:
+        example: A
+        maxLength: 10
+        minLength: 1
+        type: string
+      start_x:
+        example: 0
+        type: number
+      start_y:
+        example: 0
+        type: number
+    required:
+    - category
+    - end_number
+    - end_row
+    - spacing_x
+    - spacing_y
+    - start_number
+    - start_row
+    - start_x
+    - start_y
+    type: object
+  models.CreateSeatRequest:
+    description: Seat creation request data
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/models.SeatCategory'
+        enum:
+        - standard
+        - vip
+        - accessible
+        - premium
+        - economy
+        - standing
+        example: standard
+      height:
+        example: 1
+        minimum: 0.1
+        type: number
+      number:
+        example: "1"
+        maxLength: 10
+        minLength: 1
+        type: string
+      rotation:
+        example: 0
+        type: number
+      row:
+        example: A
+        maxLength: 10
+        minLength: 1
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.SeatStatus'
+        enum:
+        - available
+        - occupied
+        - reserved
+        - blocked
+        - maintenance
+        example: available
+      width:
+        example: 1
+        minimum: 0.1
+        type: number
+      x:
+        example: 10.5
+        type: number
+      "y":
+        example: 15.2
+        type: number
+    required:
+    - category
+    - number
+    - row
+    - status
+    - x
+    - "y"
+    type: object
+  models.CreateSeatingAssignmentRequest:
+    description: Seating assignment creation request data
+    properties:
+      guest_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      notes:
+        example: VIP guest - front row preference
+        maxLength: 500
+        type: string
+      seat_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - guest_id
+    - seat_id
+    type: object
   models.CreateUserRequest:
     description: User registration request data
     properties:
@@ -175,6 +344,57 @@ definitions:
     - first_name
     - last_name
     - password
+    type: object
+  models.CreateVenueRequest:
+    description: Venue creation request data
+    properties:
+      address:
+        example: 123 Main Street
+        maxLength: 255
+        type: string
+      city:
+        example: New York
+        maxLength: 100
+        type: string
+      country:
+        example: USA
+        maxLength: 100
+        type: string
+      description:
+        example: Elegant ballroom with modern amenities
+        maxLength: 1000
+        type: string
+      is_public:
+        example: false
+        type: boolean
+      name:
+        example: Grand Hotel Ballroom
+        maxLength: 255
+        minLength: 1
+        type: string
+      phone:
+        example: +1-555-123-4567
+        maxLength: 20
+        type: string
+      postal_code:
+        example: "10001"
+        maxLength: 20
+        type: string
+      state:
+        example: NY
+        maxLength: 100
+        type: string
+      website:
+        example: https://grandhotel.com
+        maxLength: 255
+        type: string
+    required:
+    - address
+    - city
+    - country
+    - name
+    - postal_code
+    - state
     type: object
   models.Event:
     description: Event information and details
@@ -492,41 +712,216 @@ definitions:
     - RSVPStatusAccept
     - RSVPStatusDecline
     - RSVPStatusMaybe
-  models.Seat:
-    description: Seat information for event seating arrangements
+  models.Room:
+    description: Room information and details
     properties:
-      column_number:
-        example: 1
+      capacity:
+        example: 200
         type: integer
       created_at:
-        description: Timestamps
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      description:
+        example: Spacious ballroom with high ceilings
+        type: string
+      floor:
+        example: 1
+        type: integer
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Main Ballroom
+        type: string
+      room_type:
+        $ref: '#/definitions/models.RoomType'
+      seats:
+        items:
+          $ref: '#/definitions/models.Seat'
+        type: array
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      venue:
+        $ref: '#/definitions/models.Venue'
+      venue_id:
+        type: string
+    type: object
+  models.RoomResponse:
+    description: Room response data
+    properties:
+      room:
+        $ref: '#/definitions/models.Room'
+    type: object
+  models.RoomType:
+    enum:
+    - general
+    - ballroom
+    - conference
+    - theater
+    - banquet
+    - outdoor
+    type: string
+    x-enum-varnames:
+    - RoomTypeGeneral
+    - RoomTypeBallroom
+    - RoomTypeConference
+    - RoomTypeTheater
+    - RoomTypeBanquet
+    - RoomTypeOutdoor
+  models.RoomsResponse:
+    description: Multiple rooms response data
+    properties:
+      rooms:
+        items:
+          $ref: '#/definitions/models.Room'
+        type: array
+      total:
+        type: integer
+    type: object
+  models.Seat:
+    description: Seat information and details
+    properties:
+      category:
+        $ref: '#/definitions/models.SeatCategory'
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      guest:
+        $ref: '#/definitions/models.Guest'
+      guest_id:
+        type: string
+      height:
+        example: 1
+        type: number
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      number:
+        example: "1"
+        type: string
+      room:
+        $ref: '#/definitions/models.Room'
+      room_id:
+        type: string
+      rotation:
+        example: 0
+        type: number
+      row:
+        example: A
+        type: string
+      status:
+        $ref: '#/definitions/models.SeatStatus'
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      width:
+        example: 1
+        type: number
+      x:
+        description: Position X coordinate
+        example: 10.5
+        type: number
+      "y":
+        description: Position Y coordinate
+        example: 15.2
+        type: number
+    type: object
+  models.SeatCategory:
+    enum:
+    - standard
+    - vip
+    - accessible
+    - premium
+    - economy
+    - standing
+    type: string
+    x-enum-varnames:
+    - SeatCategoryStandard
+    - SeatCategoryVIP
+    - SeatCategoryAccessible
+    - SeatCategoryPremium
+    - SeatCategoryEconomy
+    - SeatCategoryStanding
+  models.SeatResponse:
+    description: Seat response data
+    properties:
+      seat:
+        $ref: '#/definitions/models.Seat'
+    type: object
+  models.SeatStatus:
+    enum:
+    - available
+    - occupied
+    - reserved
+    - blocked
+    - maintenance
+    type: string
+    x-enum-varnames:
+    - SeatStatusAvailable
+    - SeatStatusOccupied
+    - SeatStatusReserved
+    - SeatStatusBlocked
+    - SeatStatusMaintenance
+  models.SeatingAssignment:
+    description: Seating assignment information and details
+    properties:
+      assigned_at:
+        type: string
+      assigned_by:
+        type: string
+      assigned_by_user:
+        $ref: '#/definitions/models.User'
+      created_at:
         example: "2024-01-01T00:00:00Z"
         type: string
       event:
         $ref: '#/definitions/models.Event'
       event_id:
         type: string
+      guest:
+        $ref: '#/definitions/models.Guest'
+      guest_id:
+        type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
-      is_available:
-        description: Seating Status
-        type: boolean
-      is_reserved:
-        type: boolean
-      row_number:
-        example: A
+      notes:
+        example: VIP guest - front row preference
         type: string
-      seat_number:
-        description: Seat Information
-        example: A1
-        type: string
-      section:
-        example: Main Floor
+      seat:
+        $ref: '#/definitions/models.Seat'
+      seat_id:
         type: string
       updated_at:
         example: "2024-01-01T00:00:00Z"
         type: string
+    type: object
+  models.SeatingAssignmentResponse:
+    description: Seating assignment response data
+    properties:
+      seating_assignment:
+        $ref: '#/definitions/models.SeatingAssignment'
+    type: object
+  models.SeatingAssignmentsResponse:
+    description: Multiple seating assignments response data
+    properties:
+      seating_assignments:
+        items:
+          $ref: '#/definitions/models.SeatingAssignment'
+        type: array
+      total:
+        type: integer
+    type: object
+  models.SeatsResponse:
+    description: Multiple seats response data
+    properties:
+      seats:
+        items:
+          $ref: '#/definitions/models.Seat'
+        type: array
+      total:
+        type: integer
     type: object
   models.SignInRequest:
     description: User login request data
@@ -677,6 +1072,134 @@ definitions:
     - first_name
     - last_name
     type: object
+  models.UpdateRoomRequest:
+    description: Room update request data
+    properties:
+      capacity:
+        example: 250
+        minimum: 1
+        type: integer
+      description:
+        example: Spacious ballroom with high ceilings
+        maxLength: 1000
+        type: string
+      floor:
+        example: 1
+        minimum: 0
+        type: integer
+      name:
+        example: Main Ballroom
+        maxLength: 255
+        minLength: 1
+        type: string
+      room_type:
+        allOf:
+        - $ref: '#/definitions/models.RoomType'
+        enum:
+        - general
+        - ballroom
+        - conference
+        - theater
+        - banquet
+        - outdoor
+        example: ballroom
+    type: object
+  models.UpdateSeatRequest:
+    description: Seat update request data
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/models.SeatCategory'
+        enum:
+        - standard
+        - vip
+        - accessible
+        - premium
+        - economy
+        - standing
+        example: vip
+      height:
+        example: 1.2
+        minimum: 0.1
+        type: number
+      number:
+        example: "2"
+        maxLength: 10
+        minLength: 1
+        type: string
+      rotation:
+        example: 45
+        type: number
+      row:
+        example: B
+        maxLength: 10
+        minLength: 1
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.SeatStatus'
+        enum:
+        - available
+        - occupied
+        - reserved
+        - blocked
+        - maintenance
+        example: reserved
+      width:
+        example: 1.2
+        minimum: 0.1
+        type: number
+      x:
+        example: 12
+        type: number
+      "y":
+        example: 18
+        type: number
+    type: object
+  models.UpdateVenueRequest:
+    description: Venue update request data
+    properties:
+      address:
+        example: 123 Main Street
+        maxLength: 255
+        type: string
+      city:
+        example: New York
+        maxLength: 100
+        type: string
+      country:
+        example: USA
+        maxLength: 100
+        type: string
+      description:
+        example: Elegant ballroom with modern amenities
+        maxLength: 1000
+        type: string
+      is_public:
+        example: true
+        type: boolean
+      name:
+        example: Grand Hotel Ballroom
+        maxLength: 255
+        minLength: 1
+        type: string
+      phone:
+        example: +1-555-123-4567
+        maxLength: 20
+        type: string
+      postal_code:
+        example: "10001"
+        maxLength: 20
+        type: string
+      state:
+        example: NY
+        maxLength: 100
+        type: string
+      website:
+        example: https://grandhotel.com
+        maxLength: 255
+        type: string
+    type: object
   models.User:
     description: User account information
     properties:
@@ -722,6 +1245,72 @@ definitions:
       message:
         example: Successfully registered for event
         type: string
+    type: object
+  models.Venue:
+    description: Venue information and details
+    properties:
+      address:
+        example: 123 Main Street
+        type: string
+      city:
+        example: New York
+        type: string
+      country:
+        example: USA
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      description:
+        example: Elegant ballroom with modern amenities
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_public:
+        type: boolean
+      name:
+        example: Grand Hotel Ballroom
+        type: string
+      owner:
+        $ref: '#/definitions/models.User'
+      owner_id:
+        type: string
+      phone:
+        example: +1-555-123-4567
+        type: string
+      postal_code:
+        example: "10001"
+        type: string
+      rooms:
+        items:
+          $ref: '#/definitions/models.Room'
+        type: array
+      state:
+        example: NY
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      website:
+        example: https://grandhotel.com
+        type: string
+    type: object
+  models.VenueResponse:
+    description: Venue response data
+    properties:
+      venue:
+        $ref: '#/definitions/models.Venue'
+    type: object
+  models.VenuesResponse:
+    description: Multiple venues response data
+    properties:
+      total:
+        type: integer
+      venues:
+        items:
+          $ref: '#/definitions/models.Venue'
+        type: array
     type: object
 host: localhost:8080
 info:
@@ -1837,6 +2426,145 @@ paths:
       summary: Update user registration
       tags:
       - user-registrations
+  /events/{id}/seating:
+    get:
+      description: Retrieve all seat assignments for an event
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SeatingAssignmentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get seat assignments
+      tags:
+      - seating
+  /events/{id}/seating/assign:
+    post:
+      consumes:
+      - application/json
+      description: Assign a guest to a specific seat for an event
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Seat ID
+        in: path
+        name: seatId
+        required: true
+        type: string
+      - description: Seating assignment data
+        in: body
+        name: assignment
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateSeatingAssignmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.SeatingAssignmentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Assign guest to seat
+      tags:
+      - seating
+  /events/{id}/seating/assign/{seatId}:
+    delete:
+      description: Remove a guest from a specific seat
+      parameters:
+      - description: Event ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Seat ID
+        in: path
+        name: seatId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Unassign guest from seat
+      tags:
+      - seating
   /events/public:
     get:
       consumes:
@@ -2055,6 +2783,715 @@ paths:
       summary: Change user password
       tags:
       - profile
+  /venues:
+    get:
+      description: Retrieve all venues owned by the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.VenuesResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user's venues
+      tags:
+      - venues
+    post:
+      consumes:
+      - application/json
+      description: Create a new venue for the authenticated user
+      parameters:
+      - description: Venue creation data
+        in: body
+        name: venue
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateVenueRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.VenueResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new venue
+      tags:
+      - venues
+  /venues/{id}:
+    delete:
+      description: Delete an existing venue
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete venue
+      tags:
+      - venues
+    get:
+      description: Retrieve a specific venue by ID
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.VenueResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get venue by ID
+      tags:
+      - venues
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing venue
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Venue update data
+        in: body
+        name: venue
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateVenueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.VenueResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update venue
+      tags:
+      - venues
+  /venues/{id}/rooms:
+    get:
+      description: Retrieve all rooms in a specific venue
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RoomsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get rooms in venue
+      tags:
+      - rooms
+    post:
+      consumes:
+      - application/json
+      description: Create a new room in a venue
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room creation data
+        in: body
+        name: room
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.RoomResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new room
+      tags:
+      - rooms
+  /venues/{id}/rooms/{roomId}:
+    delete:
+      description: Delete an existing room
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete room
+      tags:
+      - rooms
+    get:
+      description: Retrieve a specific room by ID
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RoomResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get room by ID
+      tags:
+      - rooms
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing room
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Room update data
+        in: body
+        name: room
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RoomResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update room
+      tags:
+      - rooms
+  /venues/{id}/rooms/{roomId}/seats:
+    get:
+      description: Retrieve all seats in a specific room
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SeatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get seats in room
+      tags:
+      - seats
+    post:
+      consumes:
+      - application/json
+      description: Create a new seat in a room
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Seat creation data
+        in: body
+        name: seat
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateSeatRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.SeatResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new seat
+      tags:
+      - seats
+  /venues/{id}/rooms/{roomId}/seats/{seatId}:
+    delete:
+      description: Delete an existing seat
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Seat ID
+        in: path
+        name: seatId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete seat
+      tags:
+      - seats
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing seat
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Seat ID
+        in: path
+        name: seatId
+        required: true
+        type: string
+      - description: Seat update data
+        in: body
+        name: seat
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateSeatRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SeatResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update seat
+      tags:
+      - seats
+  /venues/{id}/rooms/{roomId}/seats/grid:
+    post:
+      consumes:
+      - application/json
+      description: Create multiple seats in a grid layout
+      parameters:
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Venue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Seat grid creation data
+        in: body
+        name: grid
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateSeatGridRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.SeatsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a grid of seats
+      tags:
+      - seats
+  /venues/public:
+    get:
+      description: Retrieve all public venues
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.VenuesResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get public venues
+      tags:
+      - venues
 schemes:
 - http
 - https
