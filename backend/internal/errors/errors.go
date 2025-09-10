@@ -67,3 +67,22 @@ var (
 	ErrSeatAccess   = errors.New("access denied to seat")
 	ErrSeatOccupied = errors.New("seat is already occupied")
 )
+
+// Enhanced Guest Management errors
+var (
+	ErrCategoryNotFound      = errors.New("guest category not found")
+	ErrCategoryAlreadyExists = errors.New("guest category already exists")
+	ErrCategoryAccess        = errors.New("access denied to guest category")
+	ErrTagNotFound           = errors.New("guest tag not found")
+	ErrTagAlreadyExists      = errors.New("guest tag already exists")
+	ErrTagAccess             = errors.New("access denied to guest tag")
+	ErrPlusOneNotFound       = errors.New("plus-one not found")
+	ErrPlusOneAccess         = errors.New("access denied to plus-one")
+	ErrPlusOneLimitExceeded  = errors.New("plus-one limit exceeded for this guest")
+	ErrCommunicationNotFound = errors.New("communication not found")
+	ErrCommunicationAccess   = errors.New("access denied to communication")
+	ErrCommunicationInvalid  = errors.New("communication is invalid for sending")
+	ErrBulkOperationFailed   = errors.New("bulk operation failed")
+	ErrCSVFormatInvalid      = errors.New("invalid CSV format")
+	ErrCSVDataInvalid        = errors.New("invalid CSV data")
+)
