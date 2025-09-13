@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/seatmaster/backend/internal/config"
 	"github.com/seatmaster/backend/internal/database"
 	"github.com/seatmaster/backend/internal/database/models"
 	customerrors "github.com/seatmaster/backend/internal/errors"
@@ -15,12 +16,17 @@ import (
 )
 
 type InvitationService struct {
-	db *database.DB
+	db           *database.DB
+	emailService *EmailService
 }
 
 // NewInvitationService creates a new invitation service
-func NewInvitationService(db *database.DB) *InvitationService {
-	return &InvitationService{db: db}
+func NewInvitationService(db *database.DB, config *config.Config) *InvitationService {
+	emailService := NewEmailService(config, db)
+	return &InvitationService{
+		db:           db,
+		emailService: emailService,
+	}
 }
 
 // generateSecureToken generates a cryptographically secure random token
@@ -96,6 +102,14 @@ func (s *InvitationService) CreateInvitation(eventID, ownerID uuid.UUID, req *mo
 	if err := s.db.DB.Preload("Event").First(invitation, invitation.ID).Error; err != nil {
 		return nil, fmt.Errorf("failed to load created invitation: %w", err)
 	}
+
+	// Send invitation email (async - don't fail if email fails)
+	go func() {
+		if err := s.emailService.SendInvitationEmail(invitation); err != nil {
+			// Log error but don't fail the invitation creation
+			fmt.Printf("Failed to send invitation email: %v\n", err)
+		}
+	}()
 
 	return invitation, nil
 }

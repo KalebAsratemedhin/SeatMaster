@@ -68,6 +68,14 @@ var (
 	ErrSeatOccupied = errors.New("seat is already occupied")
 )
 
+// Seating Assignment errors
+var (
+	ErrSeatingAssignmentNotFound = errors.New("seating assignment not found")
+	ErrSeatingAssignmentAccess   = errors.New("access denied to seating assignment")
+	ErrSeatAlreadyAssigned       = errors.New("seat is already assigned to another guest")
+	ErrGuestAlreadySeated        = errors.New("guest already has a seat assignment")
+)
+
 // Enhanced Guest Management errors
 var (
 	ErrCategoryNotFound      = errors.New("guest category not found")

@@ -29,8 +29,9 @@ type JWTConfig struct {
 }
 
 type ServerConfig struct {
-	Port int
-	Host string
+	Port    int
+	Host    string
+	BaseURL string
 }
 
 func Load() (*Config, error) {
@@ -51,8 +52,9 @@ func Load() (*Config, error) {
 			Expiry: getEnvAsDuration("JWT_EXPIRY", 24*time.Hour),
 		},
 		Server: ServerConfig{
-			Port: getEnvAsInt("SERVER_PORT", 8080),
-			Host: getEnv("SERVER_HOST", "localhost"),
+			Port:    getEnvAsInt("SERVER_PORT", 8080),
+			Host:    getEnv("SERVER_HOST", "localhost"),
+			BaseURL: getEnv("BASE_URL", "http://localhost:8080"),
 		},
 	}
 

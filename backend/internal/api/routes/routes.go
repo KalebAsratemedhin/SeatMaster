@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/seatmaster/backend/internal/api/handlers"
 	"github.com/seatmaster/backend/internal/api/middleware"
+	"github.com/seatmaster/backend/internal/config"
 	"github.com/seatmaster/backend/internal/database"
 	"github.com/seatmaster/backend/internal/services"
 
@@ -14,6 +15,7 @@ func SetupRoutes(
 	authService *services.AuthService,
 	authHandler *handlers.AuthHandler,
 	db *database.DB,
+	config *config.Config,
 ) *gin.Engine {
 	router := gin.Default()
 
@@ -42,7 +44,7 @@ func SetupRoutes(
 	SetupGuestRoutes(router, guestHandler, authMiddleware)
 
 	// Initialize invitation handler and setup routes
-	invitationService := services.NewInvitationService(db)
+	invitationService := services.NewInvitationService(db, config)
 	invitationHandler := handlers.NewInvitationHandler(invitationService)
 	SetupInvitationRoutes(router, invitationHandler, authMiddleware)
 
@@ -60,6 +62,36 @@ func SetupRoutes(
 	seatService := services.NewSeatService(db)
 	seatHandler := handlers.NewSeatHandler(seatService)
 	SetupSeatRoutes(router, seatHandler, authMiddleware)
+
+	// Initialize plus-one handler and setup routes
+	plusOneService := services.NewPlusOneService(db)
+	plusOneHandler := handlers.NewPlusOneHandler(plusOneService)
+	SetupPlusOneRoutes(router, plusOneHandler, authMiddleware)
+
+	// Initialize guest category handler and setup routes
+	guestCategoryService := services.NewGuestCategoryService(db)
+	guestCategoryHandler := handlers.NewGuestCategoryHandler(guestCategoryService)
+	SetupGuestCategoryRoutes(router, guestCategoryHandler, authMiddleware)
+
+	// Initialize guest tag handler and setup routes
+	guestTagService := services.NewGuestTagService(db)
+	guestTagHandler := handlers.NewGuestTagHandler(guestTagService)
+	SetupGuestTagRoutes(router, guestTagHandler, authMiddleware)
+
+	// Initialize guest communication handler and setup routes
+	guestCommunicationService := services.NewGuestCommunicationService(db)
+	guestCommunicationHandler := handlers.NewGuestCommunicationHandler(guestCommunicationService)
+	SetupGuestCommunicationRoutes(router, guestCommunicationHandler, authMiddleware)
+
+	// Initialize seating assignment handler and setup routes
+	seatingAssignmentService := services.NewSeatingAssignmentService(db)
+	seatingAssignmentHandler := handlers.NewSeatingAssignmentHandler(seatingAssignmentService)
+	SetupSeatingAssignmentRoutes(router, seatingAssignmentHandler, authMiddleware)
+
+	// Initialize bulk operations handler and setup routes
+	bulkGuestService := services.NewBulkGuestService(db)
+	bulkOperationsHandler := handlers.NewBulkOperationsHandler(bulkGuestService)
+	SetupBulkOperationsRoutes(router, bulkOperationsHandler, authMiddleware)
 
 	// Future route groups can be added here:
 	// SetupUserRoutes(router, userHandler, authMiddleware)

@@ -95,7 +95,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 
 	// Setup routes
-	router := routes.SetupRoutes(authService, authHandler, db)
+	router := routes.SetupRoutes(authService, authHandler, db, cfg)
 
 	// Create HTTP server
 	server := &http.Server{
