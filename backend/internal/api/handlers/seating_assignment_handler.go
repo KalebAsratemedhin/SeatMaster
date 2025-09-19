@@ -235,3 +235,5 @@ func (h *SeatingAssignmentHandler) UpdateSeatingAssignment(c *gin.Context) {
 }
 
 
+
+

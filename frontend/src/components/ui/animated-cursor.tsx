@@ -12,7 +12,7 @@ export function AnimatedCursor({ children }: AnimatedCursorProps) {
   const [isClicking, setIsClicking] = useState(false);
   const outerCursorRef = useRef<HTMLDivElement>(null);
   const innerCursorRef = useRef<HTMLDivElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   const updateCursorPosition = useCallback((x: number, y: number) => {
     if (animationFrameRef.current) {

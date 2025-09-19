@@ -9,6 +9,7 @@ import { ParticleBackground } from "@/components/ui/particle-background";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn } from "lucide-react";
+import { useSignInMutation } from "@/lib/api";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,10 +18,18 @@ export default function LoginPage() {
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [signIn, { isLoading, error }] = useSignInMutation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", formData);
+    try {
+      const result = await signIn(formData).unwrap();
+      // Store token and redirect
+      localStorage.setItem('auth_token', result.token);
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error('Login failed:', err);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,7 +45,7 @@ export default function LoginPage() {
         <ParticleBackground />
         
         {/* Header */}
-        <header className="fixed top-0 left-0 right-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="fixed top-0 left-0 right-0 z-50 w-full border-b bg-background/95">
           <div className="container flex h-16 items-center justify-between">
             <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -169,10 +178,11 @@ export default function LoginPage() {
                     {/* Submit Button */}
                     <Button
                       type="submit"
+                      disabled={isLoading}
                       className="w-full py-3 text-lg font-medium hover:scale-105 transition-transform duration-300 hover:shadow-lg"
                     >
                       <LogIn className="w-5 h-5 mr-2" />
-                      Sign In
+                      {isLoading ? 'Signing In...' : 'Sign In'}
                     </Button>
                   </form>
 
@@ -208,7 +218,7 @@ export default function LoginPage() {
                   {/* Sign Up Link */}
                   <div className="text-center mt-6">
                     <p className="text-sm text-muted-foreground">
-                      Don't have an account?{" "}
+                        Don&apos;t have an account?{" "}
                       <Link
                         href="/signup"
                         className="text-primary hover:underline font-medium transition-colors"

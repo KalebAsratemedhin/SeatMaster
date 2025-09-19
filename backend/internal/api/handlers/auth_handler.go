@@ -30,7 +30,7 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 // @Accept json
 // @Produce json
 // @Param user body models.CreateUserRequest true "User registration data"
-// @Success 201 {object} map[string]interface{} "User created successfully"
+// @Success 201 {object} models.AuthResponse "User created successfully"
 // @Failure 400 {object} map[string]interface{} "Bad request"
 // @Router /auth/signup [post]
 func (h *AuthHandler) SignUp(c *gin.Context) {
@@ -46,16 +46,13 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.CreateUser(&req)
+	response, err := h.authService.CreateUser(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"user":    user,
-	})
+	c.JSON(http.StatusCreated, response)
 }
 
 // SignIn handles user authentication

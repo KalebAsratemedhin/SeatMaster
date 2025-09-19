@@ -18,7 +18,7 @@ export default function Home() {
       <div className="min-h-screen bg-background relative overflow-hidden">
         <ParticleBackground />
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="fixed top-0 left-0 right-0 z-50 w-full border-b bg-background/95">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -124,7 +124,7 @@ export default function Home() {
               <Card className="hover:scale-105 transition-all duration-300 hover:shadow-xl">
                 <CardContent className="pt-6">
                   <p className="text-muted-foreground mb-4">
-                    "SeatMaster transformed our wedding planning. The seating arrangements were perfect, and our guests loved the digital invitations."
+                    &ldquo;SeatMaster transformed our wedding planning. The seating arrangements were perfect, and our guests loved the digital invitations.&rdquo;
                   </p>
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
@@ -143,7 +143,7 @@ export default function Home() {
               <Card className="hover:scale-105 transition-all duration-300 hover:shadow-xl">
                 <CardContent className="pt-6">
                   <p className="text-muted-foreground mb-4">
-                    "Managing our annual conference became effortless. The guest management and real-time updates saved us hours of work."
+                    &ldquo;Managing our annual conference became effortless. The guest management and real-time updates saved us hours of work.&rdquo;
                   </p>
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
@@ -162,7 +162,7 @@ export default function Home() {
               <Card className="hover:scale-105 transition-all duration-300 hover:shadow-xl">
                 <CardContent className="pt-6">
                   <p className="text-muted-foreground mb-4">
-                    "The analytics and insights helped us optimize our events. We've seen a 40% increase in guest satisfaction."
+                    &ldquo;The analytics and insights helped us optimize our events. We&apos;ve seen a 40% increase in guest satisfaction.&rdquo;
                   </p>
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">

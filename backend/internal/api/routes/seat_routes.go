@@ -27,16 +27,4 @@ func SetupSeatRoutes(router *gin.Engine, seatHandler *handlers.SeatHandler, auth
 		}
 	}
 
-	// Seating assignment routes are nested under events
-	events := router.Group("/events")
-	events.Use(authMiddleware.AuthRequired())
-	{
-		// Seating management within events
-		seating := events.Group("/:id/seating")
-		{
-			seating.POST("/assign", seatHandler.AssignGuestToSeat)
-			seating.DELETE("/assign/:seatId", seatHandler.UnassignGuestFromSeat)
-			seating.GET("", seatHandler.GetSeatAssignments)
-		}
-	}
 }

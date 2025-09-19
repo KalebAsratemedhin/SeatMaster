@@ -29,7 +29,7 @@ func NewAuthService(db *database.DB, config *config.Config) *AuthService {
 	}
 }
 
-func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, error) {
+func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.AuthResponse, error) {
 	// Check if user already exists
 	var existingUser models.User
 	result := s.db.Where("email = ?", req.Email).First(&existingUser)
@@ -59,7 +59,16 @@ func (s *AuthService) CreateUser(req *models.CreateUserRequest) (*models.User, e
 		return nil, fmt.Errorf("failed to create user: %w", result.Error)
 	}
 
-	return user, nil
+	// Generate JWT token
+	token, err := s.generateJWT(user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return &models.AuthResponse{
+		User:  user,
+		Token: token,
+	}, nil
 }
 
 func (s *AuthService) SignIn(req *models.SignInRequest) (*models.AuthResponse, error) {

@@ -9,6 +9,7 @@ import { ParticleBackground } from "@/components/ui/particle-background";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, UserPlus, User, Phone } from "lucide-react";
+import { useSignUpMutation } from "@/lib/api";
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +24,9 @@ export default function SignupPage() {
     agreeToTerms: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [signUp, { isLoading, error }] = useSignUpMutation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords don't match!");
@@ -33,8 +36,21 @@ export default function SignupPage() {
       alert("Please agree to the terms and conditions!");
       return;
     }
-    // Handle signup logic here
-    console.log("Signup attempt:", formData);
+    
+    try {
+      const result = await signUp({
+        email: formData.email,
+        password: formData.password,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone || undefined,
+      }).unwrap();
+      // Store token and redirect
+      localStorage.setItem('auth_token', result.token);
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error('Signup failed:', err);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,10 +305,11 @@ export default function SignupPage() {
                     {/* Submit Button */}
                     <Button
                       type="submit"
+                      disabled={isLoading}
                       className="w-full py-3 text-lg font-medium hover:scale-105 transition-transform duration-300 hover:shadow-lg"
                     >
                       <UserPlus className="w-5 h-5 mr-2" />
-                      Create Account
+                      {isLoading ? 'Creating Account...' : 'Create Account'}
                     </Button>
                   </form>
 

@@ -153,7 +153,7 @@ export function FeaturesCarousel() {
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               Powerful features designed to streamline your event planning process and delight your guests. 
-              From initial planning to post-event analytics, we've got you covered.
+              From initial planning to post-event analytics, we&apos;ve got you covered.
             </p>
           </div>
         </ScrollAnimation>
