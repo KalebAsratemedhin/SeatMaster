@@ -40,7 +40,7 @@ func (s *SeatService) CreateSeat(roomID, ownerID uuid.UUID, req *models.CreateSe
 
 	// Check if seat row/number combination is unique within this room
 	var existingSeat models.Seat
-	err = s.db.DB.Where("room_id = ? AND row = ? AND number = ?", roomID, req.Row, req.Number).First(&existingSeat).Error
+	err = s.db.DB.Where("room_id = ? AND row_number = ? AND seat_number = ?", roomID, req.Row, req.Number).First(&existingSeat).Error
 	if err == nil {
 		return nil, fmt.Errorf("seat with row '%s' and number '%s' already exists in this room", req.Row, req.Number)
 	} else if err != gorm.ErrRecordNotFound {
@@ -48,9 +48,11 @@ func (s *SeatService) CreateSeat(roomID, ownerID uuid.UUID, req *models.CreateSe
 	}
 
 	seat := &models.Seat{
+		EventID:  req.EventID,
 		RoomID:   roomID,
 		Row:      req.Row,
 		Number:   req.Number,
+		Column:   req.Column,
 		Category: req.Category,
 		Status:   req.Status,
 		X:        req.X,
@@ -100,20 +102,24 @@ func (s *SeatService) CreateSeatGrid(roomID, ownerID uuid.UUID, req *models.Crea
 	for rowNum := startRowNum; rowNum <= endRowNum; rowNum++ {
 		row := string(rune(rowNum))
 		for number := req.StartNumber; number <= req.EndNumber; number++ {
-			seat := models.Seat{
-				RoomID:   roomID,
-				Row:      row,
-				Number:   strconv.Itoa(number),
-				Category: req.Category,
-				Status:   models.SeatStatusAvailable,
-				X:        currentX,
-				Y:        currentY,
-				Width:    1.0,
-				Height:   1.0,
-				Rotation: 0.0,
+			for column := req.StartColumn; column <= req.EndColumn; column++ {
+				seat := models.Seat{
+					EventID:  req.EventID,
+					RoomID:   roomID,
+					Row:      row,
+					Number:   strconv.Itoa(number),
+					Column:   strconv.Itoa(column),
+					Category: req.Category,
+					Status:   models.SeatStatusAvailable,
+					X:        currentX,
+					Y:        currentY,
+					Width:    1.0,
+					Height:   1.0,
+					Rotation: 0.0,
+				}
+				seats = append(seats, seat)
+				currentX += req.SpacingX
 			}
-			seats = append(seats, seat)
-			currentX += req.SpacingX
 		}
 		currentX = req.StartX
 		currentY += req.SpacingY
@@ -163,7 +169,7 @@ func (s *SeatService) GetSeatsByRoom(roomID, ownerID uuid.UUID) ([]models.Seat, 
 	err = s.db.DB.Where("room_id = ?", roomID).
 		Preload("Room").
 		Preload("Guest").
-		Order("row ASC, number ASC").
+		Order("row_number ASC, seat_number ASC").
 		Find(&seats).Error
 
 	if err != nil {
@@ -193,7 +199,7 @@ func (s *SeatService) UpdateSeat(seatID, ownerID uuid.UUID, req *models.UpdateSe
 		}
 
 		var existingSeat models.Seat
-		err := s.db.DB.Where("room_id = ? AND row = ? AND number = ? AND id != ?", seat.RoomID, newRow, newNumber, seatID).First(&existingSeat).Error
+		err := s.db.DB.Where("room_id = ? AND row_number = ? AND seat_number = ? AND id != ?", seat.RoomID, newRow, newNumber, seatID).First(&existingSeat).Error
 		if err == nil {
 			return nil, fmt.Errorf("seat with row '%s' and number '%s' already exists in this room", newRow, newNumber)
 		} else if err != gorm.ErrRecordNotFound {
@@ -208,6 +214,9 @@ func (s *SeatService) UpdateSeat(seatID, ownerID uuid.UUID, req *models.UpdateSe
 	}
 	if req.Number != nil {
 		updates["number"] = *req.Number
+	}
+	if req.Column != nil {
+		updates["column"] = *req.Column
 	}
 	if req.Category != nil {
 		updates["category"] = *req.Category

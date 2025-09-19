@@ -92,20 +92,6 @@ func (s *EventService) GetEventByID(eventID uuid.UUID) (*models.Event, error) {
 	return &event, nil
 }
 
-// GetEventBySlug retrieves an event by slug
-func (s *EventService) GetEventBySlug(slug string) (*models.Event, error) {
-	var event models.Event
-	result := s.db.Preload("Owner").Where("slug = ?", slug).First(&event)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, customerrors.ErrEventNotFound
-		}
-		return nil, fmt.Errorf("error finding event: %w", result.Error)
-	}
-
-	return &event, nil
-}
-
 // GetEventsByOwner retrieves all events owned by a specific user
 func (s *EventService) GetEventsByOwner(ownerID uuid.UUID) ([]models.Event, error) {
 	var events []models.Event
@@ -219,4 +205,26 @@ func (s *EventService) GetEventCount(ownerID uuid.UUID) (int64, error) {
 	}
 
 	return count, nil
+}
+
+// GetEventBySlug retrieves a public event by its slug
+func (s *EventService) GetEventBySlug(slug string) (*models.Event, error) {
+	var event models.Event
+
+	// Find event by slug and ensure it's public
+	result := s.db.Where("slug = ? AND visibility = ?", slug, models.EventVisibilityPublic).First(&event)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// Check if event exists but is private
+			var privateEvent models.Event
+			privateResult := s.db.Where("slug = ?", slug).First(&privateEvent)
+			if privateResult.Error == nil {
+				return nil, errors.New("event is not public")
+			}
+			return nil, customerrors.ErrEventNotFound
+		}
+		return nil, fmt.Errorf("error finding event: %w", result.Error)
+	}
+
+	return &event, nil
 }

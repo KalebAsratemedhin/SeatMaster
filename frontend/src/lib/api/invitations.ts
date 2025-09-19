@@ -5,33 +5,39 @@
 import { baseApi } from './base';
 import type {
   Invitation,
+  InvitationListItem,
   CreateInvitationRequest,
   UpdateInvitationRequest,
   InvitationFilters,
   InvitationStats,
   AcceptInvitationRequest,
   AcceptInvitationResponse,
-  BulkInvitationRequest,
-  BulkInvitationResult,
   ResendInvitationResponse,
-  PaginatedResponse,
 } from '@/types';
 
 export const invitationsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get invitations for an event
-    getInvitations: builder.query<PaginatedResponse<Invitation>, { eventId: string; filters?: InvitationFilters }>({
+    getInvitations: builder.query<InvitationListItem[], { eventId: string; filters?: InvitationFilters }>({
       query: ({ eventId, filters }) => ({
         url: `/events/${eventId}/invitations`,
         params: filters,
       }),
-      providesTags: ['Invitation', 'Event'],
+      transformResponse: (response: InvitationListItem[]) => response,
+      providesTags: (result, error, { eventId }) => [
+        { type: 'Invitation', id: 'LIST' },
+        { type: 'Invitation', id: `LIST-${eventId}` },
+        ...(result || []).map(({ id }) => ({ type: 'Invitation' as const, id })),
+      ],
     }),
 
     // Get invitation by ID
     getInvitation: builder.query<Invitation, { eventId: string; invitationId: string }>({
       query: ({ eventId, invitationId }) => `/events/${eventId}/invitations/${invitationId}`,
-      providesTags: ['Invitation'],
+      transformResponse: (response: Invitation) => response,
+      providesTags: (result, error, { invitationId }) => [
+        { type: 'Invitation', id: invitationId },
+      ],
     }),
 
     // Create invitation
@@ -41,7 +47,11 @@ export const invitationsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: invitationData,
       }),
-      invalidatesTags: ['Invitation', 'Event'],
+      transformResponse: (response: Invitation) => response,
+      invalidatesTags: (result, error, { eventId }) => [
+        { type: 'Invitation', id: 'LIST' },
+        { type: 'Invitation', id: `LIST-${eventId}` },
+      ],
     }),
 
     // Update invitation
@@ -51,7 +61,12 @@ export const invitationsApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: updates,
       }),
-      invalidatesTags: ['Invitation'],
+      transformResponse: (response: Invitation) => response,
+      invalidatesTags: (result, error, { eventId, invitationId }) => [
+        { type: 'Invitation', id: 'LIST' },
+        { type: 'Invitation', id: `LIST-${eventId}` },
+        { type: 'Invitation', id: invitationId },
+      ],
     }),
 
     // Delete invitation
@@ -60,39 +75,46 @@ export const invitationsApi = baseApi.injectEndpoints({
         url: `/events/${eventId}/invitations/${invitationId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Invitation'],
+      invalidatesTags: (result, error, { eventId, invitationId }) => [
+        { type: 'Invitation', id: 'LIST' },
+        { type: 'Invitation', id: `LIST-${eventId}` },
+        { type: 'Invitation', id: invitationId },
+      ],
     }),
 
     // Resend invitation
-    resendInvitation: builder.mutation<ResendInvitationResponse, { eventId: string; invitationId: string }>({
+    resendInvitation: builder.mutation<Invitation, { eventId: string; invitationId: string }>({
       query: ({ eventId, invitationId }) => ({
         url: `/events/${eventId}/invitations/${invitationId}/resend`,
         method: 'POST',
       }),
-      invalidatesTags: ['Invitation'],
+      transformResponse: (response: Invitation) => response,
+      invalidatesTags: (result, error, { eventId, invitationId }) => [
+        { type: 'Invitation', id: 'LIST' },
+        { type: 'Invitation', id: `LIST-${eventId}` },
+        { type: 'Invitation', id: invitationId },
+      ],
     }),
 
-    // Cancel invitation
-    cancelInvitation: builder.mutation<Invitation, { eventId: string; invitationId: string }>({
+    // Cancel invitation (DELETE endpoint)
+    cancelInvitation: builder.mutation<void, { eventId: string; invitationId: string }>({
       query: ({ eventId, invitationId }) => ({
-        url: `/events/${eventId}/invitations/${invitationId}/cancel`,
-        method: 'POST',
+        url: `/events/${eventId}/invitations/${invitationId}`,
+        method: 'DELETE',
       }),
-      invalidatesTags: ['Invitation'],
-    }),
-
-    // Get invitation statistics
-    getInvitationStats: builder.query<InvitationStats, string>({
-      query: (eventId) => `/events/${eventId}/invitations/stats`,
-      providesTags: ['Invitation', 'Event'],
+      invalidatesTags: (result, error, { eventId, invitationId }) => [
+        { type: 'Invitation', id: 'LIST' },
+        { type: 'Invitation', id: `LIST-${eventId}` },
+        { type: 'Invitation', id: invitationId },
+      ],
     }),
 
     // Accept invitation (public endpoint)
-    acceptInvitation: builder.mutation<AcceptInvitationResponse, AcceptInvitationRequest>({
-      query: (acceptData) => ({
-        url: `/invitations/${acceptData.token}/accept`,
+    acceptInvitation: builder.mutation<AcceptInvitationResponse, { token: string; data: AcceptInvitationRequest }>({
+      query: ({ token, data }) => ({
+        url: `/invitations/${token}/accept`,
         method: 'POST',
-        body: acceptData,
+        body: data,
       }),
       invalidatesTags: ['Invitation', 'Guest'],
     }),
@@ -100,32 +122,10 @@ export const invitationsApi = baseApi.injectEndpoints({
     // Get invitation by token (public endpoint)
     getInvitationByToken: builder.query<Invitation, string>({
       query: (token) => `/invitations/${token}`,
-      providesTags: ['Invitation'],
-    }),
-
-
-    // Clean up expired invitations
-    cleanupExpiredInvitations: builder.mutation<{ cleaned: number }, string>({
-      query: (eventId) => ({
-        url: `/events/${eventId}/invitations/cleanup`,
-        method: 'POST',
-      }),
-      invalidatesTags: ['Invitation', 'Event'],
-    }),
-
-    // Get invitation analytics
-    getInvitationAnalytics: builder.query<{
-      total_sent: number;
-      total_accepted: number;
-      acceptance_rate: number;
-      response_timeline: Array<{
-        date: string;
-        sent: number;
-        accepted: number;
-      }>;
-    }, string>({
-      query: (eventId) => `/events/${eventId}/invitations/analytics`,
-      providesTags: ['Invitation', 'Event'],
+      transformResponse: (response: Invitation) => response,
+      providesTags: (result, error, token) => [
+        { type: 'Invitation', id: `TOKEN-${token}` },
+      ],
     }),
   }),
 });
@@ -138,9 +138,6 @@ export const {
   useDeleteInvitationMutation,
   useResendInvitationMutation,
   useCancelInvitationMutation,
-  useGetInvitationStatsQuery,
   useAcceptInvitationMutation,
   useGetInvitationByTokenQuery,
-  useCleanupExpiredInvitationsMutation,
-  useGetInvitationAnalyticsQuery,
 } = invitationsApi;

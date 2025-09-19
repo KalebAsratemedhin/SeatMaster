@@ -2,24 +2,25 @@
  * Venue related types
  */
 
-import { BaseEntity, PaginationParams, BaseFilter } from './common';
-import { User } from './auth';
+import { BaseEntity } from './common';
+
+// Room types
+export type RoomType = 'general' | 'ballroom' | 'conference' | 'theater' | 'banquet' | 'outdoor';
 
 // Venue model
 export interface Venue extends BaseEntity {
   name: string;
-  description?: string;
+  description: string;
   address: string;
   city: string;
-  state?: string;
+  state: string;
   country: string;
-  postal_code?: string;
+  postal_code: string;
   phone?: string;
-  email?: string;
   website?: string;
-  capacity?: number;
   owner_id: string;
-  owner: User;
+  owner: any; // User model
+  is_public: boolean;
   rooms: Room[];
 }
 
@@ -28,48 +29,49 @@ export interface Room extends BaseEntity {
   venue_id: string;
   venue: Venue;
   name: string;
-  description?: string;
-  type: RoomType;
-  capacity?: number;
-  layout_data?: string; // JSON string for layout configuration
+  description: string;
+  capacity: number;
+  floor: number;
+  room_type: RoomType;
   seats: Seat[];
 }
 
-// Room types
-export type RoomType = 'auditorium' | 'conference' | 'banquet' | 'outdoor' | 'custom';
+// Seat categories and status
+export type SeatCategory = 'standard' | 'vip' | 'accessible' | 'premium' | 'economy' | 'standing';
+export type SeatStatus = 'available' | 'occupied' | 'reserved' | 'blocked' | 'maintenance';
 
 // Seat model
 export interface Seat extends BaseEntity {
+  event_id: string;
+  event: any; // Event model
   room_id: string;
   room: Room;
   row: string;
   number: string;
+  column: string;
   category: SeatCategory;
   status: SeatStatus;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  rotation?: number;
+  guest_id?: string;
+  guest?: any; // Guest model
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
 }
 
-// Seat categories and status
-export type SeatCategory = 'standard' | 'vip' | 'premium' | 'accessible' | 'reserved';
-export type SeatStatus = 'available' | 'occupied' | 'reserved' | 'maintenance';
-
-// Venue request/response types
+// Request/Response types
 export interface CreateVenueRequest {
   name: string;
-  description?: string;
+  description: string;
   address: string;
   city: string;
-  state?: string;
+  state: string;
   country: string;
-  postal_code?: string;
+  postal_code: string;
   phone?: string;
-  email?: string;
   website?: string;
-  capacity?: number;
+  is_public: boolean;
 }
 
 export interface UpdateVenueRequest {
@@ -81,58 +83,43 @@ export interface UpdateVenueRequest {
   country?: string;
   postal_code?: string;
   phone?: string;
-  email?: string;
   website?: string;
-  capacity?: number;
+  is_public?: boolean;
 }
 
-export type VenueResponse = Venue;
-
-export interface VenuesResponse {
-  venues: Venue[];
-  total: number;
-}
-
-// Room request/response types
 export interface CreateRoomRequest {
   name: string;
-  description?: string;
-  type: RoomType;
-  capacity?: number;
-  layout_data?: string;
+  description: string;
+  capacity: number;
+  floor: number;
+  room_type: RoomType;
 }
 
 export interface UpdateRoomRequest {
   name?: string;
   description?: string;
-  type?: RoomType;
   capacity?: number;
-  layout_data?: string;
+  floor?: number;
+  room_type?: RoomType;
 }
 
-export type RoomResponse = Room;
-
-export interface RoomsResponse {
-  rooms: Room[];
-  total: number;
-}
-
-// Seat request/response types
 export interface CreateSeatRequest {
+  event_id: string;
   row: string;
   number: string;
+  column: string;
   category: SeatCategory;
-  status?: SeatStatus;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  rotation?: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
 }
 
 export interface UpdateSeatRequest {
   row?: string;
   number?: string;
+  column?: string;
   category?: SeatCategory;
   status?: SeatStatus;
   x?: number;
@@ -142,44 +129,10 @@ export interface UpdateSeatRequest {
   rotation?: number;
 }
 
-export type SeatResponse = Seat;
-
-export interface SeatsResponse {
-  seats: Seat[];
-  total: number;
+export interface AssignGuestToSeatRequest {
+  guest_id: string;
 }
 
-// Filters
-export interface VenueFilters extends BaseFilter, PaginationParams {
-  owner_id?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  has_rooms?: boolean;
-  min_capacity?: number;
-  max_capacity?: number;
-}
-
-export interface RoomFilters extends BaseFilter, PaginationParams {
-  venue_id?: string;
-  type?: RoomType;
-  min_capacity?: number;
-  max_capacity?: number;
-}
-
-export interface SeatFilters extends BaseFilter, PaginationParams {
-  room_id?: string;
-  category?: SeatCategory;
-  status?: SeatStatus;
-  row?: string;
-}
-
-// Venue statistics
-export interface VenueStats {
-  total_venues: number;
-  total_rooms: number;
-  total_seats: number;
-  available_seats: number;
-  occupied_seats: number;
-  venue_capacity_utilization: number;
+export interface UnassignGuestFromSeatRequest {
+  guest_id: string;
 }

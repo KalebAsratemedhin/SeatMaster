@@ -1,38 +1,34 @@
 /**
- * Venues API endpoints
+ * Venues, Rooms, and Seats API endpoints
  */
 
 import { baseApi } from './base';
 import type {
   Venue,
+  Room,
+  Seat,
   CreateVenueRequest,
   UpdateVenueRequest,
-  VenueFilters,
-  VenueStats,
-  Room,
   CreateRoomRequest,
   UpdateRoomRequest,
-  RoomFilters,
-  Seat,
   CreateSeatRequest,
   UpdateSeatRequest,
-  SeatFilters,
-  PaginatedResponse,
+  AssignGuestToSeatRequest,
+  UnassignGuestFromSeatRequest,
 } from '@/types';
 
 export const venuesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Venue endpoints
-    getVenues: builder.query<PaginatedResponse<Venue>, VenueFilters>({
-      query: (filters) => ({
-        url: '/venues',
-        params: filters,
-      }),
+    // Venues
+    getVenues: builder.query<Venue[], void>({
+      query: () => '/venues',
+      transformResponse: (response: { venues: Venue[] }) => response.venues,
       providesTags: ['Venue'],
     }),
 
     getVenue: builder.query<Venue, string>({
       query: (id) => `/venues/${id}`,
+      transformResponse: (response: { venue: Venue }) => response.venue,
       providesTags: (result, error, id) => [{ type: 'Venue', id }],
     }),
 
@@ -42,6 +38,7 @@ export const venuesApi = baseApi.injectEndpoints({
         method: 'POST',
         body: venueData,
       }),
+      transformResponse: (response: { venue: Venue }) => response.venue,
       invalidatesTags: ['Venue'],
     }),
 
@@ -51,9 +48,10 @@ export const venuesApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: updates,
       }),
+      transformResponse: (response: { venue: Venue }) => response.venue,
       invalidatesTags: (result, error, { id }) => [
         { type: 'Venue', id },
-        'Venue',
+        { type: 'Venue', id: 'LIST' },
       ],
     }),
 
@@ -64,27 +62,25 @@ export const venuesApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (result, error, id) => [
         { type: 'Venue', id },
-        'Venue',
+        { type: 'Venue', id: 'LIST' },
       ],
     }),
 
-    getVenueStats: builder.query<VenueStats, void>({
-      query: () => '/venues/stats',
-      providesTags: ['Venue'],
-    }),
-
-    // Room endpoints
-    getRooms: builder.query<PaginatedResponse<Room>, { venueId: string; filters?: RoomFilters }>({
-      query: ({ venueId, filters }) => ({
-        url: `/venues/${venueId}/rooms`,
-        params: filters,
-      }),
-      providesTags: ['Room', 'Venue'],
+    // Rooms
+    getRooms: builder.query<Room[], { venueId: string }>({
+      query: ({ venueId }) => `/venues/${venueId}/rooms`,
+      transformResponse: (response: { rooms: Room[] }) => response.rooms,
+      providesTags: (result, error, { venueId }) => [
+        { type: 'Room', id: 'LIST' },
+        { type: 'Room', id: `LIST-${venueId}` },
+        ...(result || []).map(({ id }) => ({ type: 'Room' as const, id })),
+      ],
     }),
 
     getRoom: builder.query<Room, { venueId: string; roomId: string }>({
       query: ({ venueId, roomId }) => `/venues/${venueId}/rooms/${roomId}`,
-      providesTags: ['Room'],
+      transformResponse: (response: { room: Room }) => response.room,
+      providesTags: (result, error, { roomId }) => [{ type: 'Room', id: roomId }],
     }),
 
     createRoom: builder.mutation<Room, { venueId: string; roomData: CreateRoomRequest }>({
@@ -93,7 +89,11 @@ export const venuesApi = baseApi.injectEndpoints({
         method: 'POST',
         body: roomData,
       }),
-      invalidatesTags: ['Room', 'Venue'],
+      transformResponse: (response: { room: Room }) => response.room,
+      invalidatesTags: (result, error, { venueId }) => [
+        { type: 'Room', id: 'LIST' },
+        { type: 'Room', id: `LIST-${venueId}` },
+      ],
     }),
 
     updateRoom: builder.mutation<Room, { venueId: string; roomId: string; updates: UpdateRoomRequest }>({
@@ -102,7 +102,11 @@ export const venuesApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: updates,
       }),
-      invalidatesTags: ['Room'],
+      transformResponse: (response: { room: Room }) => response.room,
+      invalidatesTags: (result, error, { roomId }) => [
+        { type: 'Room', id: roomId },
+        { type: 'Room', id: 'LIST' },
+      ],
     }),
 
     deleteRoom: builder.mutation<void, { venueId: string; roomId: string }>({
@@ -110,92 +114,118 @@ export const venuesApi = baseApi.injectEndpoints({
         url: `/venues/${venueId}/rooms/${roomId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Room'],
+      invalidatesTags: (result, error, { venueId, roomId }) => [
+        { type: 'Room', id: roomId },
+        { type: 'Room', id: 'LIST' },
+        { type: 'Room', id: `LIST-${venueId}` },
+      ],
     }),
 
-    // Seat endpoints
-    getSeats: builder.query<PaginatedResponse<Seat>, { roomId: string; filters?: SeatFilters }>({
-      query: ({ roomId, filters }) => ({
-        url: `/rooms/${roomId}/seats`,
-        params: filters,
-      }),
-      providesTags: ['Seat', 'Room'],
+    // Seats
+    getSeats: builder.query<Seat[], { venueId: string; roomId: string }>({
+      query: ({ venueId, roomId }) => `/venues/${venueId}/rooms/${roomId}/seats`,
+      transformResponse: (response: { seats: Seat[] }) => response.seats,
+      providesTags: (result, error, { roomId }) => [
+        { type: 'Seat', id: 'LIST' },
+        { type: 'Seat', id: `LIST-${roomId}` },
+        ...(result || []).map(({ id }) => ({ type: 'Seat' as const, id })),
+      ],
     }),
 
-    getSeat: builder.query<Seat, { roomId: string; seatId: string }>({
-      query: ({ roomId, seatId }) => `/rooms/${roomId}/seats/${seatId}`,
-      providesTags: ['Seat'],
+    getSeat: builder.query<Seat, { venueId: string; roomId: string; seatId: string }>({
+      query: ({ venueId, roomId, seatId }) => `/venues/${venueId}/rooms/${roomId}/seats/${seatId}`,
+      transformResponse: (response: { seat: Seat }) => response.seat,
+      providesTags: (result, error, { seatId }) => [{ type: 'Seat', id: seatId }],
     }),
 
-    createSeat: builder.mutation<Seat, { roomId: string; seatData: CreateSeatRequest }>({
-      query: ({ roomId, seatData }) => ({
-        url: `/rooms/${roomId}/seats`,
+    createSeat: builder.mutation<Seat, { venueId: string; roomId: string; seatData: CreateSeatRequest }>({
+      query: ({ venueId, roomId, seatData }) => ({
+        url: `/venues/${venueId}/rooms/${roomId}/seats`,
         method: 'POST',
         body: seatData,
       }),
-      invalidatesTags: ['Seat', 'Room'],
+      transformResponse: (response: { seat: Seat }) => response.seat,
+      invalidatesTags: (result, error, { roomId }) => [
+        { type: 'Seat', id: 'LIST' },
+        { type: 'Seat', id: `LIST-${roomId}` },
+      ],
     }),
 
-    updateSeat: builder.mutation<Seat, { roomId: string; seatId: string; updates: UpdateSeatRequest }>({
-      query: ({ roomId, seatId, updates }) => ({
-        url: `/rooms/${roomId}/seats/${seatId}`,
+    updateSeat: builder.mutation<Seat, { venueId: string; roomId: string; seatId: string; updates: UpdateSeatRequest }>({
+      query: ({ venueId, roomId, seatId, updates }) => ({
+        url: `/venues/${venueId}/rooms/${roomId}/seats/${seatId}`,
         method: 'PATCH',
         body: updates,
       }),
-      invalidatesTags: ['Seat'],
+      transformResponse: (response: { seat: Seat }) => response.seat,
+      invalidatesTags: (result, error, { roomId, seatId }) => [
+        { type: 'Seat', id: seatId },
+        { type: 'Seat', id: 'LIST' },
+        { type: 'Seat', id: `LIST-${roomId}` },
+      ],
     }),
 
-    deleteSeat: builder.mutation<void, { roomId: string; seatId: string }>({
-      query: ({ roomId, seatId }) => ({
-        url: `/rooms/${roomId}/seats/${seatId}`,
+    deleteSeat: builder.mutation<void, { venueId: string; roomId: string; seatId: string }>({
+      query: ({ venueId, roomId, seatId }) => ({
+        url: `/venues/${venueId}/rooms/${roomId}/seats/${seatId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Seat'],
+      invalidatesTags: (result, error, { roomId, seatId }) => [
+        { type: 'Seat', id: seatId },
+        { type: 'Seat', id: 'LIST' },
+        { type: 'Seat', id: `LIST-${roomId}` },
+      ],
     }),
 
-    // Bulk seat operations
-    createBulkSeats: builder.mutation<Seat[], { roomId: string; seats: CreateSeatRequest[] }>({
-      query: ({ roomId, seats }) => ({
-        url: `/rooms/${roomId}/seats/bulk`,
+    // Seat assignments
+    assignGuestToSeat: builder.mutation<Seat, { venueId: string; roomId: string; seatId: string; data: AssignGuestToSeatRequest }>({
+      query: ({ venueId, roomId, seatId, data }) => ({
+        url: `/venues/${venueId}/rooms/${roomId}/seats/${seatId}/assign`,
         method: 'POST',
-        body: { seats },
+        body: data,
       }),
-      invalidatesTags: ['Seat', 'Room'],
+      transformResponse: (response: { seat: Seat }) => response.seat,
+      invalidatesTags: (result, error, { roomId, seatId }) => [
+        { type: 'Seat', id: seatId },
+        { type: 'Seat', id: 'LIST' },
+        { type: 'Seat', id: `LIST-${roomId}` },
+        'Guest',
+      ],
     }),
 
-    updateSeatStatus: builder.mutation<Seat, { roomId: string; seatId: string; status: string }>({
-      query: ({ roomId, seatId, status }) => ({
-        url: `/rooms/${roomId}/seats/${seatId}/status`,
-        method: 'PATCH',
-        body: { status },
+    unassignGuestFromSeat: builder.mutation<Seat, { venueId: string; roomId: string; seatId: string; data: UnassignGuestFromSeatRequest }>({
+      query: ({ venueId, roomId, seatId, data }) => ({
+        url: `/venues/${venueId}/rooms/${roomId}/seats/${seatId}/unassign`,
+        method: 'POST',
+        body: data,
       }),
-      invalidatesTags: ['Seat'],
+      transformResponse: (response: { seat: Seat }) => response.seat,
+      invalidatesTags: (result, error, { roomId, seatId }) => [
+        { type: 'Seat', id: seatId },
+        { type: 'Seat', id: 'LIST' },
+        { type: 'Seat', id: `LIST-${roomId}` },
+        'Guest',
+      ],
     }),
   }),
 });
 
 export const {
-  // Venue hooks
   useGetVenuesQuery,
   useGetVenueQuery,
   useCreateVenueMutation,
   useUpdateVenueMutation,
   useDeleteVenueMutation,
-  useGetVenueStatsQuery,
-  
-  // Room hooks
   useGetRoomsQuery,
   useGetRoomQuery,
   useCreateRoomMutation,
   useUpdateRoomMutation,
   useDeleteRoomMutation,
-  
-  // Seat hooks
   useGetSeatsQuery,
   useGetSeatQuery,
   useCreateSeatMutation,
   useUpdateSeatMutation,
   useDeleteSeatMutation,
-  useCreateBulkSeatsMutation,
-  useUpdateSeatStatusMutation,
+  useAssignGuestToSeatMutation,
+  useUnassignGuestFromSeatMutation,
 } = venuesApi;

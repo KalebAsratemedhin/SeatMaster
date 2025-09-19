@@ -188,7 +188,7 @@ func (s *EmailService) SendInvitationEmail(invitation *models.Invitation) error 
 		"InvitationToken":  invitation.Token,
 		"ExpiresAt":        invitation.ExpiresAt.Format("January 2, 2006"),
 		"PrefilledName":    invitation.PrefilledName,
-		"AcceptURL":        fmt.Sprintf("%s/invitations/%s/accept", s.config.Server.BaseURL, invitation.Token),
+		"AcceptURL":        fmt.Sprintf("%s/invitations/%s", s.config.Server.BaseURL, invitation.Token),
 	}
 
 	// Render template

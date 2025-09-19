@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -66,6 +67,11 @@ func (h *SeatHandler) CreateSeat(c *gin.Context) {
 		}
 		if err.Error() == "access denied to room" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "access denied to room"})
+			return
+		}
+		// Check for seat already exists error
+		if strings.Contains(err.Error(), "seat with row") && strings.Contains(err.Error(), "already exists") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create seat: " + err.Error()})
@@ -228,6 +234,11 @@ func (h *SeatHandler) UpdateSeat(c *gin.Context) {
 		}
 		if err.Error() == "access denied to seat" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "access denied to seat"})
+			return
+		}
+		// Check for seat already exists error
+		if strings.Contains(err.Error(), "seat with row") && strings.Contains(err.Error(), "already exists") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update seat: " + err.Error()})

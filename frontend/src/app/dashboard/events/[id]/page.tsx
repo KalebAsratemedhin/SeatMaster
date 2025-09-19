@@ -27,6 +27,7 @@ import {
   Lock,
   UserCheck,
   Mail,
+  Grid3X3,
   UserPlus,
   Clock,
   Share2,
@@ -195,6 +196,14 @@ export default function EventDetailsPage() {
                 <Button onClick={() => router.push(`/dashboard/events/${eventId}/guests`)}>
                   <Users className="h-4 w-4 mr-2" />
                   Manage Guests
+                </Button>
+                <Button onClick={() => router.push(`/dashboard/events/${eventId}/invitations`)}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Manage Invitations
+                </Button>
+                <Button onClick={() => router.push(`/dashboard/events/${eventId}/seating`)}>
+                  <Grid3X3 className="h-4 w-4 mr-2" />
+                  Manage Seating
                 </Button>
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
                   <Edit className="h-4 w-4 mr-2" />

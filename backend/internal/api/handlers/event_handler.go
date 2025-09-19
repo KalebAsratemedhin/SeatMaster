@@ -262,3 +262,38 @@ func (h *EventHandler) GetPublicEvents(c *gin.Context) {
 		Total:  total,
 	})
 }
+
+// GetEventBySlug handles retrieving a public event by slug
+// @Summary Get public event by slug
+// @Description Get a public event by its slug (no authentication required)
+// @Tags events
+// @Accept json
+// @Produce json
+// @Param slug path string true "Event slug"
+// @Success 200 {object} models.EventResponse "Event details"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 404 {object} map[string]interface{} "Event not found"
+// @Router /events/slug/{slug} [get]
+func (h *EventHandler) GetEventBySlug(c *gin.Context) {
+	slug := c.Param("slug")
+	if slug == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Slug is required"})
+		return
+	}
+
+	// Get event by slug
+	event, err := h.eventService.GetEventBySlug(slug)
+	if err != nil {
+		switch err.Error() {
+		case "event not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		case "event is not public":
+			c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve event"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, models.EventResponse{Event: event})
+}

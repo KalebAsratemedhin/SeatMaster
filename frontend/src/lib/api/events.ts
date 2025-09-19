@@ -28,6 +28,13 @@ export const eventsApi = baseApi.injectEndpoints({
       providesTags: ['Event'],
     }),
 
+    // Get event by slug (public)
+    getEventBySlug: builder.query<Event, string>({
+      query: (slug) => `/events/slug/${slug}`,
+      transformResponse: (response: { event: Event }) => response.event,
+      providesTags: ['Event'],
+    }),
+
     // Create event
     createEvent: builder.mutation<Event, CreateEventRequest>({
       query: (event) => ({
@@ -65,6 +72,7 @@ export const eventsApi = baseApi.injectEndpoints({
 export const {
   useGetEventsQuery,
   useGetEventQuery,
+  useGetEventBySlugQuery,
   useCreateEventMutation,
   useUpdateEventMutation,
   useDeleteEventMutation,

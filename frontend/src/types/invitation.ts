@@ -20,17 +20,28 @@ export interface Invitation extends BaseEntity {
   prefilled_name?: string;
   prefilled_phone?: string;
   prefilled_notes?: string;
-  sent_at?: string;
+  sent_at: string;
   accepted_at?: string;
-  cancelled_at?: string;
-  cancelled_by?: string;
-  cancelled_by_user?: User;
+  expired_at?: string;
+}
+
+// Invitation list item (simplified for list views)
+export interface InvitationListItem {
+  id: string;
+  email: string;
+  token: string;
+  status: InvitationStatus;
+  expires_at: string;
+  prefilled_name?: string;
+  sent_at: string;
+  accepted_at?: string;
+  created_at: string;
 }
 
 // Invitation request/response types
 export interface CreateInvitationRequest {
   email: string;
-  expires_in_days?: number; // Default 30 days
+  expires_in_days: number; // Required, 1-90 days
   prefilled_name?: string;
   prefilled_phone?: string;
   prefilled_notes?: string;
@@ -52,21 +63,12 @@ export interface InvitationsResponse {
 
 // Invitation acceptance
 export interface AcceptInvitationRequest {
-  token: string;
-  name: string;
-  phone?: string;
+  rsvp_status: 'pending' | 'accept' | 'decline' | 'maybe';
   notes?: string;
-  dietary_restrictions?: string;
-  accessibility_needs?: string;
-  emergency_contact?: string;
-  emergency_phone?: string;
-  plus_ones?: PlusOneRequest[];
 }
 
 export interface AcceptInvitationResponse {
-  invitation: Invitation;
   guest: Guest;
-  plus_ones: PlusOne[];
   message: string;
 }
 

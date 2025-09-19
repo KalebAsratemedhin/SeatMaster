@@ -83,6 +83,7 @@ type InvitationResponse struct {
 type InvitationListItem struct {
 	ID            uuid.UUID    `json:"id"`
 	Email         string       `json:"email"`
+	Token         string       `json:"token"`
 	Status        InviteStatus `json:"status"`
 	ExpiresAt     time.Time    `json:"expires_at"`
 	PrefilledName *string      `json:"prefilled_name"`

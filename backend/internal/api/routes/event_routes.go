@@ -10,7 +10,8 @@ import (
 // SetupEventRoutes configures all event-related routes
 func SetupEventRoutes(router *gin.Engine, eventHandler *handlers.EventHandler, authMiddleware *middleware.AuthMiddleware) {
 	// Public event routes (no authentication required)
-	router.GET("/events/public", eventHandler.GetPublicEvents) // Get public events
+	router.GET("/events/public", eventHandler.GetPublicEvents)    // Get public events
+	router.GET("/events/slug/:slug", eventHandler.GetEventBySlug) // Get public event by slug
 
 	// Event routes (authentication required)
 	events := router.Group("/events")
