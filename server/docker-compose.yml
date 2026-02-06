@@ -1,0 +1,22 @@
+services:
+  seatmaster-db:
+    image: postgres:16
+    container_name: seatmaster-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: seatmaster
+    ports:
+      - "5435:5432"
+    volumes:
+      - seatmaster-db_data:/var/lib/postgresql/data
+    
+    networks:
+      - seatmaster-network
+
+volumes:
+  seatmaster-db_data:
+
+networks:
+  seatmaster-network:
+    driver: bridge
