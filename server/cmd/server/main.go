@@ -39,14 +39,18 @@ func main() {
 	passwordManager := security.NewPasswordManager()
 
 	userRepo := repositories.NewUserRepository(db.GetDB())
+	eventRepo := repositories.NewEventRepository(db.GetDB())
+	eventInviteRepo := repositories.NewEventInviteRepository(db.GetDB())
 
 	authUseCase := usecases.NewAuthUseCase(userRepo, jwtManager, passwordManager)
+	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, userRepo)
 
 	authHandler := handlers.NewAuthHandler(authUseCase)
+	eventHandler := handlers.NewEventHandler(eventUseCase)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
-	router := httpHandler.NewRouter(authHandler, authMiddleware)
+	router := httpHandler.NewRouter(authHandler, eventHandler, authMiddleware)
 	muxRouter := router.SetupRoutes()
 	handler := middleware.CORS(muxRouter)
 

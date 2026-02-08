@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS event_invites;
+DROP TABLE IF EXISTS events;
