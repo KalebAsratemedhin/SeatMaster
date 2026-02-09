@@ -32,10 +32,11 @@ func (r *Router) SetupRoutes() *mux.Router {
 	api.HandleFunc("/auth/register", r.authHandler.Register).Methods("POST")
 	api.HandleFunc("/auth/login", r.authHandler.Login).Methods("POST")
 
-	// Public: discover public events (no auth)
-	api.HandleFunc("/events/public", r.eventHandler.ListPublicEvents).Methods("GET")
-	// Public: get single event (public events visible to all; private require auth or invite)
-	api.HandleFunc("/events/{id}", r.eventHandler.GetEvent).Methods("GET")
+	// Event routes that work with or without auth (optional auth so owner/invited can see private events)
+	eventsPublic := api.PathPrefix("/events").Subrouter()
+	eventsPublic.Use(r.authMiddleware.OptionalAuth)
+	eventsPublic.HandleFunc("/public", r.eventHandler.ListPublicEvents).Methods("GET")
+	eventsPublic.HandleFunc("/{id}", r.eventHandler.GetEvent).Methods("GET")
 
 	// Protected event routes
 	protected := api.PathPrefix("").Subrouter()

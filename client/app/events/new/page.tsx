@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSelector } from "react-redux";
@@ -12,7 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+const LocationPickerMapDynamic = dynamic(
+  () =>
+    import("@/components/map/location-picker-map").then((m) => ({
+      default: m.LocationPickerMap,
+    })),
+  { ssr: false }
+);
 
 const EVENT_TYPES = [
   { value: "wedding", label: "Wedding" },
@@ -166,6 +173,24 @@ export default function NewEventPage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, location: e.target.value }))
                   }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Choose location on map</Label>
+                <p className="text-sm text-muted-foreground">
+                  Click on the map to set the event coordinates.
+                </p>
+                <LocationPickerMapDynamic
+                  latitude={form.latitude}
+                  longitude={form.longitude}
+                  onLocationChange={(lat, lng) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      latitude: lat,
+                      longitude: lng,
+                    }))
+                  }
+                  height="280px"
                 />
               </div>
               <div className="space-y-2">

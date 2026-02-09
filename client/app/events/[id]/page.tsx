@@ -2,6 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
 import {
   useGetEventQuery,
@@ -17,6 +18,14 @@ import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, UserPlus } from "lucide-re
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const EventLocationMapDynamic = dynamic(
+  () =>
+    import("@/components/map/event-location-map").then((m) => ({
+      default: m.EventLocationMap,
+    })),
+  { ssr: false }
+);
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -164,6 +173,16 @@ export default function EventDetailPage() {
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="size-4 shrink-0" />
                 <span>{event.location}</span>
+              </div>
+            )}
+            {(event.latitude !== 0 || event.longitude !== 0) && (
+              <div className="pt-2">
+                <EventLocationMapDynamic
+                  latitude={event.latitude}
+                  longitude={event.longitude}
+                  location={event.location || undefined}
+                  height="280px"
+                />
               </div>
             )}
             {event.message && (

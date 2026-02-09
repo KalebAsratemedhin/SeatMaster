@@ -41,8 +41,8 @@ func (uc *EventUseCase) toEventResponse(event *entities.Event) *dto.EventRespons
 		EventType:  string(event.EventType),
 		Message:    event.Message,
 		EventDate:  event.EventDate.Format("2006-01-02"),
-		StartTime:  event.StartTime.Format("15:04:05"),
-		EndTime:    event.EndTime.Format("15:04:05"),
+		StartTime:  string(event.StartTime),
+		EndTime:    string(event.EndTime),
 		Location:   event.Location,
 		Latitude:   event.Latitude,
 		Longitude:  event.Longitude,
@@ -64,12 +64,10 @@ func (uc *EventUseCase) CreateEvent(ctx context.Context, ownerID int64, req dto.
 	if err != nil {
 		return nil, err
 	}
-	startTime, err := time.Parse("15:04:05", req.StartTime)
-	if err != nil {
+	if _, err := time.Parse("15:04:05", req.StartTime); err != nil {
 		return nil, err
 	}
-	endTime, err := time.Parse("15:04:05", req.EndTime)
-	if err != nil {
+	if _, err := time.Parse("15:04:05", req.EndTime); err != nil {
 		return nil, err
 	}
 
@@ -81,8 +79,8 @@ func (uc *EventUseCase) CreateEvent(ctx context.Context, ownerID int64, req dto.
 		EventType:  entities.EventType(req.EventType),
 		Message:    req.Message,
 		EventDate:  eventDate,
-		StartTime:  startTime,
-		EndTime:    endTime,
+		StartTime:  entities.TimeOfDay(req.StartTime),
+		EndTime:    entities.TimeOfDay(req.EndTime),
 		Location:   req.Location,
 		Latitude:   req.Latitude,
 		Longitude:  req.Longitude,
@@ -114,12 +112,10 @@ func (uc *EventUseCase) UpdateEvent(ctx context.Context, ownerID int64, req dto.
 	if err != nil {
 		return nil, err
 	}
-	startTime, err := time.Parse("15:04:05", req.StartTime)
-	if err != nil {
+	if _, err := time.Parse("15:04:05", req.StartTime); err != nil {
 		return nil, err
 	}
-	endTime, err := time.Parse("15:04:05", req.EndTime)
-	if err != nil {
+	if _, err := time.Parse("15:04:05", req.EndTime); err != nil {
 		return nil, err
 	}
 
@@ -129,8 +125,8 @@ func (uc *EventUseCase) UpdateEvent(ctx context.Context, ownerID int64, req dto.
 	event.EventType = entities.EventType(req.EventType)
 	event.Message = req.Message
 	event.EventDate = eventDate
-	event.StartTime = startTime
-	event.EndTime = endTime
+	event.StartTime = entities.TimeOfDay(req.StartTime)
+	event.EndTime = entities.TimeOfDay(req.EndTime)
 	event.Location = req.Location
 	event.Latitude = req.Latitude
 	event.Longitude = req.Longitude
