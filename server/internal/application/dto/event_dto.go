@@ -60,3 +60,8 @@ type EventInviteResponse struct {
 	Status    string `json:"status"`
 	CreatedAt string `json:"created_at"`
 }
+
+// RsvpRequest is the body for a guest responding to an invitation.
+type RsvpRequest struct {
+	Status string `json:"status"` // "confirmed" or "declined"
+}

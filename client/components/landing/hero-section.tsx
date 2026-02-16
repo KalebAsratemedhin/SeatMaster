@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -7,6 +8,8 @@ const AVATARS = [
   "https://api.dicebear.com/7.x/avataaars/svg?seed=b",
   "https://api.dicebear.com/7.x/avataaars/svg?seed=c",
 ];
+
+const HERO_IMAGE = "/images/landing-hero.png";
 
 export function HeroSection() {
   return (
@@ -28,10 +31,10 @@ export function HeroSection() {
           </div>
           <div className="flex flex-wrap gap-4">
             <Button asChild size="lg" className="min-w-[180px] h-14 rounded-xl bg-[#044b36] hover:bg-[#065f46] text-white shadow-xl shadow-[#044b36]/30 hover:scale-[1.02] transition-transform">
-              <Link href="#">Start Your Event</Link>
+              <Link href="/events/discover">Start Your Event</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="min-w-[180px] h-14 rounded-xl border-2 border-emerald-900/10 dark:border-emerald-800 hover:border-[#D4AF37]/50">
-              <Link href="#">Watch Demo</Link>
+              <Link href="/events/discover">Watch Demo</Link>
             </Button>
           </div>
           <div className="flex items-center gap-4 text-sm text-emerald-900/50 dark:text-emerald-100/40">
@@ -49,10 +52,16 @@ export function HeroSection() {
         </div>
         <div className="flex-1 relative">
           <div className="absolute -inset-4 bg-gradient-to-tr from-[#044b36]/30 to-[#D4AF37]/20 blur-3xl rounded-full" />
-          <div
-            className="relative w-full aspect-[4/3] rounded-2xl shadow-2xl overflow-hidden border-8 border-white dark:border-emerald-900/50 bg-cover bg-center"
-            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1540575467063-178bf50e2eae?w=800&q=80)" }}
-          />
+          <div className="relative w-full aspect-[4/3] rounded-2xl shadow-2xl overflow-hidden border-8 border-white dark:border-emerald-900/50">
+            <Image
+              src={HERO_IMAGE}
+              alt="SeatMaster event management"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+              priority
+            />
+          </div>
         </div>
       </div>
     </section>

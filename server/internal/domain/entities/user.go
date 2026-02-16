@@ -22,4 +22,5 @@ func (u *User) Validate() error {
 		return errors.ErrPasswordTooShort
 	}
 	return nil
+	
 }

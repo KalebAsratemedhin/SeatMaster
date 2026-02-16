@@ -1,6 +1,8 @@
 package http
 
 import (
+	"net/http"
+
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/handlers"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/middleware"
 
@@ -10,23 +12,31 @@ import (
 type Router struct {
 	authHandler    *handlers.AuthHandler
 	eventHandler   *handlers.EventHandler
+	uploadHandler  *handlers.UploadHandler
 	authMiddleware *middleware.AuthMiddleware
 }
 
 func NewRouter(
 	authHandler *handlers.AuthHandler,
 	eventHandler *handlers.EventHandler,
+	uploadHandler *handlers.UploadHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
 		authHandler:    authHandler,
 		eventHandler:  eventHandler,
+		uploadHandler: uploadHandler,
 		authMiddleware: authMiddleware,
 	}
 }
 
-func (r *Router) SetupRoutes() *mux.Router {
+func (r *Router) SetupRoutes(uploadDir string) *mux.Router {
 	router := mux.NewRouter()
+
+	// Serve uploaded files (banners) at /uploads/
+	if uploadDir != "" {
+		router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads", http.FileServer(http.Dir(uploadDir))))
+	}
 
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/auth/register", r.authHandler.Register).Methods("POST")
@@ -41,6 +51,7 @@ func (r *Router) SetupRoutes() *mux.Router {
 	// Protected event routes
 	protected := api.PathPrefix("").Subrouter()
 	protected.Use(r.authMiddleware.Middleware)
+	protected.HandleFunc("/upload/banner", r.uploadHandler.UploadBanner).Methods("POST")
 	protected.HandleFunc("/events", r.eventHandler.CreateEvent).Methods("POST")
 	protected.HandleFunc("/events", r.eventHandler.GetEvents).Methods("GET")
 	protected.HandleFunc("/events/invitations", r.eventHandler.GetInvitationEvents).Methods("GET")

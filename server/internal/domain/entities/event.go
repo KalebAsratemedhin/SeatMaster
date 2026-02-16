@@ -75,9 +75,7 @@ func (e *Event) Validate() error {
 	if e.Name == "" {
 		return errors.ErrInvalidName
 	}
-	if e.BannerURL == "" {
-		return errors.ErrInvalidBannerURL
-	}
+	// Banner is optional
 	if e.Visibility == "" {
 		return errors.ErrInvalidVisibility
 	}

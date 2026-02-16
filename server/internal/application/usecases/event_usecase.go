@@ -8,6 +8,7 @@ import (
 	"github.com/KalebAsratemedhin/seatmaster/internal/application/dto"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
+	"gorm.io/gorm"
 )
 
 type EventUseCase struct {
@@ -214,6 +215,64 @@ func (uc *EventUseCase) ListPublicEvents(ctx context.Context, search string, lim
 		out[i] = uc.toEventResponse(events[i])
 	}
 	return out, nil
+}
+
+// GetMyInvite returns the current user's invite for an event. Returns nil, err if not invited.
+func (uc *EventUseCase) GetMyInvite(ctx context.Context, userID int64, eventID int64) (*dto.EventInviteResponse, error) {
+	if userID == 0 {
+		return nil, errors.New("unauthorized")
+	}
+	invite, err := uc.eventInviteRepo.FindByEventAndUser(ctx, eventID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("not found")
+		}
+		return nil, err
+	}
+	if invite == nil {
+		return nil, errors.New("not found")
+	}
+	return &dto.EventInviteResponse{
+		ID:        invite.ID,
+		EventID:   invite.EventID,
+		UserID:    invite.UserID,
+		Email:     invite.Email,
+		Status:    invite.Status,
+		CreatedAt: invite.CreatedAt.Format(time.RFC3339),
+	}, nil
+}
+
+// RespondToInvite lets an invited user set their RSVP status (confirmed or declined).
+func (uc *EventUseCase) RespondToInvite(ctx context.Context, userID int64, eventID int64, status string) (*dto.EventInviteResponse, error) {
+	if userID == 0 {
+		return nil, errors.New("unauthorized")
+	}
+	if status != "confirmed" && status != "declined" {
+		return nil, errors.New("status must be confirmed or declined")
+	}
+	invite, err := uc.eventInviteRepo.FindByEventAndUser(ctx, eventID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("not found")
+		}
+		return nil, err
+	}
+	if invite == nil {
+		return nil, errors.New("not found")
+	}
+	invite.Status = status
+	invite.UpdatedAt = time.Now()
+	if err := uc.eventInviteRepo.Update(ctx, invite); err != nil {
+		return nil, err
+	}
+	return &dto.EventInviteResponse{
+		ID:        invite.ID,
+		EventID:   invite.EventID,
+		UserID:    invite.UserID,
+		Email:     invite.Email,
+		Status:    invite.Status,
+		CreatedAt: invite.CreatedAt.Format(time.RFC3339),
+	}, nil
 }
 
 // InviteUserToEvent invites a user (by email) to an event. Only the event owner can invite.

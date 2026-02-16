@@ -31,6 +31,15 @@ func (r *eventInviteRepositoryImpl) ListByEventID(ctx context.Context, eventID i
 	return invites, nil
 }
 
+func (r *eventInviteRepositoryImpl) FindByEventAndUser(ctx context.Context, eventID, userID int64) (*entities.EventInvite, error) {
+	var invite entities.EventInvite
+	err := r.db.WithContext(ctx).Where("event_id = ? AND user_id = ?", eventID, userID).First(&invite).Error
+	if err != nil {
+		return nil, err
+	}
+	return &invite, nil
+}
+
 func (r *eventInviteRepositoryImpl) ExistsByEventAndUser(ctx context.Context, eventID, userID int64) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).
@@ -43,4 +52,8 @@ func (r *eventInviteRepositoryImpl) ExistsByEventAndEmail(ctx context.Context, e
 	err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).
 		Where("event_id = ? AND email = ?", eventID, email).Count(&count).Error
 	return count > 0, err
+}
+
+func (r *eventInviteRepositoryImpl) Update(ctx context.Context, invite *entities.EventInvite) error {
+	return r.db.WithContext(ctx).Save(invite).Error
 }

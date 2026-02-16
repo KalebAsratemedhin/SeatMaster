@@ -5,17 +5,20 @@ import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { logout } from "@/lib/slices/authSlice";
+import { getInitialsFromEmail } from "@/lib/user-display";
 import type { RootState } from "@/lib/store";
-import { LogOut, User } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 
-const PUBLIC_NAV_LINKS = [
-  { href: "/events/discover", label: "Discover" },
-  { href: "#features", label: "Features" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#case-studies", label: "Case Studies" },
-  { href: "#support", label: "Support" },
-];
+const PUBLIC_NAV_LINKS = [{ href: "/events/discover", label: "Discover" }];
 
 export function SiteHeader() {
   const dispatch = useDispatch();
@@ -54,27 +57,55 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-3">
           {isLoggedIn ? (
-            <>
-              <span className="hidden sm:flex items-center gap-2 text-sm text-slate-600 dark:text-emerald-100/80">
-                <User className="size-4" />
-                {user?.email ?? "Account"}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="border-slate-200 dark:border-emerald-800/50 bg-slate-100 dark:bg-emerald-900/40"
-              >
-                <LogOut className="size-4 sm:mr-1" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full p-0 h-9 w-9 focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Open account menu"
+                >
+                  <Avatar
+                    size="default"
+                    className="h-9 w-9 border border-border"
+                  >
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                      {getInitialsFromEmail(user?.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="cursor-pointer">
+                    <Settings className="mr-2 size-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={handleLogout}
+                  className="cursor-pointer"
+                >
+                  <LogOut className="mr-2 size-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <>
-              <Button asChild className="bg-[#044b36] hover:bg-[#065f46] text-white shadow-lg shadow-[#044b36]/20">
+              <Button
+                asChild
+                className="bg-[#044b36] hover:bg-[#065f46] text-white shadow-lg shadow-[#044b36]/20"
+              >
                 <Link href="/auth?mode=signup">Get Started</Link>
               </Button>
-              <Button asChild variant="outline" className="hidden sm:flex border-slate-200 dark:border-emerald-800/50 bg-slate-100 dark:bg-emerald-900/40">
+              <Button
+                asChild
+                variant="outline"
+                className="hidden sm:flex border-slate-200 dark:border-emerald-800/50 bg-slate-100 dark:bg-emerald-900/40"
+              >
                 <Link href="/auth?mode=signin">Login</Link>
               </Button>
             </>

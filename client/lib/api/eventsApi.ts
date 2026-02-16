@@ -1,16 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-
-const baseQuery = fetchBaseQuery({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
-  prepareHeaders: (headers, { getState }) => {
-    const token = (getState() as { auth: { token: string | null } }).auth.token;
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-    headers.set("Content-Type", "application/json");
-    return headers;
-  },
-});
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { axiosBaseQuery } from "./axiosBaseQuery";
 
 export type CreateEventRequest = {
   name: string;
@@ -63,7 +52,7 @@ export type ListPublicEventsParams = {
 
 export const eventsApi = createApi({
   reducerPath: "eventsApi",
-  baseQuery,
+  baseQuery: axiosBaseQuery(),
   tagTypes: ["Events", "Event", "EventInvites"],
   endpoints: (builder) => ({
     createEvent: builder.mutation<EventResponse, CreateEventRequest>({

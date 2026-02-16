@@ -1,3 +1,7 @@
 *_101.md
 *.env
 /stitch-seatmaster
+
+# Server uploads (banner images)
+/server/uploads
+uploads

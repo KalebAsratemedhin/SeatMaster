@@ -14,7 +14,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { BannerUpload } from "@/components/events/banner-upload";
 import { ArrowLeft } from "lucide-react";
 
 const LocationPickerMapDynamic = dynamic(
@@ -133,41 +133,45 @@ export default function EditEventPage() {
     <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22] text-slate-900 dark:text-slate-100">
       <SiteHeader />
       <main className="flex-1 container max-w-2xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Link
-            href={`/events/${id}`}
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Back to Event
+        <nav className="mb-6 text-sm text-muted-foreground">
+          <Link href="/events" className="hover:text-foreground transition-colors">
+            Events
           </Link>
-        </div>
+          <span className="mx-2">/</span>
+          <Link href={`/events/${id}`} className="hover:text-foreground transition-colors truncate max-w-[180px] inline-block align-bottom">
+            {event.name}
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground font-medium">Edit</span>
+        </nav>
         <h1 className="text-3xl font-bold tracking-tight mb-2">Edit Event</h1>
-        <p className="text-muted-foreground mb-8">{event.name}</p>
+        <p className="text-muted-foreground mb-8">Update the details for {event.name}.</p>
 
-        <form onSubmit={handleSubmit}>
-          <Card className="mb-6">
-            <CardHeader>
-              <h2 className="text-lg font-semibold">Event Details</h2>
-            </CardHeader>
-            <CardContent className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-10">
+          <section className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-6 sm:p-8 space-y-6">
+            <div className="pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Event Details
+              </h2>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">Event Name *</Label>
+              <Input
+                id="name"
+                required
+                value={form.name}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Event Name *</Label>
-                <Input
-                  id="name"
-                  required
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="event_type">Event Type</Label>
-                  <select
-                    id="event_type"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <Label htmlFor="event_type">Event Type</Label>
+                <select
+                  id="event_type"
+                  className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
                     value={form.event_type}
                     onChange={(e) =>
                       setForm((prev) => ({
@@ -187,7 +191,7 @@ export default function EditEventPage() {
                   <Label htmlFor="visibility">Visibility</Label>
                   <select
                     id="visibility"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
                     value={form.visibility}
                     onChange={(e) =>
                       setForm((prev) => ({
@@ -205,13 +209,15 @@ export default function EditEventPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="location">Location / Venue</Label>
+                <Label htmlFor="location">Venue Name</Label>
                 <Input
                   id="location"
+                  placeholder="e.g. Grand Plaza Hotel"
                   value={form.location}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, location: e.target.value }))
                   }
+                  className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -245,6 +251,7 @@ export default function EditEventPage() {
                       event_date: e.target.value,
                     }))
                   }
+                  className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
                 />
               </div>
               <div className="grid grid-cols-2 gap-6">
@@ -261,6 +268,7 @@ export default function EditEventPage() {
                         start_time: e.target.value + ":00",
                       }))
                     }
+                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
                   />
                 </div>
                 <div className="space-y-2">
@@ -276,36 +284,29 @@ export default function EditEventPage() {
                         end_time: e.target.value + ":00",
                       }))
                     }
+                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="banner_url">Banner Image URL</Label>
-                <Input
-                  id="banner_url"
-                  type="url"
-                  value={form.banner_url}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      banner_url: e.target.value,
-                    }))
-                  }
-                />
-              </div>
+              <BannerUpload
+                value={form.banner_url}
+                onChange={(url) =>
+                  setForm((prev) => ({ ...prev, banner_url: url }))
+                }
+                disabled={isSaving}
+              />
               <div className="space-y-2">
                 <Label htmlFor="message">Message / Description</Label>
                 <textarea
                   id="message"
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-[80px] w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
                   value={form.message}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, message: e.target.value }))
                   }
                 />
               </div>
-            </CardContent>
-          </Card>
+          </section>
 
           {error && (
             <p className="text-destructive text-sm mb-4">
@@ -321,11 +322,11 @@ export default function EditEventPage() {
             <Button
               type="submit"
               disabled={isSaving}
-              className="bg-[#044b36] hover:bg-[#065f46]"
+              className="bg-[#059669] hover:bg-[#047857] rounded-xl"
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
-            <Button type="button" variant="outline" asChild>
+            <Button type="button" variant="outline" asChild className="rounded-xl">
               <Link href={`/events/${id}`}>Cancel</Link>
             </Button>
           </div>

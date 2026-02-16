@@ -48,10 +48,20 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authUseCase)
 	eventHandler := handlers.NewEventHandler(eventUseCase)
 
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "uploads"
+	}
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	uploadHandler := handlers.NewUploadHandler(uploadDir, baseURL)
+
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
-	router := httpHandler.NewRouter(authHandler, eventHandler, authMiddleware)
-	muxRouter := router.SetupRoutes()
+	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, authMiddleware)
+	muxRouter := router.SetupRoutes(uploadDir)
 	handler := middleware.CORS(muxRouter)
 
 

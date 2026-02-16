@@ -2,6 +2,8 @@ import Image from "next/image";
 import { Calendar } from "lucide-react";
 import Link from "next/link";
 
+const AUTH_IMAGE = "/images/auth-panel.png";
+
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full flex-col lg:flex-row">
@@ -16,9 +18,16 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
           <h2 className="text-2xl font-bold tracking-tight">SeatMaster</h2>
         </div>
         <div className="relative z-10 mt-auto">
-          <div className="mb-8 overflow-hidden rounded-2xl shadow-2xl border-4 border-white/10 aspect-video w-full bg-cover bg-center"
-            style={{ backgroundImage: "url(https://images.unsplash.com/photo-1540575467063-178bf50e2eae?w=800&q=80)" }}
-          />
+          <div className="relative mb-8 overflow-hidden rounded-2xl shadow-2xl border-4 border-white/10 aspect-video w-full">
+            <Image
+              src={AUTH_IMAGE}
+              alt="Event planning and guest experience"
+              fill
+              className="object-cover"
+              sizes="50vw"
+              priority
+            />
+          </div>
           <h1 className="text-4xl font-extrabold text-white leading-tight mb-4">
             Craft Unforgettable Guest Experiences.
           </h1>
