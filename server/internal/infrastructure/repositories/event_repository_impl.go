@@ -44,6 +44,25 @@ func (r *eventRepositoryImpl) FindByOwnerID(ctx context.Context, ownerID int64) 
 	return events, nil
 }
 
+func (r *eventRepositoryImpl) FindByOwnerIDPaginated(ctx context.Context, ownerID int64, limit, offset int) ([]*entities.Event, int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&entities.Event{}).Where("owner_id = ?", ownerID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	var events []*entities.Event
+	err := r.db.WithContext(ctx).Where("owner_id = ?", ownerID).Order("event_date DESC, start_time DESC").Limit(limit).Offset(offset).Find(&events).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return events, total, nil
+}
+
 func (r *eventRepositoryImpl) FindByUserID(ctx context.Context, userID int64) ([]*entities.Event, error) {
 	var ids []int64
 	err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).Where("user_id = ?", userID).Distinct("event_id").Pluck("event_id", &ids).Error
@@ -59,6 +78,34 @@ func (r *eventRepositoryImpl) FindByUserID(ctx context.Context, userID int64) ([
 		return nil, err
 	}
 	return events, nil
+}
+
+func (r *eventRepositoryImpl) FindByUserIDPaginated(ctx context.Context, userID int64, limit, offset int) ([]*entities.Event, int64, error) {
+	var ids []int64
+	err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).Where("user_id = ?", userID).Distinct("event_id").Pluck("event_id", &ids).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	var total int64
+	if len(ids) == 0 {
+		return []*entities.Event{}, 0, nil
+	}
+	total = int64(len(ids))
+	// Apply limit/offset to the ids slice
+	if offset >= len(ids) {
+		return []*entities.Event{}, total, nil
+	}
+	end := offset + limit
+	if end > len(ids) {
+		end = len(ids)
+	}
+	pageIDs := ids[offset:end]
+	var events []*entities.Event
+	err = r.db.WithContext(ctx).Where("id IN ?", pageIDs).Order("event_date DESC, start_time DESC").Find(&events).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return events, total, nil
 }
 
 // FindByEmail is not applicable to events; returns gorm.ErrRecordNotFound to satisfy interface.

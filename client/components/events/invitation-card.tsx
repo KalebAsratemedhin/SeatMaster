@@ -1,16 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import type { EventResponse } from "@/lib/api/eventsApi";
+import type { InvitationWithEventResponse } from "@/lib/api/eventsApi";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-type EventCardProps = {
-  event: EventResponse;
-  showActions?: boolean;
+type InvitationCardProps = {
+  invitation: InvitationWithEventResponse;
 };
 
-export function EventCard({ event, showActions = true }: EventCardProps) {
+const statusLabel: Record<string, string> = {
+  pending: "No response yet",
+  confirmed: "Accepted",
+  declined: "Declined",
+};
+
+export function InvitationCard({ invitation }: InvitationCardProps) {
+  const { event, invite } = invitation;
+  const label = statusLabel[invite.status] ?? invite.status;
+
   return (
     <Card className="overflow-hidden pt-0">
       {event.banner_url ? (
@@ -33,12 +41,14 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
           </div>
           <span
             className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${
-              event.visibility === "private"
-                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
-                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200"
+              invite.status === "confirmed"
+                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200"
+                : invite.status === "declined"
+                  ? "bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-200"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
             }`}
           >
-            {event.visibility}
+            {label}
           </span>
         </div>
       </CardHeader>
@@ -46,13 +56,16 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
         {event.location && (
           <p className="text-sm text-muted-foreground">{event.location}</p>
         )}
-        {showActions && (
-          <div className="mt-4 flex gap-2">
-            <Button asChild size="sm" variant="default">
-              <Link href={`/events/${event.id}`}>View</Link>
-            </Button>
-          </div>
-        )}
+        <div className="mt-4 flex gap-2">
+          <Button asChild size="sm" variant="default">
+            <Link href={`/events/${event.id}/rsvp`}>
+              {invite.status === "pending" ? "Respond" : "View / Update"}
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/events/${event.id}`}>View event</Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

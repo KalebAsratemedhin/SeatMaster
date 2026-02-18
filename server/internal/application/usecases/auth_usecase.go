@@ -65,12 +65,20 @@ func (uc *AuthUseCase) Register(ctx context.Context, req dto.RegisterRequest) (*
 
 	return &dto.AuthResponse{
 		Token: token,
-		User: dto.UserResponse{
-			ID:        user.ID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt.Format(time.RFC3339),
-		},
+		User:  uc.UserToResponse(user),
 	}, nil
+}
+
+func (uc *AuthUseCase) UserToResponse(user *entities.User) dto.UserResponse {
+	return dto.UserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Phone:     user.Phone,
+		AvatarURL: user.AvatarURL,
+		CreatedAt: user.CreatedAt.Format(time.RFC3339),
+	}
 }
 
 func (uc *AuthUseCase) Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error) {
@@ -90,10 +98,6 @@ func (uc *AuthUseCase) Login(ctx context.Context, req dto.LoginRequest) (*dto.Au
 
 	return &dto.AuthResponse{
 		Token: token,
-		User: dto.UserResponse{
-			ID:        user.ID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt.Format(time.RFC3339),
-		},
+		User:  uc.UserToResponse(user),
 	}, nil
 }

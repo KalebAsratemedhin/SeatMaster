@@ -10,7 +10,9 @@ type EventRepository interface {
 	Create(ctx context.Context, event *entities.Event) error
 	FindByID(ctx context.Context, id int64) (*entities.Event, error)
 	FindByOwnerID(ctx context.Context, ownerID int64) ([]*entities.Event, error)
+	FindByOwnerIDPaginated(ctx context.Context, ownerID int64, limit, offset int) ([]*entities.Event, int64, error)
 	FindByUserID(ctx context.Context, userID int64) ([]*entities.Event, error)
+	FindByUserIDPaginated(ctx context.Context, userID int64, limit, offset int) ([]*entities.Event, int64, error)
 	FindByEmail(ctx context.Context, email string) (*entities.Event, error)
 	ExistsByID(ctx context.Context, id int64) (bool, error)
 	ExistsByOwnerID(ctx context.Context, ownerID int64) (bool, error)

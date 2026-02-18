@@ -58,3 +58,17 @@ func (r *userRepositoryImpl) ExistsByEmail(ctx context.Context, email string) (b
 	}
 	return count > 0, nil
 }
+
+func (r *userRepositoryImpl) Update(ctx context.Context, user *entities.User) error {
+	result := r.db.WithContext(ctx).Model(user).Updates(map[string]interface{}{
+		"first_name":  user.FirstName,
+		"last_name":   user.LastName,
+		"phone":       user.Phone,
+		"avatar_url":  user.AvatarURL,
+		"updated_at":  user.UpdatedAt,
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}

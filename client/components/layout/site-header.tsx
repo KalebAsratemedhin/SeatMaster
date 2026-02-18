@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import {
 import { logout } from "@/lib/slices/authSlice";
 import { getInitialsFromEmail } from "@/lib/user-display";
 import type { RootState } from "@/lib/store";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, User, Settings } from "lucide-react";
 
 const PUBLIC_NAV_LINKS = [{ href: "/events/discover", label: "Discover" }];
 
@@ -38,12 +38,20 @@ export function SiteHeader() {
       <div className="flex flex-1 justify-end items-center gap-8">
         <nav className="hidden md:flex items-center gap-8">
           {isLoggedIn && (
-            <Link
-              href="/events"
-              className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
-            >
-              Events
-            </Link>
+            <>
+              <Link
+                href="/events"
+                className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
+              >
+                Events
+              </Link>
+              <Link
+                href="/invitations"
+                className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
+              >
+                Invitations
+              </Link>
+            </>
           )}
           {PUBLIC_NAV_LINKS.map(({ href, label }) => (
             <Link
@@ -69,13 +77,28 @@ export function SiteHeader() {
                     size="default"
                     className="h-9 w-9 border border-border"
                   >
+                    {user?.avatar_url ? (
+                      <AvatarImage
+                        src={user.avatar_url}
+                        alt=""
+                        className="object-cover"
+                      />
+                    ) : null}
                     <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                      {getInitialsFromEmail(user?.email)}
+                      {user?.first_name && user?.last_name
+                        ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+                        : getInitialsFromEmail(user?.email)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer">
+                    <User className="mr-2 size-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/settings" className="cursor-pointer">
                     <Settings className="mr-2 size-4" />

@@ -1,0 +1,1 @@
+ALTER TABLE event_tables DROP COLUMN IF EXISTS shape;

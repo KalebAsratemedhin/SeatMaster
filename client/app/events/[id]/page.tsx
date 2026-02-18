@@ -9,6 +9,10 @@ import {
   useDeleteEventMutation,
   useGetEventInvitesQuery,
   useInviteToEventMutation,
+  useGetEventSeatingQuery,
+  useCreateEventTableMutation,
+  useDeleteEventTableMutation,
+  useReorderEventTablesMutation,
 } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -23,7 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, UserPlus, Users, CheckCircle, Clock, ImageIcon } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, UserPlus, Users, CheckCircle, Clock, ImageIcon, Table2, Plus, Loader2 } from "lucide-react";
+import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,12 +57,34 @@ export default function EventDetailPage() {
 
   const isOwner = user && event && event.owner_id === user.id;
 
-  const { data: invites = [] } = useGetEventInvitesQuery(id, {
-    skip: !id || !isOwner || !token,
-  });
+  const { data: invitesData } = useGetEventInvitesQuery(
+    { eventId: id, limit: 100, offset: 0 },
+    { skip: !id || !isOwner || !token }
+  );
+  const invites = invitesData?.items ?? [];
   const [inviteToEvent, { isLoading: isInviting, error: inviteError }] =
     useInviteToEventMutation();
   const [inviteEmail, setInviteEmail] = useState("");
+  const { data: seating = [] } = useGetEventSeatingQuery(id, {
+    skip: !id || !token,
+  });
+  const [createTable, { isLoading: isCreatingTable }] = useCreateEventTableMutation();
+  const [deleteTable, { isLoading: isDeletingTable }] = useDeleteEventTableMutation();
+  const [reorderTables] = useReorderEventTablesMutation();
+  const [newTableCapacity, setNewTableCapacity] = useState(6);
+  const [newTableShape, setNewTableShape] = useState<"round" | "rectangular" | "grid">("round");
+  const [newTableRows, setNewTableRows] = useState(2);
+  const [newTableColumns, setNewTableColumns] = useState(3);
+
+  const seatIdToLabel = (() => {
+    const m: Record<number, string> = {};
+    for (const t of seating) {
+      for (const s of t.seats) {
+        m[s.id] = `${t.name} - Seat ${s.label}`;
+      }
+    }
+    return m;
+  })();
 
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,6 +202,13 @@ export default function EventDetailPage() {
                   {event.message}
                 </p>
               )}
+              {!isOwner && event.visibility === "public" && (
+                <div className="mt-6">
+                  <Button asChild className="bg-[#044b36] hover:bg-[#065f46] text-white rounded-xl">
+                    <Link href={`/events/${id}/rsvp`}>RSVP</Link>
+                  </Button>
+                </div>
+              )}
               {(event.latitude !== 0 || event.longitude !== 0) && (
                 <div className="mt-6 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30">
                   <EventLocationMapDynamic
@@ -246,6 +280,9 @@ export default function EventDetailPage() {
                         RSVP Status
                       </th>
                       <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Seating
+                      </th>
+                      <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Invited
                       </th>
                     </tr>
@@ -253,7 +290,7 @@ export default function EventDetailPage() {
                   <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/80">
                     {invites.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground text-sm">
+                        <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground text-sm">
                           No guests invited yet. Add a guest by email above.
                         </td>
                       </tr>
@@ -299,6 +336,9 @@ export default function EventDetailPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                            {inv.seat_id != null ? seatIdToLabel[inv.seat_id] ?? `Seat #${inv.seat_id}` : "—"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                             {new Date(inv.created_at).toLocaleDateString()}
                           </td>
                         </tr>
@@ -307,12 +347,144 @@ export default function EventDetailPage() {
                   </tbody>
                 </table>
               </div>
-              {invites.length > 0 && (
-                <div className="px-6 py-3 border-t border-slate-200/80 dark:border-slate-700/80 text-xs text-muted-foreground">
-                  Showing 1 to {invites.length} of {invites.length} guests
+              {invites.length > 0 && invitesData && (
+                <div className="px-6 py-3 border-t border-slate-200/80 dark:border-slate-700/80 text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Showing 1 to {invites.length} of {invitesData.total} guests</span>
                 </div>
               )}
             </div>
+            )}
+
+            {isOwner && token && (
+              <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm mt-8">
+                <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+                  <h2 className="text-2xl font-black leading-tight tracking-tight text-[#111418] dark:text-white flex items-center gap-2">
+                    <Table2 className="size-6 text-[#10b981]" />
+                    Seating Arrangement
+                  </h2>
+                  <p className="text-[#617589] text-sm mt-1">
+                    Add tables or sitting areas below; guests can pick a seat when they RSVP.
+                  </p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex flex-wrap items-end gap-4 mb-6">
+                    <form
+                      className="flex flex-wrap items-end gap-4"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const body =
+                          newTableShape === "grid"
+                            ? { shape: "grid" as const, rows: newTableRows, columns: newTableColumns }
+                            : { shape: newTableShape, capacity: newTableCapacity };
+                        createTable({ eventId: id, body })
+                          .unwrap()
+                          .then(() => {
+                            setNewTableCapacity(6);
+                            setNewTableShape("round");
+                            setNewTableRows(2);
+                            setNewTableColumns(3);
+                          })
+                          .catch(() => {});
+                      }}
+                    >
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Arrangement</Label>
+                        <select
+                          value={newTableShape}
+                          onChange={(e) =>
+                            setNewTableShape(e.target.value as "round" | "rectangular" | "grid")
+                          }
+                          className="w-36 rounded-lg h-9 border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="round">Round</option>
+                          <option value="rectangular">Rectangular</option>
+                          <option value="grid">Sitting area (grid)</option>
+                        </select>
+                      </div>
+                      {newTableShape === "grid" ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium">Rows</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={newTableRows}
+                              onChange={(e) =>
+                                setNewTableRows(Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                              }
+                              className="w-16 rounded-lg h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs font-medium">Columns</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={newTableColumns}
+                              onChange={(e) =>
+                                setNewTableColumns(Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                              }
+                              className="w-16 rounded-lg h-9"
+                            />
+                          </div>
+                          <span className="text-xs text-[#617589] self-center">
+                            {newTableRows * newTableColumns} seats
+                          </span>
+                        </>
+                      ) : (
+                        <div className="space-y-1">
+                          <Label className="text-xs font-medium">Capacity</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={newTableCapacity}
+                            onChange={(e) =>
+                              setNewTableCapacity(parseInt(e.target.value, 10) || 6)
+                            }
+                            className="w-20 rounded-lg h-9"
+                          />
+                        </div>
+                      )}
+                      <Button
+                        type="submit"
+                        disabled={
+                          isCreatingTable ||
+                          (newTableShape === "grid" &&
+                            (newTableRows < 1 || newTableColumns < 1 ||
+                              newTableRows > 100 || newTableColumns > 100))
+                        }
+                        className="bg-[#10b981] hover:bg-[#059669] h-9 rounded-lg font-bold text-sm"
+                      >
+                        {isCreatingTable ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Plus className="size-4" />
+                        )}
+                        Add Table
+                      </Button>
+                    </form>
+                  </div>
+                  {seating.length > 0 ? (
+                    <SeatingChartFloor
+                      tables={seating}
+                      showDelete
+                      onDeleteTable={(tableId) => {
+                        if (confirm("Delete this table or sitting area? Seat assignments will be cleared.")) {
+                          deleteTable({ eventId: id, tableId }).catch(() => {});
+                        }
+                      }}
+                      onReorder={(orderedTableIds) => {
+                        reorderTables({ eventId: id, tableIds: orderedTableIds }).catch(() => {});
+                      }}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-6">No tables yet. Add one above to build your seating chart.</p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 

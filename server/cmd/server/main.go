@@ -41,12 +41,16 @@ func main() {
 	userRepo := repositories.NewUserRepository(db.GetDB())
 	eventRepo := repositories.NewEventRepository(db.GetDB())
 	eventInviteRepo := repositories.NewEventInviteRepository(db.GetDB())
+	eventTableRepo := repositories.NewEventTableRepository(db.GetDB())
+	eventSeatRepo := repositories.NewEventSeatRepository(db.GetDB())
 
 	authUseCase := usecases.NewAuthUseCase(userRepo, jwtManager, passwordManager)
-	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, userRepo)
+	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, userRepo)
+	profileUseCase := usecases.NewProfileUseCase(userRepo, authUseCase)
 
 	authHandler := handlers.NewAuthHandler(authUseCase)
 	eventHandler := handlers.NewEventHandler(eventUseCase)
+	profileHandler := handlers.NewProfileHandler(profileUseCase)
 
 	uploadDir := os.Getenv("UPLOAD_DIR")
 	if uploadDir == "" {
@@ -60,7 +64,7 @@ func main() {
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
-	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, authMiddleware)
+	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, authMiddleware)
 	muxRouter := router.SetupRoutes(uploadDir)
 	handler := middleware.CORS(muxRouter)
 

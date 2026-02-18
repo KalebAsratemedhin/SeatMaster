@@ -2,7 +2,9 @@ import Image from "next/image";
 import { Calendar } from "lucide-react";
 import Link from "next/link";
 
-const AUTH_IMAGE = "/images/auth-panel.png";
+// Design image from stitch-seatmaster/sign_up_&_sign_in/code.html
+const AUTH_IMAGE =
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuBKAd0HBdE_XvmvYoI6tBj0NI86SJG_Nt5sL42w7SPQlbWruA3cvuyOxEt7AK0OC-vnJZc6vbuCVc4MqGuzLjdZ1vV-m4Jp024cugjO65aSskyLNIGbjnKOZR_OXZ1kP8zo9-WdtSpAcib7O-lMlhdWFC_ioRp7aOT1uR8cvpNlIcrJU_3xkKsY-j61cSE-ShJ1NbDnk0GLSx-B88p6A9A2LGuSmAhPI1n4RcAs_2wLypdWSGaPPfxmwJsviIKRjx2FlUlC9qx72aAM";
 
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

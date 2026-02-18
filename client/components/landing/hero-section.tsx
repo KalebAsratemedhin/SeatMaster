@@ -9,7 +9,9 @@ const AVATARS = [
   "https://api.dicebear.com/7.x/avataaars/svg?seed=c",
 ];
 
-const HERO_IMAGE = "/images/landing-hero.png";
+// Design image from stitch-seatmaster/landing_page/code.html
+const HERO_IMAGE =
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCvpfVxYmx08newmrLR94ViWDC4he3tVq9IpAxotuorxxuH-H4yUVhp9ORqvIdbrpG8FjYKijdAhfwKnLkHU5ohomk_KYc-0TMNYouFyWqbuSoRtpcPl8NLMw0ubo2-DM_Otds2TFUMPw6HF-EdHGy3E6mmxzNfI7vT4xezsPda7N3lCYHkc0h4247ZSCJYL0_sA76B35TTu55e92g1r1Ueb-0tcZgAtU8tZCdUgSQmesIHNR_92XyByytBdxR-tNjYw_-iXppOAdbw";
 
 export function HeroSection() {
   return (

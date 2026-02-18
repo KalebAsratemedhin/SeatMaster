@@ -31,13 +31,23 @@ func (r *eventInviteRepositoryImpl) ListByEventID(ctx context.Context, eventID i
 	return invites, nil
 }
 
-func (r *eventInviteRepositoryImpl) FindByEventAndUser(ctx context.Context, eventID, userID int64) (*entities.EventInvite, error) {
-	var invite entities.EventInvite
-	err := r.db.WithContext(ctx).Where("event_id = ? AND user_id = ?", eventID, userID).First(&invite).Error
-	if err != nil {
-		return nil, err
+func (r *eventInviteRepositoryImpl) ListByEventIDPaginated(ctx context.Context, eventID int64, limit, offset int) ([]*entities.EventInvite, int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).Where("event_id = ?", eventID).Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
-	return &invite, nil
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	var invites []*entities.EventInvite
+	err := r.db.WithContext(ctx).Where("event_id = ?", eventID).Order("created_at DESC").Limit(limit).Offset(offset).Find(&invites).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return invites, total, nil
 }
 
 func (r *eventInviteRepositoryImpl) ExistsByEventAndUser(ctx context.Context, eventID, userID int64) (bool, error) {
@@ -47,13 +57,50 @@ func (r *eventInviteRepositoryImpl) ExistsByEventAndUser(ctx context.Context, ev
 	return count > 0, err
 }
 
+func (r *eventInviteRepositoryImpl) ListByUserID(ctx context.Context, userID int64) ([]*entities.EventInvite, error) {
+	var invites []*entities.EventInvite
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&invites).Error
+	if err != nil {
+		return nil, err
+	}
+	return invites, nil
+}
+
+func (r *eventInviteRepositoryImpl) ListByUserIDPaginated(ctx context.Context, userID int64, limit, offset int) ([]*entities.EventInvite, int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	var invites []*entities.EventInvite
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Limit(limit).Offset(offset).Find(&invites).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return invites, total, nil
+}
+
+func (r *eventInviteRepositoryImpl) FindByEventAndUser(ctx context.Context, eventID, userID int64) (*entities.EventInvite, error) {
+	var invite entities.EventInvite
+	err := r.db.WithContext(ctx).Where("event_id = ? AND user_id = ?", eventID, userID).First(&invite).Error
+	if err != nil {
+		return nil, err
+	}
+	return &invite, nil
+}
+
+func (r *eventInviteRepositoryImpl) Update(ctx context.Context, invite *entities.EventInvite) error {
+	return r.db.WithContext(ctx).Save(invite).Error
+}
+
 func (r *eventInviteRepositoryImpl) ExistsByEventAndEmail(ctx context.Context, eventID int64, email string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).
 		Where("event_id = ? AND email = ?", eventID, email).Count(&count).Error
 	return count > 0, err
-}
-
-func (r *eventInviteRepositoryImpl) Update(ctx context.Context, invite *entities.EventInvite) error {
-	return r.db.WithContext(ctx).Save(invite).Error
 }

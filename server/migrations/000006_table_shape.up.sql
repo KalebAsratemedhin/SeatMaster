@@ -1,0 +1,2 @@
+ALTER TABLE event_tables
+    ADD COLUMN IF NOT EXISTS shape VARCHAR(50) NOT NULL DEFAULT 'round';

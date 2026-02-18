@@ -18,5 +18,16 @@ type AuthResponse struct {
 type UserResponse struct {
 	ID        int64  `json:"id"`
 	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	AvatarURL string `json:"avatar_url"`
 	CreatedAt string `json:"created_at"`
+}
+
+type UpdateProfileRequest struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	AvatarURL string `json:"avatar_url"`
 }

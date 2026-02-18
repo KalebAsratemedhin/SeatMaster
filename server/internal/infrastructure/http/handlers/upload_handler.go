@@ -89,3 +89,65 @@ func (h *UploadHandler) UploadBanner(w http.ResponseWriter, r *http.Request) {
 	url := fmt.Sprintf("%s/uploads/banners/%s", h.baseURL, name)
 	respondWithJSON(w, http.StatusOK, map[string]string{"url": url})
 }
+
+const maxAvatarSize = 5 << 20 // 5MB
+var allowedAvatarTypes = map[string]bool{
+	"image/jpeg": true, "image/jpg": true, "image/png": true,
+	"image/gif": true, "image/webp": true,
+}
+
+func (h *UploadHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if err := r.ParseMultipartForm(maxAvatarSize); err != nil {
+		respondWithError(w, http.StatusBadRequest, "file too large or invalid form")
+		return
+	}
+	file, header, err := r.FormFile("avatar")
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "missing file: use form key 'avatar'")
+		return
+	}
+	defer file.Close()
+	ct := header.Header.Get("Content-Type")
+	if !allowedAvatarTypes[ct] {
+		respondWithError(w, http.StatusBadRequest, "invalid file type: use JPEG, PNG, GIF, or WebP")
+		return
+	}
+	ext := ".jpg"
+	switch {
+	case strings.Contains(ct, "png"):
+		ext = ".png"
+	case strings.Contains(ct, "gif"):
+		ext = ".gif"
+	case strings.Contains(ct, "webp"):
+		ext = ".webp"
+	}
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to generate filename")
+		return
+	}
+	name := hex.EncodeToString(b) + ext
+	dir := filepath.Join(h.uploadDir, "avatars")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to create upload directory")
+		return
+	}
+	path := filepath.Join(dir, name)
+	dst, err := os.Create(path)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to save file")
+		return
+	}
+	defer dst.Close()
+	if _, err := io.Copy(dst, file); err != nil {
+		os.Remove(path)
+		respondWithError(w, http.StatusInternalServerError, "failed to save file")
+		return
+	}
+	url := fmt.Sprintf("%s/uploads/avatars/%s", h.baseURL, name)
+	respondWithJSON(w, http.StatusOK, map[string]string{"url": url})
+}

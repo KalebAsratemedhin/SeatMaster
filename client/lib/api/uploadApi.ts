@@ -43,3 +43,37 @@ export async function uploadBanner(file: File): Promise<string> {
   });
   return data.url;
 }
+
+const MAX_AVATAR_MB = 5;
+const MAX_AVATAR_BYTES = MAX_AVATAR_MB * 1024 * 1024;
+
+export function avatarFileError(file: File): string | null {
+  if (
+    file.type !== "image/jpeg" &&
+    file.type !== "image/png" &&
+    file.type !== "image/gif" &&
+    file.type !== "image/webp"
+  ) {
+    return "Please use JPEG, PNG, GIF, or WebP.";
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    return `File must be under ${MAX_AVATAR_MB}MB.`;
+  }
+  return null;
+}
+
+/**
+ * Uploads an avatar image. Returns the URL to store in profile.
+ */
+export async function uploadAvatar(file: File): Promise<string> {
+  const err = avatarFileError(file);
+  if (err) throw new Error(err);
+
+  const form = new FormData();
+  form.append("avatar", file);
+
+  const { data } = await api.post<{ url: string }>("/api/v1/upload/avatar", form, {
+    headers: { "Content-Type": undefined },
+  });
+  return data.url;
+}

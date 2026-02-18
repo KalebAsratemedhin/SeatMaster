@@ -13,6 +13,7 @@ type Router struct {
 	authHandler    *handlers.AuthHandler
 	eventHandler   *handlers.EventHandler
 	uploadHandler  *handlers.UploadHandler
+	profileHandler *handlers.ProfileHandler
 	authMiddleware *middleware.AuthMiddleware
 }
 
@@ -20,12 +21,14 @@ func NewRouter(
 	authHandler *handlers.AuthHandler,
 	eventHandler *handlers.EventHandler,
 	uploadHandler *handlers.UploadHandler,
+	profileHandler *handlers.ProfileHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
 		authHandler:    authHandler,
 		eventHandler:  eventHandler,
 		uploadHandler: uploadHandler,
+		profileHandler: profileHandler,
 		authMiddleware: authMiddleware,
 	}
 }
@@ -46,17 +49,27 @@ func (r *Router) SetupRoutes(uploadDir string) *mux.Router {
 	eventsPublic := api.PathPrefix("/events").Subrouter()
 	eventsPublic.Use(r.authMiddleware.OptionalAuth)
 	eventsPublic.HandleFunc("/public", r.eventHandler.ListPublicEvents).Methods("GET")
+	eventsPublic.HandleFunc("/{id}/seating", r.eventHandler.ListEventSeating).Methods("GET")
 	eventsPublic.HandleFunc("/{id}", r.eventHandler.GetEvent).Methods("GET")
 
 	// Protected event routes
 	protected := api.PathPrefix("").Subrouter()
 	protected.Use(r.authMiddleware.Middleware)
 	protected.HandleFunc("/upload/banner", r.uploadHandler.UploadBanner).Methods("POST")
+	protected.HandleFunc("/upload/avatar", r.uploadHandler.UploadAvatar).Methods("POST")
+	protected.HandleFunc("/users/me", r.profileHandler.GetProfile).Methods("GET")
+	protected.HandleFunc("/users/me", r.profileHandler.UpdateProfile).Methods("PUT")
 	protected.HandleFunc("/events", r.eventHandler.CreateEvent).Methods("POST")
 	protected.HandleFunc("/events", r.eventHandler.GetEvents).Methods("GET")
 	protected.HandleFunc("/events/invitations", r.eventHandler.GetInvitationEvents).Methods("GET")
+	protected.HandleFunc("/invitations", r.eventHandler.GetMyInvitations).Methods("GET")
 	protected.HandleFunc("/events/{id}/invites", r.eventHandler.ListEventInvites).Methods("GET")
 	protected.HandleFunc("/events/{id}/invites", r.eventHandler.InviteUserToEvent).Methods("POST")
+	protected.HandleFunc("/events/{id}/rsvp", r.eventHandler.RespondToInvite).Methods("PUT")
+	protected.HandleFunc("/events/{id}/tables", r.eventHandler.CreateEventTable).Methods("POST")
+	protected.HandleFunc("/events/{id}/seating/order", r.eventHandler.ReorderEventTables).Methods("PUT")
+	protected.HandleFunc("/events/{id}/tables/{tableId}", r.eventHandler.UpdateEventTable).Methods("PUT")
+	protected.HandleFunc("/events/{id}/tables/{tableId}", r.eventHandler.DeleteEventTable).Methods("DELETE")
 	protected.HandleFunc("/events/{id}", r.eventHandler.UpdateEvent).Methods("PUT")
 	protected.HandleFunc("/events/{id}", r.eventHandler.DeleteEvent).Methods("DELETE")
 

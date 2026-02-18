@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
         hostname: "localhost",
         pathname: "/uploads/**",
       },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
     ],
   },
 };
