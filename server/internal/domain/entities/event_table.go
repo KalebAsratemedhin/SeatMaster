@@ -11,6 +11,8 @@ type EventTable struct {
 	TableColumns *int      `json:"table_columns,omitempty"` // for grid
 	Capacity     int       `json:"capacity"`
 	DisplayOrder int       `json:"display_order"`
+	PositionX    float64   `json:"position_x"` // 0-100, percentage on floor
+	PositionY    float64   `json:"position_y"` // 0-100, percentage on floor
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

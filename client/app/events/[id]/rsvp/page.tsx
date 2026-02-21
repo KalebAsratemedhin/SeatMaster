@@ -15,7 +15,17 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getErrorMessage } from "@/lib/api/errors";
+import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
 import { ArrowLeft, ImageIcon, CheckCircle, XCircle } from "lucide-react";
 
@@ -45,6 +55,7 @@ export default function EventRsvpPage() {
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
   const [plusOne, setPlusOne] = useState(false);
   const [dietary, setDietary] = useState("");
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   useEffect(() => {
     if (invite?.status === "confirmed") setAttendance("confirmed");
@@ -69,6 +80,7 @@ export default function EventRsvpPage() {
       .unwrap()
       .then(() => {
         setAttendance(attendance);
+        setShowSuccessDialog(true);
       })
       .catch(() => {});
   };
@@ -176,8 +188,7 @@ export default function EventRsvpPage() {
             When & where
           </p>
           <p className="text-xl font-medium text-slate-900 dark:text-[#d4af37]">
-            {event!.event_date} · {event!.start_time}
-            {event!.end_time ? ` – ${event!.end_time}` : ""}
+            {formatEventDate(event!.event_date)} · {formatEventTimeRange(event!.start_time, event!.end_time)}
           </p>
           {event!.location && (
             <p className="mt-2 text-slate-600 dark:text-slate-400">{event!.location}</p>
@@ -352,6 +363,22 @@ export default function EventRsvpPage() {
           </Button>
         </div>
       </main>
+
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Response received</AlertDialogTitle>
+            <AlertDialogDescription>
+              Thank you! Your response has been recorded. You can update your RSVP until the event.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
+              Done
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

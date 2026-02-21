@@ -11,6 +11,15 @@ import { SocialButtons } from "./social-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,6 +37,8 @@ export function AuthForm() {
   const modeParam = searchParams.get("mode");
   const initialMode: Mode = modeParam === "signup" ? "signup" : "signin";
   const [mode, setMode] = useState<Mode>(initialMode);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("Something went wrong");
 
   const [register, { isLoading: isRegistering }] = useRegisterMutation();
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
@@ -46,7 +57,8 @@ export function AuthForm() {
       const message = err && typeof err === "object" && "data" in err
         ? (err as { data?: { error?: string } }).data?.error
         : "Something went wrong";
-      alert(message || "Something went wrong");
+      setErrorMessage(message || "Something went wrong");
+      setErrorDialogOpen(true);
     }
   };
 
@@ -141,6 +153,20 @@ export function AuthForm() {
           </p>
         )}
       </div>
+
+      <AlertDialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Something went wrong</AlertDialogTitle>
+            <AlertDialogDescription>{errorMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setErrorDialogOpen(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AuthLayout>
   );
 }

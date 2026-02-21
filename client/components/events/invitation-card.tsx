@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { InvitationWithEventResponse } from "@/lib/api/eventsApi";
+import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -36,7 +37,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           <div>
             <h3 className="font-semibold text-lg leading-tight">{event.name}</h3>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {event.event_type} · {event.event_date} {event.start_time}
+              {event.event_type} · {formatEventDate(event.event_date)} {formatEventTimeRange(event.start_time, event.end_time)}
             </p>
           </div>
           <span

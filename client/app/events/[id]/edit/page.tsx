@@ -16,6 +16,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BannerUpload } from "@/components/events/banner-upload";
 import { ArrowLeft } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TimePicker } from "@/components/ui/time-picker";
 
 const LocationPickerMapDynamic = dynamic(
   () =>
@@ -169,45 +178,51 @@ export default function EditEventPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="event_type">Event Type</Label>
-                <select
-                  id="event_type"
-                  className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
-                    value={form.event_type}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        event_type: e.target.value,
-                      }))
-                    }
+                <Select
+                  value={form.event_type}
+                  onValueChange={(v) =>
+                    setForm((prev) => ({ ...prev, event_type: v }))
+                  }
+                >
+                  <SelectTrigger
+                    id="event_type"
+                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
                   >
+                    <SelectValue placeholder="Event type" />
+                  </SelectTrigger>
+                  <SelectContent>
                     {EVENT_TYPES.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
+                      <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="visibility">Visibility</Label>
-                  <select
-                    id="visibility"
-                    className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
-                    value={form.visibility}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        visibility: e.target.value,
-                      }))
-                    }
-                  >
-                    {VISIBILITY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="visibility">Visibility</Label>
+                <Select
+                  value={form.visibility}
+                  onValueChange={(v) =>
+                    setForm((prev) => ({ ...prev, visibility: v }))
+                  }
+                >
+                  <SelectTrigger
+                    id="visibility"
+                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VISIBILITY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Venue Name</Label>
                 <Input
@@ -240,51 +255,36 @@ export default function EditEventPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="event_date">Date *</Label>
-                <Input
-                  id="event_date"
-                  type="date"
-                  required
+                <DatePicker
                   value={form.event_date}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      event_date: e.target.value,
-                    }))
+                  onChange={(event_date) =>
+                    setForm((prev) => ({ ...prev, event_date }))
                   }
-                  className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                  placeholder="Pick event date"
+                  className="rounded-xl border-slate-200 dark:border-slate-600"
                 />
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="start_time">Start Time</Label>
-                  <Input
-                    id="start_time"
-                    type="time"
-                    step={1}
-                    value={form.start_time.slice(0, 5)}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        start_time: e.target.value + ":00",
-                      }))
+                  <TimePicker
+                    value={form.start_time}
+                    onChange={(start_time) =>
+                      setForm((prev) => ({ ...prev, start_time }))
                     }
-                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                    placeholder="Start time"
+                    className="rounded-xl border-slate-200 dark:border-slate-600"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="end_time">End Time</Label>
-                  <Input
-                    id="end_time"
-                    type="time"
-                    step={1}
-                    value={form.end_time.slice(0, 5)}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        end_time: e.target.value + ":00",
-                      }))
+                  <TimePicker
+                    value={form.end_time}
+                    onChange={(end_time) =>
+                      setForm((prev) => ({ ...prev, end_time }))
                     }
-                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                    placeholder="End time"
+                    className="rounded-xl border-slate-200 dark:border-slate-600"
                   />
                 </div>
               </div>

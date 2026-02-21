@@ -102,6 +102,8 @@ type EventTableResponse struct {
 	Columns      *int                 `json:"columns,omitempty"` // for grid
 	Capacity     int                  `json:"capacity"`
 	DisplayOrder int                  `json:"display_order"`
+	PositionX    float64              `json:"position_x"` // 0-100
+	PositionY    float64              `json:"position_y"` // 0-100
 	Seats        []*EventSeatResponse `json:"seats"`
 }
 
@@ -125,11 +127,13 @@ type CreateEventTableRequest struct {
 
 // UpdateEventTableRequest for updating a table.
 type UpdateEventTableRequest struct {
-	Shape        string `json:"shape"`
-	Rows         *int   `json:"rows,omitempty"`
-	Columns      *int   `json:"columns,omitempty"`
-	Capacity     int    `json:"capacity"`
-	DisplayOrder int    `json:"display_order"`
+	Shape     string   `json:"shape"`
+	Rows      *int     `json:"rows,omitempty"`
+	Columns   *int     `json:"columns,omitempty"`
+	Capacity  int      `json:"capacity"`
+	PositionX *float64 `json:"position_x,omitempty"`
+	PositionY *float64 `json:"position_y,omitempty"`
+	DisplayOrder int   `json:"display_order"`
 }
 
 // ReorderEventTablesRequest for reordering tables/sitting areas.

@@ -507,6 +507,9 @@ func (uc *EventUseCase) CreateEventTable(ctx context.Context, ownerID, eventID i
 	} else {
 		name = "Table " + strconv.Itoa(tableNumber+1)
 	}
+	// Default position: stagger new tables/sitting areas on the floor
+	posX := 20.0 + float64(displayOrder%4)*22.0
+	posY := 25.0 + float64(displayOrder/4)*25.0
 	t := &entities.EventTable{
 		EventID:      eventID,
 		Name:         name,
@@ -515,6 +518,8 @@ func (uc *EventUseCase) CreateEventTable(ctx context.Context, ownerID, eventID i
 		TableColumns: tableCols,
 		Capacity:     capacity,
 		DisplayOrder: displayOrder,
+		PositionX:    posX,
+		PositionY:    posY,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -602,6 +607,8 @@ func (uc *EventUseCase) buildEventTableResponse(ctx context.Context, t *entities
 		Columns:      t.TableColumns,
 		Capacity:     t.Capacity,
 		DisplayOrder: t.DisplayOrder,
+		PositionX:    t.PositionX,
+		PositionY:    t.PositionY,
 		Seats:        seatResp,
 	}
 }
@@ -635,6 +642,26 @@ func (uc *EventUseCase) UpdateEventTable(ctx context.Context, ownerID, eventID, 
 	}
 	if req.Capacity > 0 && t.Shape != "grid" {
 		t.Capacity = req.Capacity
+	}
+	if req.PositionX != nil {
+		x := *req.PositionX
+		if x < 0 {
+			x = 0
+		}
+		if x > 100 {
+			x = 100
+		}
+		t.PositionX = x
+	}
+	if req.PositionY != nil {
+		y := *req.PositionY
+		if y < 0 {
+			y = 0
+		}
+		if y > 100 {
+			y = 100
+		}
+		t.PositionY = y
 	}
 	if req.DisplayOrder >= 0 {
 		t.DisplayOrder = req.DisplayOrder

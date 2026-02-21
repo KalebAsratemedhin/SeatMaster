@@ -16,10 +16,17 @@ import {
   Lightbulb,
   Lock,
   RefreshCw,
-  Calendar,
-  Clock,
   ChevronRight,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TimePicker } from "@/components/ui/time-picker";
 
 const LocationPickerMapDynamic = dynamic(
   () =>
@@ -177,24 +184,26 @@ export default function NewEventPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="event_type">Event Type</Label>
-                <select
-                  id="event_type"
-                  required
-                  className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
-                  value={form.event_type}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      event_type: e.target.value,
-                    }))
+                <Select
+                  value={form.event_type || undefined}
+                  onValueChange={(v) =>
+                    setForm((prev) => ({ ...prev, event_type: v }))
                   }
                 >
-                  {EVENT_TYPES.map((opt) => (
-                    <option key={opt.value || "placeholder"} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    id="event_type"
+                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                  >
+                    <SelectValue placeholder="Select type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EVENT_TYPES.filter((o) => o.value).map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -213,58 +222,37 @@ export default function NewEventPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="event_date">Date *</Label>
-                  <div className="relative">
-                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id="event_date"
-                      type="date"
-                      required
-                      value={form.event_date}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          event_date: e.target.value,
-                        }))
-                      }
-                      className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm pr-10"
-                    />
-                  </div>
+                  <DatePicker
+                    value={form.event_date}
+                    onChange={(event_date) =>
+                      setForm((prev) => ({ ...prev, event_date }))
+                    }
+                    placeholder="Pick event date"
+                    className="rounded-xl border-slate-200 dark:border-slate-600"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="start_time">Start Time</Label>
-                  <div className="relative">
-                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id="start_time"
-                      type="time"
-                      step={1}
-                      value={form.start_time.slice(0, 5)}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          start_time: e.target.value + ":00",
-                        }))
-                      }
-                      className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm pr-10"
-                    />
-                  </div>
+                  <TimePicker
+                    value={form.start_time}
+                    onChange={(start_time) =>
+                      setForm((prev) => ({ ...prev, start_time }))
+                    }
+                    placeholder="Start time"
+                    className="rounded-xl border-slate-200 dark:border-slate-600"
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="end_time">End Time</Label>
-                <Input
-                  id="end_time"
-                  type="time"
-                  step={1}
-                  value={form.end_time.slice(0, 5)}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      end_time: e.target.value + ":00",
-                    }))
+                <TimePicker
+                  value={form.end_time}
+                  onChange={(end_time) =>
+                    setForm((prev) => ({ ...prev, end_time }))
                   }
-                  className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                  placeholder="End time"
+                  className="rounded-xl border-slate-200 dark:border-slate-600"
                 />
               </div>
 
@@ -312,23 +300,26 @@ export default function NewEventPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="visibility">Visibility</Label>
-                  <select
-                    id="visibility"
-                    className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
+                  <Select
                     value={form.visibility}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        visibility: e.target.value,
-                      }))
+                    onValueChange={(visibility) =>
+                      setForm((prev) => ({ ...prev, visibility }))
                     }
                   >
-                    {VISIBILITY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      id="visibility"
+                      className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VISIBILITY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
           </section>

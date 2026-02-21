@@ -13,6 +13,7 @@ import {
   useCreateEventTableMutation,
   useDeleteEventTableMutation,
   useReorderEventTablesMutation,
+  useUpdateEventTableMutation,
 } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -32,7 +33,15 @@ import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getInitialsFromEmail } from "@/lib/user-display";
+import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 
 const EventLocationMapDynamic = dynamic(
   () =>
@@ -54,6 +63,8 @@ export default function EventDetailPage() {
   });
   const [deleteEvent, { isLoading: isDeleting }] = useDeleteEventMutation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTableDialogOpen, setDeleteTableDialogOpen] = useState(false);
+  const [tableToDeleteId, setTableToDeleteId] = useState<number | null>(null);
 
   const isOwner = user && event && event.owner_id === user.id;
 
@@ -71,6 +82,7 @@ export default function EventDetailPage() {
   const [createTable, { isLoading: isCreatingTable }] = useCreateEventTableMutation();
   const [deleteTable, { isLoading: isDeletingTable }] = useDeleteEventTableMutation();
   const [reorderTables] = useReorderEventTablesMutation();
+  const [updateEventTable] = useUpdateEventTableMutation();
   const [newTableCapacity, setNewTableCapacity] = useState(6);
   const [newTableShape, setNewTableShape] = useState<"round" | "rectangular" | "grid">("round");
   const [newTableRows, setNewTableRows] = useState(2);
@@ -132,7 +144,6 @@ export default function EventDetailPage() {
     );
   }
 
-  const formatTime = (t: string) => (t ? t.slice(0, 5) : "");
   const confirmedCount = invites.filter((i) => i.status === "confirmed").length;
   const responseRate =
     invites.length > 0
@@ -389,17 +400,21 @@ export default function EventDetailPage() {
                     >
                       <div className="space-y-1">
                         <Label className="text-xs font-medium">Arrangement</Label>
-                        <select
+                        <Select
                           value={newTableShape}
-                          onChange={(e) =>
-                            setNewTableShape(e.target.value as "round" | "rectangular" | "grid")
+                          onValueChange={(v) =>
+                            setNewTableShape(v as "round" | "rectangular" | "grid")
                           }
-                          className="w-36 rounded-lg h-9 border border-input bg-background px-3 text-sm"
                         >
-                          <option value="round">Round</option>
-                          <option value="rectangular">Rectangular</option>
-                          <option value="grid">Sitting area (grid)</option>
-                        </select>
+                          <SelectTrigger className="w-36 rounded-lg h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="round">Round</SelectItem>
+                            <SelectItem value="rectangular">Rectangular</SelectItem>
+                            <SelectItem value="grid">Sitting area (grid)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       {newTableShape === "grid" ? (
                         <>
@@ -472,12 +487,15 @@ export default function EventDetailPage() {
                       tables={seating}
                       showDelete
                       onDeleteTable={(tableId) => {
-                        if (confirm("Delete this table or sitting area? Seat assignments will be cleared.")) {
-                          deleteTable({ eventId: id, tableId }).catch(() => {});
-                        }
+                        setTableToDeleteId(tableId);
+                        setDeleteTableDialogOpen(true);
                       }}
-                      onReorder={(orderedTableIds) => {
-                        reorderTables({ eventId: id, tableIds: orderedTableIds }).catch(() => {});
+                      onPositionChange={(tableId, x, y) => {
+                        updateEventTable({
+                          eventId: id,
+                          tableId,
+                          body: { position_x: x, position_y: y },
+                        }).catch(() => {});
                       }}
                     />
                   ) : (
@@ -488,21 +506,22 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* Aside */}
-          <aside className="lg:w-80 shrink-0 space-y-5">
-            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/50 backdrop-blur-sm p-5 sticky top-24 space-y-4">
+          {/* Aside - single sticky container so stat cards don't scroll */}
+          <aside className="lg:w-80 shrink-0">
+            <div className="sticky top-24 space-y-5">
+            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/50 backdrop-blur-sm p-5 space-y-4">
               <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
                 <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-700/80 flex items-center justify-center shrink-0">
                   <Calendar className="size-4" />
                 </div>
-                <span className="text-sm font-medium">{event.event_date}</span>
+                <span className="text-sm font-medium">{formatEventDate(event.event_date)}</span>
               </div>
               <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
                 <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-700/80 flex items-center justify-center shrink-0">
                   <Clock className="size-4" />
                 </div>
                 <span className="text-sm font-medium">
-                  {formatTime(event.start_time)} – {formatTime(event.end_time)}
+                  {formatEventTimeRange(event.start_time, event.end_time)}
                 </span>
               </div>
               {event.location && (
@@ -572,6 +591,7 @@ export default function EventDetailPage() {
                 </div>
               </div>
             )}
+            </div>
           </aside>
         </div>
       </div>
@@ -592,6 +612,33 @@ export default function EventDetailPage() {
               disabled={isDeleting}
             >
               {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteTableDialogOpen} onOpenChange={(open) => { setDeleteTableDialogOpen(open); if (!open) setTableToDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete table or sitting area?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Seat assignments for this table or sitting area will be cleared. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingTable}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isDeletingTable || tableToDeleteId == null}
+              onClick={() => {
+                if (tableToDeleteId != null) {
+                  deleteTable({ eventId: id, tableId: tableToDeleteId })
+                    .then(() => { setDeleteTableDialogOpen(false); setTableToDeleteId(null); })
+                    .catch(() => {});
+                }
+              }}
+            >
+              {isDeletingTable ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -62,6 +62,8 @@ export type EventTableResponse = {
   columns?: number | null;
   capacity: number;
   display_order: number;
+  position_x?: number;
+  position_y?: number;
   seats: EventSeatResponse[];
 };
 
@@ -80,6 +82,8 @@ export type UpdateEventTableRequest = {
   rows?: number;
   columns?: number;
   capacity?: number;
+  position_x?: number;
+  position_y?: number;
   display_order?: number;
 };
 
