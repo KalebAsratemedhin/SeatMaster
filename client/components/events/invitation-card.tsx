@@ -19,6 +19,9 @@ const statusLabel: Record<string, string> = {
 export function InvitationCard({ invitation }: InvitationCardProps) {
   const { event, invite } = invitation;
   const label = statusLabel[invite.status] ?? invite.status;
+  const eventDateStr = event.event_date ?? "";
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isEventPast = eventDateStr !== "" && eventDateStr < todayStr;
 
   return (
     <Card className="overflow-hidden pt-0">
@@ -58,11 +61,15 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           <p className="text-sm text-muted-foreground">{event.location}</p>
         )}
         <div className="mt-4 flex gap-2">
-          <Button asChild size="sm" variant="default">
-            <Link href={`/events/${event.id}/rsvp`}>
-              {invite.status === "pending" ? "Respond" : "View / Update"}
-            </Link>
-          </Button>
+          {!isEventPast ? (
+            <Button asChild size="sm" variant="default">
+              <Link href={`/events/${event.id}/rsvp`}>
+                {invite.status === "pending" ? "Respond" : "View / Update"}
+              </Link>
+            </Button>
+          ) : (
+            <span className="text-sm text-muted-foreground py-2 px-3">Event ended</span>
+          )}
           <Button asChild size="sm" variant="outline">
             <Link href={`/events/${event.id}`}>View event</Link>
           </Button>

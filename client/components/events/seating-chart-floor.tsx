@@ -31,7 +31,8 @@ type SeatingChartFloorProps = {
   tables: EventTableResponse[];
   /** For RSVP: when set, seats are clickable */
   selectable?: boolean;
-  selectedSeatId?: number | null;
+  /** For RSVP: seat ids currently selected (e.g. primary + guest when plus one) */
+  selectedSeatIds?: number[];
   onSeatSelect?: (seatId: number) => void;
   /** When selectable, seats assigned to this invite id are still clickable (current user's seat) */
   currentInviteId?: number | null;
@@ -47,7 +48,7 @@ type SeatingChartFloorProps = {
 export function SeatingChartFloor({
   tables,
   selectable = false,
-  selectedSeatId = null,
+  selectedSeatIds = [],
   onSeatSelect,
   currentInviteId = null,
   showDelete = false,
@@ -183,7 +184,7 @@ export function SeatingChartFloor({
                 {t.seats.map((s) => {
                   const isMySeat = currentInviteId != null && s.invite_id === currentInviteId;
                   const assignedSeat = s.invite_id != null && !isMySeat;
-                  const isSelected = selectable && selectedSeatId === s.id;
+                  const isSelected = selectable && selectedSeatIds.includes(s.id);
                   const canSelect = selectable && (!assignedSeat || isMySeat);
                   return (
                     <button
@@ -206,7 +207,7 @@ export function SeatingChartFloor({
               if (!pos) return null;
               const isMySeat = currentInviteId != null && s.invite_id === currentInviteId;
               const assignedSeat = s.invite_id != null && !isMySeat;
-              const isSelected = selectable && selectedSeatId === s.id;
+              const isSelected = selectable && selectedSeatIds.includes(s.id);
               const canSelect = selectable && (!assignedSeat || isMySeat);
               return (
                 <button

@@ -254,7 +254,7 @@ func (h *EventHandler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid request payload")
 		return
 	}
-	resp, err := h.eventUseCase.RespondToInvite(r.Context(), userID, eventID, req.Status, req.SeatID)
+	resp, err := h.eventUseCase.RespondToInvite(r.Context(), userID, eventID, req.Status, req.SeatID, req.GuestSeatID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return

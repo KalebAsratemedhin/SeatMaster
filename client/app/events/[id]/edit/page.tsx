@@ -47,6 +47,52 @@ const VISIBILITY_OPTIONS = [
   { value: "private", label: "Private" },
 ];
 
+type EventForForm = {
+  id: number;
+  name: string;
+  banner_url?: string | null;
+  visibility: string;
+  event_type: string;
+  message?: string | null;
+  event_date: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+function eventTypeToFormValue(eventType: string): string {
+  const raw = typeof eventType === "string" ? eventType.trim() : "";
+  if (!raw) return "other";
+  const byValue = EVENT_TYPES.find((o) => o.value === raw);
+  const byValueIgnoreCase = EVENT_TYPES.find(
+    (o) => o.value.toLowerCase() === raw.toLowerCase()
+  );
+  const byLabel = EVENT_TYPES.find(
+    (o) => o.label.toLowerCase() === raw.toLowerCase()
+  );
+  return (byValue ?? byValueIgnoreCase ?? byLabel)?.value ?? "other";
+}
+
+function formFromEvent(event: EventForForm) {
+  const eventType =
+    event.event_type ?? (event as { eventType?: string }).eventType ?? "";
+  return {
+    name: event.name,
+    banner_url: event.banner_url || "",
+    visibility: event.visibility,
+    event_type: eventTypeToFormValue(eventType),
+    message: event.message || "",
+    event_date: event.event_date,
+    start_time: event.start_time || "09:00:00",
+    end_time: event.end_time || "17:00:00",
+    location: event.location || "",
+    latitude: event.latitude ?? 0,
+    longitude: event.longitude ?? 0,
+  };
+}
+
 export default function EditEventPage() {
   const params = useParams();
   const router = useRouter();
@@ -57,54 +103,66 @@ export default function EditEventPage() {
   const { data: event, isLoading } = useGetEventQuery(id, {
     skip: !id || isNaN(id) || !token,
   });
-  const [updateEvent, { isLoading: isSaving, isSuccess, error }] =
-    useUpdateEventMutation();
-
-  const [form, setForm] = useState({
-    name: "",
-    banner_url: "",
-    visibility: "public",
-    event_type: "other",
-    message: "",
-    event_date: "",
-    start_time: "09:00:00",
-    end_time: "17:00:00",
-    location: "",
-    latitude: 0,
-    longitude: 0,
-  });
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     if (!token) router.replace("/auth?mode=signin");
   }, [token, router]);
 
   useEffect(() => {
-    if (event) {
-      setForm({
-        name: event.name,
-        banner_url: event.banner_url || "",
-        visibility: event.visibility,
-        event_type: event.event_type,
-        message: event.message || "",
-        event_date: event.event_date,
-        start_time: event.start_time || "09:00:00",
-        end_time: event.end_time || "17:00:00",
-        location: event.location || "",
-        latitude: event.latitude ?? 0,
-        longitude: event.longitude ?? 0,
-      });
-    }
-  }, [event]);
-
-  useEffect(() => {
-    if (isSuccess) router.push(`/events/${id}`);
-  }, [isSuccess, router, id]);
+    setMounted(true);
+  }, []);
 
   const isOwner = user && event && event.owner_id === user.id;
 
+  if (!mounted) return <LoadingShell />;
+  if (!token) return null;
+  if (isLoading || !event) return <LoadingShell />;
+  if (!isOwner) {
+    router.replace(`/events/${id}`);
+    return null;
+  }
+
+  return (
+    <EditEventFormContent
+      key={event.id}
+      event={event}
+      id={id}
+      onSuccess={() => router.push(`/events/${id}`)}
+    />
+  );
+}
+
+function LoadingShell() {
+  return (
+    <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22]">
+      <SiteHeader />
+      <main className="flex-1 container max-w-2xl mx-auto px-4 py-8">
+        <p className="text-muted-foreground">Loading...</p>
+      </main>
+    </div>
+  );
+}
+
+function EditEventFormContent({
+  event,
+  id,
+  onSuccess,
+}: {
+  event: EventForForm;
+  id: number;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = useState(() => formFromEvent(event));
+  const [updateEvent, { isLoading: isSaving, isSuccess, error }] =
+    useUpdateEventMutation();
+
+  useEffect(() => {
+    if (isSuccess) onSuccess();
+  }, [isSuccess, onSuccess]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!event) return;
     updateEvent({
       id: event.id,
       name: form.name,
@@ -120,23 +178,6 @@ export default function EditEventPage() {
       longitude: form.longitude,
     });
   };
-
-  if (!token) return null;
-  if (isLoading || !event) {
-    return (
-      <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22]">
-        <SiteHeader />
-        <main className="flex-1 container max-w-2xl mx-auto px-4 py-8">
-          <p className="text-muted-foreground">Loading...</p>
-        </main>
-      </div>
-    );
-  }
-
-  if (!isOwner) {
-    router.replace(`/events/${id}`);
-    return null;
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22] text-slate-900 dark:text-slate-100">
@@ -179,7 +220,7 @@ export default function EditEventPage() {
               <div className="space-y-2">
                 <Label htmlFor="event_type">Event Type</Label>
                 <Select
-                  value={form.event_type}
+                  value={form.event_type || "other"}
                   onValueChange={(v) =>
                     setForm((prev) => ({ ...prev, event_type: v }))
                   }
@@ -188,7 +229,7 @@ export default function EditEventPage() {
                     id="event_type"
                     className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
                   >
-                    <SelectValue placeholder="Event type" />
+                    <SelectValue placeholder="Select event type" />
                   </SelectTrigger>
                   <SelectContent>
                     {EVENT_TYPES.map((opt) => (

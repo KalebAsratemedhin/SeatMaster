@@ -58,8 +58,9 @@ type EventInviteResponse struct {
 	UserID    int64  `json:"user_id"`
 	Email     string `json:"email"`
 	Status    string `json:"status"`
-	SeatID    *int64 `json:"seat_id,omitempty"`
-	CreatedAt string `json:"created_at"`
+	SeatID       *int64 `json:"seat_id,omitempty"`
+	GuestSeatID  *int64 `json:"guest_seat_id,omitempty"`
+	CreatedAt    string `json:"created_at"`
 }
 
 // InvitationWithEventResponse is returned when a guest lists their invitations (event + invite status).
@@ -70,8 +71,9 @@ type InvitationWithEventResponse struct {
 
 // RespondToInviteRequest is the body for a guest to update their RSVP status.
 type RespondToInviteRequest struct {
-	Status string `json:"status"` // "confirmed" or "declined"
-	SeatID *int64 `json:"seat_id,omitempty"` // optional: seat to assign when confirming
+	Status      string `json:"status"` // "confirmed" or "declined"
+	SeatID      *int64 `json:"seat_id,omitempty"`      // optional: primary seat when confirming
+	GuestSeatID *int64 `json:"guest_seat_id,omitempty"` // optional: plus-one seat when bringing a guest
 }
 
 // PaginatedEventsResponse is used for GET /events with limit/offset.

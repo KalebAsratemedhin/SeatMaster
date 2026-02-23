@@ -52,10 +52,12 @@ export default function EventRsvpPage() {
   const { data: seating = [] } = useGetEventSeatingQuery(id, { skip: !id || !token });
 
   const [attendance, setAttendance] = useState<AttendanceChoice | null>(null);
-  const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
+  const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([]);
   const [plusOne, setPlusOne] = useState(false);
   const [dietary, setDietary] = useState("");
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+
+  const maxSeats = plusOne ? 2 : 1;
 
   useEffect(() => {
     if (invite?.status === "confirmed") setAttendance("confirmed");
@@ -63,11 +65,30 @@ export default function EventRsvpPage() {
     else setAttendance(null);
   }, [invite?.status]);
   useEffect(() => {
-    if (invite?.seat_id != null) setSelectedSeatId(invite.seat_id);
-  }, [invite?.seat_id]);
+    const ids: number[] = [];
+    if (invite?.seat_id != null) ids.push(invite.seat_id);
+    if (invite?.guest_seat_id != null) ids.push(invite.guest_seat_id);
+    setSelectedSeatIds(ids);
+  }, [invite?.seat_id, invite?.guest_seat_id]);
+  useEffect(() => {
+    if (invite?.guest_seat_id != null) setPlusOne(true);
+  }, [invite?.guest_seat_id]);
+  useEffect(() => {
+    if (!plusOne && selectedSeatIds.length > 1) {
+      setSelectedSeatIds((prev) => prev.slice(0, 1));
+    }
+  }, [plusOne, selectedSeatIds.length]);
 
   const [respondToInvite, { isLoading: isSubmitting, error: submitError }] =
     useRespondToInviteMutation();
+
+  const handleSeatToggle = (seatId: number) => {
+    setSelectedSeatIds((prev) => {
+      if (prev.includes(seatId)) return prev.filter((id) => id !== seatId);
+      if (prev.length >= maxSeats) return prev;
+      return [...prev, seatId];
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +96,8 @@ export default function EventRsvpPage() {
     respondToInvite({
       eventId: id,
       status: attendance,
-      seat_id: attendance === "confirmed" ? selectedSeatId ?? undefined : undefined,
+      seat_id: attendance === "confirmed" ? selectedSeatIds[0] ?? undefined : undefined,
+      guest_seat_id: attendance === "confirmed" ? selectedSeatIds[1] ?? undefined : undefined,
     })
       .unwrap()
       .then(() => {
@@ -89,6 +111,9 @@ export default function EventRsvpPage() {
   const notFound = eventError || !event;
   const isPublic = event?.visibility === "public";
   const forbidden = !invLoading && !eventLoading && event && !isPublic && !isInvited;
+  const isEventPast =
+    event?.event_date != null &&
+    event.event_date < new Date().toISOString().slice(0, 10);
 
   if (typeof window !== "undefined" && !token) {
     router.replace(`/auth?mode=signin&redirect=${encodeURIComponent(`/events/${id}/rsvp`)}`);
@@ -129,6 +154,33 @@ export default function EventRsvpPage() {
           <Button variant="outline" asChild className="mt-4">
             <Link href="/invitations">View your invitations</Link>
           </Button>
+        </main>
+      </div>
+    );
+  }
+
+  if (event && isEventPast) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#fcfbf7] dark:bg-[#0a1a14] text-slate-900 dark:text-slate-100">
+        <SiteHeader />
+        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8 md:py-12">
+          <nav className="mb-6 text-sm text-muted-foreground">
+            <Link href="/invitations" className="hover:text-foreground transition-colors flex items-center gap-1">
+              <ArrowLeft className="size-3.5" /> Invitations
+            </Link>
+            <span className="mx-2">/</span>
+            <span className="text-foreground font-medium truncate">{event.name}</span>
+            <span className="mx-2">/</span>
+            <span className="text-foreground">RSVP</span>
+          </nav>
+          <div className="rounded-xl border border-[#d4af37]/20 bg-white dark:bg-[#0f241d] p-6 md:p-10 shadow-sm text-center">
+            <p className="text-slate-600 dark:text-slate-400 font-medium">
+              This event has already passed. RSVPs are no longer accepted.
+            </p>
+            <Button variant="outline" asChild className="mt-6">
+              <Link href={`/events/${id}`}>View event details</Link>
+            </Button>
+          </div>
         </main>
       </div>
     );
@@ -302,19 +354,21 @@ export default function EventRsvpPage() {
             {seating.length > 0 && (
               <div className="space-y-3">
                 <Label className="text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-[#d4af37] block text-center">
-                  {attendance === "confirmed" ? "Choose your seat" : "Seating arrangement"}
+                  {attendance === "confirmed" ? (plusOne ? "Choose your seats (you + guest)" : "Choose your seat") : "Seating arrangement"}
                 </Label>
                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
                   {attendance === "confirmed"
-                    ? "Click an available seat (gray) to reserve it. Assigned seats are green."
+                    ? plusOne
+                      ? "Click up to two available seats. Assigned seats are green."
+                      : "Click an available seat (gray) to reserve it. Assigned seats are green."
                     : "Select &quot;Joyfully Accepts&quot; above to pick a seat."}
                 </p>
                 <SeatingChartFloor
                   tables={seating}
                   selectable={attendance === "confirmed"}
-                  selectedSeatId={selectedSeatId}
+                  selectedSeatIds={selectedSeatIds}
                   currentInviteId={invite?.id}
-                  onSeatSelect={(seatId) => setSelectedSeatId(selectedSeatId === seatId ? null : seatId)}
+                  onSeatSelect={handleSeatToggle}
                 />
               </div>
             )}

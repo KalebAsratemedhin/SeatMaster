@@ -213,13 +213,19 @@ export default function EventDetailPage() {
                   {event.message}
                 </p>
               )}
-              {!isOwner && event.visibility === "public" && (
-                <div className="mt-6">
-                  <Button asChild className="bg-[#044b36] hover:bg-[#065f46] text-white rounded-xl">
-                    <Link href={`/events/${id}/rsvp`}>RSVP</Link>
-                  </Button>
-                </div>
-              )}
+              {!isOwner && event.visibility === "public" && (() => {
+                const eventDateStr = event.event_date ?? "";
+                const todayStr = new Date().toISOString().slice(0, 10);
+                const isEventPast = eventDateStr !== "" && eventDateStr < todayStr;
+                if (isEventPast) return null;
+                return (
+                  <div className="mt-6">
+                    <Button asChild className="bg-[#044b36] hover:bg-[#065f46] text-white rounded-xl">
+                      <Link href={`/events/${id}/rsvp`}>RSVP</Link>
+                    </Button>
+                  </div>
+                );
+              })()}
               {(event.latitude !== 0 || event.longitude !== 0) && (
                 <div className="mt-6 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30">
                   <EventLocationMapDynamic

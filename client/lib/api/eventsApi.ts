@@ -42,6 +42,7 @@ export type EventInviteResponse = {
   email: string;
   status: string;
   seat_id?: number | null;
+  guest_seat_id?: number | null;
   created_at: string;
 };
 
@@ -113,7 +114,7 @@ export const eventsApi = createApi({
         method: "PUT",
         body,
       }),
-      invalidatesTags: ["Events", "Event"],
+      invalidatesTags: ["Events", "Event", "EventInvites"],
     }),
     deleteEvent: builder.mutation<void, number>({
       query: (id) => ({ url: `/api/v1/events/${id}`, method: "DELETE" }),
@@ -145,12 +146,12 @@ export const eventsApi = createApi({
     }),
     respondToInvite: builder.mutation<
       EventInviteResponse,
-      { eventId: number; status: "confirmed" | "declined"; seat_id?: number | null }
+      { eventId: number; status: "confirmed" | "declined"; seat_id?: number | null; guest_seat_id?: number | null }
     >({
-      query: ({ eventId, status, seat_id }) => ({
+      query: ({ eventId, status, seat_id, guest_seat_id }) => ({
         url: `/api/v1/events/${eventId}/rsvp`,
         method: "PUT",
-        body: { status, seat_id: seat_id ?? undefined },
+        body: { status, seat_id: seat_id ?? undefined, guest_seat_id: guest_seat_id ?? undefined },
       }),
       invalidatesTags: ["Events", "EventInvites"],
     }),
