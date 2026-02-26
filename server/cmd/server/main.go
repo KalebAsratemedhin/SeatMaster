@@ -10,6 +10,8 @@ import (
 	httpHandler "github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/handlers"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/middleware"
+	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/ws"
+	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/mail"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/repositories"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/security"
 
@@ -43,14 +45,24 @@ func main() {
 	eventInviteRepo := repositories.NewEventInviteRepository(db.GetDB())
 	eventTableRepo := repositories.NewEventTableRepository(db.GetDB())
 	eventSeatRepo := repositories.NewEventSeatRepository(db.GetDB())
+	eventCommentRepo := repositories.NewEventCommentRepository(db.GetDB())
+	eventChatThreadRepo := repositories.NewEventChatThreadRepository(db.GetDB())
+	eventChatMessageRepo := repositories.NewEventChatMessageRepository(db.GetDB())
 
 	authUseCase := usecases.NewAuthUseCase(userRepo, jwtManager, passwordManager)
-	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, userRepo)
+	mailer := mail.NewSMTPMailer()
+	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, userRepo, mailer)
 	profileUseCase := usecases.NewProfileUseCase(userRepo, authUseCase)
+	commentUseCase := usecases.NewCommentUseCase(eventRepo, eventInviteRepo, eventCommentRepo, userRepo)
+	chatUseCase := usecases.NewChatUseCase(eventRepo, eventInviteRepo, eventChatThreadRepo, eventChatMessageRepo, userRepo)
 
 	authHandler := handlers.NewAuthHandler(authUseCase)
 	eventHandler := handlers.NewEventHandler(eventUseCase)
 	profileHandler := handlers.NewProfileHandler(profileUseCase)
+	commentHandler := handlers.NewCommentHandler(commentUseCase)
+	chatHandler := handlers.NewChatHandler(chatUseCase)
+	chatHub := ws.NewHub()
+	chatWSHandler := handlers.NewChatWSHandler(chatUseCase, jwtManager, chatHub)
 
 	uploadDir := os.Getenv("UPLOAD_DIR")
 	if uploadDir == "" {
@@ -64,7 +76,7 @@ func main() {
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
-	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, authMiddleware)
+	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, commentHandler, chatHandler, chatWSHandler, authMiddleware)
 	muxRouter := router.SetupRoutes(uploadDir)
 	handler := middleware.CORS(muxRouter)
 

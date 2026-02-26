@@ -54,8 +54,8 @@ const (
 )
 
 type Event struct {
-	ID        int64     `json:"id"`
-	OwnerID     int64    `json:"owner_id"`
+	ID        string    `json:"id"`
+	OwnerID   string    `json:"owner_id"`
 	Name  string    `json:"name"`
 	BannerURL  string    `json:"banner_url"`
 	Visibility  Visibility    `json:"visibility"`
@@ -94,7 +94,7 @@ func (e *Event) Validate() error {
 	if e.EndTime == "" {
 		return errors.ErrInvalidEndTime
 	}
-	if e.OwnerID == 0 {
+	if e.OwnerID == "" {
 		return errors.ErrInvalidOwnerID
 	}
 	if e.Location == "" {

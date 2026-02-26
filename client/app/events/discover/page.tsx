@@ -1,24 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetPublicEventsQuery } from "@/lib/api/eventsApi";
 import { SiteHeader } from "@/components/layout/site-header";
 import { EventCard } from "@/components/events/event-card";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+
+const PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25];
 
 export default function DiscoverPage() {
   const [search, setSearch] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: events = [], isLoading } = useGetPublicEventsQuery(
-    { search: submittedSearch, limit: 24, offset: 0 },
+    { search: submittedSearch, limit: pageSize, offset: page * pageSize },
     { skip: false }
   );
+
+  useEffect(() => setPage(0), [pageSize, submittedSearch]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittedSearch(search);
   };
+
+  const hasMore = events.length === pageSize;
+  const hasPrev = page > 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f6f7f8] dark:bg-[#101922] text-[#111418] dark:text-white antialiased">
@@ -68,11 +85,53 @@ export default function DiscoverPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+              {events.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-xl border border-[#dbe0e6] dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-[#617589] dark:text-slate-400">Per page</span>
+                    <Select
+                      value={String(pageSize)}
+                      onValueChange={(v) => setPageSize(Number(v))}
+                    >
+                      <SelectTrigger className="w-[72px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZE_OPTIONS.map((n) => (
+                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={!hasPrev}
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={!hasMore}
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

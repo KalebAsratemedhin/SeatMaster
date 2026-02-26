@@ -48,7 +48,7 @@ const VISIBILITY_OPTIONS = [
 ];
 
 type EventForForm = {
-  id: number;
+  id: string;
   name: string;
   banner_url?: string | null;
   visibility: string;
@@ -96,12 +96,12 @@ function formFromEvent(event: EventForForm) {
 export default function EditEventPage() {
   const params = useParams();
   const router = useRouter();
-  const id = Number(params.id);
+  const id = params.id as string;
   const token = useSelector((state: RootState) => state.auth.token);
   const user = useSelector((state: RootState) => state.auth.user);
 
   const { data: event, isLoading } = useGetEventQuery(id, {
-    skip: !id || isNaN(id) || !token,
+    skip: !id || !token,
   });
   const [mounted, setMounted] = useState(false);
 
@@ -150,7 +150,7 @@ function EditEventFormContent({
   onSuccess,
 }: {
   event: EventForForm;
-  id: number;
+  id: string;
   onSuccess: () => void;
 }) {
   const [form, setForm] = useState(() => formFromEvent(event));

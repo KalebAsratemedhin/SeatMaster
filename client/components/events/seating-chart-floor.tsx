@@ -32,17 +32,17 @@ type SeatingChartFloorProps = {
   /** For RSVP: when set, seats are clickable */
   selectable?: boolean;
   /** For RSVP: seat ids currently selected (e.g. primary + guest when plus one) */
-  selectedSeatIds?: number[];
-  onSeatSelect?: (seatId: number) => void;
+  selectedSeatIds?: string[];
+  onSeatSelect?: (seatId: string) => void;
   /** When selectable, seats assigned to this invite id are still clickable (current user's seat) */
-  currentInviteId?: number | null;
+  currentInviteId?: string | null;
   /** When true, show delete on tables (event detail owner view) */
   showDelete?: boolean;
-  onDeleteTable?: (tableId: number) => void;
+  onDeleteTable?: (tableId: string) => void;
   /** When set, tables/sitting areas can be dragged to reorder. Called with new ordered table ids. */
-  onReorder?: (orderedTableIds: number[]) => void;
+  onReorder?: (orderedTableIds: string[]) => void;
   /** When set, tables/sitting areas can be dragged to place anywhere. Called with table id and position (0-100%). */
-  onPositionChange?: (tableId: number, x: number, y: number) => void;
+  onPositionChange?: (tableId: string, x: number, y: number) => void;
 };
 
 export function SeatingChartFloor({
@@ -56,13 +56,13 @@ export function SeatingChartFloor({
   onReorder,
   onPositionChange,
 }: SeatingChartFloorProps) {
-  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
   const floorRef = useRef<HTMLDivElement>(null);
   const canMove = showDelete && !!onPositionChange;
   const canReorder = showDelete && !!onReorder && !onPositionChange;
 
   const handleDragStart = useCallback(
-    (e: React.DragEvent, tableId: number) => {
+    (e: React.DragEvent, tableId: string) => {
       if (!canMove && !canReorder) return;
       e.dataTransfer.setData("application/json", JSON.stringify({ tableId }));
       e.dataTransfer.effectAllowed = "move";
@@ -83,9 +83,9 @@ export function SeatingChartFloor({
       if (!onPositionChange) return;
       const payload = e.dataTransfer.getData("application/json");
       if (!payload) return;
-      let tableId: number;
+      let tableId: string;
       try {
-        const { tableId: id } = JSON.parse(payload) as { tableId: number };
+        const { tableId: id } = JSON.parse(payload) as { tableId: string };
         tableId = id;
       } catch {
         return;

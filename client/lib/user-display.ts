@@ -21,3 +21,19 @@ export function getInitialsFromEmail(
     .padEnd(USER_INITIALS_LENGTH, "?")
     .slice(0, USER_INITIALS_LENGTH);
 }
+
+/**
+ * Returns initials from a display name (e.g. "John Doe" -> "JD", "Alice" -> "Al").
+ */
+export function getInitialsFromName(
+  name: string | null | undefined
+): string {
+  if (!name || !name.trim()) return "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const first = parts[0]?.[0] ?? "";
+    const last = parts[parts.length - 1]?.[0] ?? "";
+    return `${first}${last}`.toUpperCase().slice(0, 2);
+  }
+  return name.slice(0, USER_INITIALS_LENGTH).toUpperCase().padEnd(USER_INITIALS_LENGTH, "?");
+}

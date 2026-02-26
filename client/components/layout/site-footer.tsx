@@ -1,24 +1,18 @@
 import Link from "next/link";
-import { Share2, Globe } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 
 const FOOTER_LINKS = {
   Product: [
-    { href: "#", label: "Features" },
-    { href: "#", label: "Integrations" },
-    { href: "#", label: "Pricing" },
-    { href: "#", label: "Updates" },
+    { href: "/events", label: "My Events" },
+    { href: "/events/discover", label: "Discover Events" },
   ],
   Company: [
-    { href: "#", label: "About Us" },
-    { href: "#", label: "Careers" },
-    { href: "#", label: "Partners" },
-    { href: "#", label: "Contact" },
+    { href: "/about", label: "About" },
+    { href: "/contact", label: "Contact" },
   ],
   Legal: [
-    { href: "#", label: "Privacy Policy" },
-    { href: "#", label: "Terms of Service" },
-    { href: "#", label: "Cookie Policy" },
+    { href: "/privacy", label: "Privacy Policy" },
+    { href: "/terms", label: "Terms of Service" },
   ],
 };
 
@@ -31,20 +25,6 @@ export function SiteFooter() {
           <p className="text-sm text-slate-500 dark:text-emerald-100/40 max-w-[300px]">
             The leading platform for high-end event management. Helping you create memorable experiences through technology.
           </p>
-          <div className="flex gap-4">
-            <a
-              href="#"
-              className="size-10 flex items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-slate-600 dark:text-emerald-100/60 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
-            >
-              <Share2 className="size-5" />
-            </a>
-            <a
-              href="#"
-              className="size-10 flex items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-slate-600 dark:text-emerald-100/60 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
-            >
-              <Globe className="size-5" />
-            </a>
-          </div>
         </div>
         {Object.entries(FOOTER_LINKS).map(([heading, links]) => (
           <div key={heading} className="flex flex-col gap-4">
@@ -61,12 +41,8 @@ export function SiteFooter() {
           </div>
         ))}
       </div>
-      <div className="mt-16 pt-8 border-t border-slate-100 dark:border-emerald-800/50 flex flex-col md:flex-row justify-between gap-4 text-xs text-slate-400 dark:text-emerald-100/20 font-medium">
-        <p>© 2024 SeatMaster Event Solutions Inc. All rights reserved.</p>
-        <div className="flex gap-6">
-          <Link href="#" className="hover:text-[#044b36] dark:hover:text-[#D4AF37]">Status</Link>
-          <Link href="#" className="hover:text-[#044b36] dark:hover:text-[#D4AF37]">Security</Link>
-        </div>
+      <div className="mt-16 pt-8 border-t border-slate-100 dark:border-emerald-800/50 text-xs text-slate-400 dark:text-emerald-100/20 font-medium">
+        <p>© {new Date().getFullYear()} SeatMaster. All rights reserved.</p>
       </div>
     </footer>
   );

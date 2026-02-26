@@ -14,6 +14,9 @@ type Router struct {
 	eventHandler   *handlers.EventHandler
 	uploadHandler  *handlers.UploadHandler
 	profileHandler *handlers.ProfileHandler
+	commentHandler *handlers.CommentHandler
+	chatHandler   *handlers.ChatHandler
+	chatWSHandler *handlers.ChatWSHandler
 	authMiddleware *middleware.AuthMiddleware
 }
 
@@ -22,13 +25,19 @@ func NewRouter(
 	eventHandler *handlers.EventHandler,
 	uploadHandler *handlers.UploadHandler,
 	profileHandler *handlers.ProfileHandler,
+	commentHandler *handlers.CommentHandler,
+	chatHandler *handlers.ChatHandler,
+	chatWSHandler *handlers.ChatWSHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
 		authHandler:    authHandler,
-		eventHandler:  eventHandler,
-		uploadHandler: uploadHandler,
+		eventHandler:   eventHandler,
+		uploadHandler:  uploadHandler,
 		profileHandler: profileHandler,
+		commentHandler: commentHandler,
+		chatHandler:    chatHandler,
+		chatWSHandler:  chatWSHandler,
 		authMiddleware: authMiddleware,
 	}
 }
@@ -51,11 +60,18 @@ func (r *Router) SetupRoutes(uploadDir string) *mux.Router {
 	eventsPublic.HandleFunc("/public", r.eventHandler.ListPublicEvents).Methods("GET")
 	eventsPublic.HandleFunc("/{id}/seating", r.eventHandler.ListEventSeating).Methods("GET")
 	eventsPublic.HandleFunc("/{id}", r.eventHandler.GetEvent).Methods("GET")
+	// Public comments (optional auth: need access to event)
+	eventsPublic.HandleFunc("/{id}/comments", r.commentHandler.ListComments).Methods("GET")
 
 	// Protected event routes
 	protected := api.PathPrefix("").Subrouter()
 	protected.Use(r.authMiddleware.Middleware)
 	protected.HandleFunc("/upload/banner", r.uploadHandler.UploadBanner).Methods("POST")
+	protected.HandleFunc("/events/{id}/comments", r.commentHandler.CreateComment).Methods("POST")
+	protected.HandleFunc("/events/{id}/chat/threads", r.chatHandler.ListThreads).Methods("GET")
+	protected.HandleFunc("/events/{id}/chat/thread", r.chatHandler.GetOrCreateThread).Methods("GET")
+	protected.HandleFunc("/events/{id}/chat/threads/{threadId}/messages", r.chatHandler.ListMessages).Methods("GET")
+	protected.HandleFunc("/events/{id}/chat/threads/{threadId}/messages", r.chatHandler.SendMessage).Methods("POST")
 	protected.HandleFunc("/upload/avatar", r.uploadHandler.UploadAvatar).Methods("POST")
 	protected.HandleFunc("/users/me", r.profileHandler.GetProfile).Methods("GET")
 	protected.HandleFunc("/users/me", r.profileHandler.UpdateProfile).Methods("PUT")
@@ -72,6 +88,9 @@ func (r *Router) SetupRoutes(uploadDir string) *mux.Router {
 	protected.HandleFunc("/events/{id}/tables/{tableId}", r.eventHandler.DeleteEventTable).Methods("DELETE")
 	protected.HandleFunc("/events/{id}", r.eventHandler.UpdateEvent).Methods("PUT")
 	protected.HandleFunc("/events/{id}", r.eventHandler.DeleteEvent).Methods("DELETE")
+
+	// WebSocket: chat (token in query or header)
+	api.HandleFunc("/ws/chat/threads/{threadId}", r.chatWSHandler.Upgrade).Methods("GET")
 
 	return router
 }

@@ -1,0 +1,4 @@
+-- Reverting from UUID back to bigint/serial is not supported in this migration.
+-- To restore integer IDs you would need to add id_old (BIGSERIAL), repopulate
+-- all foreign keys, drop UUID columns, and rename. This file is intentionally
+-- empty; do not run migrate down past this version if you need to keep the DB.

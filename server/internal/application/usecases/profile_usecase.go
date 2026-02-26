@@ -17,7 +17,7 @@ func NewProfileUseCase(userRepo repositories.UserRepository, authUC *AuthUseCase
 	return &ProfileUseCase{userRepo: userRepo, authUC: authUC}
 }
 
-func (uc *ProfileUseCase) GetProfile(ctx context.Context, userID int64) (*dto.UserResponse, error) {
+func (uc *ProfileUseCase) GetProfile(ctx context.Context, userID string) (*dto.UserResponse, error) {
 	user, err := uc.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func (uc *ProfileUseCase) GetProfile(ctx context.Context, userID int64) (*dto.Us
 	return &resp, nil
 }
 
-func (uc *ProfileUseCase) UpdateProfile(ctx context.Context, userID int64, req dto.UpdateProfileRequest) (*dto.UserResponse, error) {
+func (uc *ProfileUseCase) UpdateProfile(ctx context.Context, userID string, req dto.UpdateProfileRequest) (*dto.UserResponse, error) {
 	user, err := uc.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err

@@ -3,12 +3,15 @@ package usecases
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/application/dto"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
+	"github.com/KalebAsratemedhin/seatmaster/internal/domain/services"
 )
 
 type EventUseCase struct {
@@ -17,6 +20,7 @@ type EventUseCase struct {
 	eventTableRepo  repositories.EventTableRepository
 	eventSeatRepo   repositories.EventSeatRepository
 	userRepo        repositories.UserRepository
+	mailer          services.Mailer
 }
 
 func NewEventUseCase(
@@ -25,14 +29,25 @@ func NewEventUseCase(
 	eventTableRepo repositories.EventTableRepository,
 	eventSeatRepo repositories.EventSeatRepository,
 	userRepo repositories.UserRepository,
+	mailer services.Mailer,
 ) *EventUseCase {
+	if mailer == nil {
+		mailer = noOpMailer{}
+	}
 	return &EventUseCase{
 		eventRepo:       eventRepo,
 		eventInviteRepo: eventInviteRepo,
 		eventTableRepo:  eventTableRepo,
 		eventSeatRepo:   eventSeatRepo,
 		userRepo:        userRepo,
+		mailer:          mailer,
 	}
+}
+
+type noOpMailer struct{}
+
+func (noOpMailer) SendInviteEmail(ctx context.Context, toEmail, eventName, rsvpURL string) error {
+	return nil
 }
 
 func (uc *EventUseCase) toEventResponse(event *entities.Event) *dto.EventResponse {
@@ -58,7 +73,7 @@ func (uc *EventUseCase) toEventResponse(event *entities.Event) *dto.EventRespons
 	}
 }
 
-func (uc *EventUseCase) CreateEvent(ctx context.Context, ownerID int64, req dto.CreateEventRequest) (*dto.EventResponse, error) {
+func (uc *EventUseCase) CreateEvent(ctx context.Context, ownerID string, req dto.CreateEventRequest) (*dto.EventResponse, error) {
 	exists, err := uc.eventRepo.ExistsByName(ctx, req.Name)
 	if err != nil {
 		return nil, err
@@ -106,7 +121,7 @@ func (uc *EventUseCase) CreateEvent(ctx context.Context, ownerID int64, req dto.
 	return uc.toEventResponse(event), nil
 }
 
-func (uc *EventUseCase) UpdateEvent(ctx context.Context, ownerID int64, req dto.UpdateEventRequest) (*dto.EventResponse, error) {
+func (uc *EventUseCase) UpdateEvent(ctx context.Context, ownerID string, req dto.UpdateEventRequest) (*dto.EventResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, req.ID)
 	if err != nil {
 		return nil, err
@@ -150,7 +165,7 @@ func (uc *EventUseCase) UpdateEvent(ctx context.Context, ownerID int64, req dto.
 	return uc.toEventResponse(event), nil
 }
 
-func (uc *EventUseCase) DeleteEvent(ctx context.Context, id int64, ownerID int64) error {
+func (uc *EventUseCase) DeleteEvent(ctx context.Context, id string, ownerID string) error {
 	event, err := uc.eventRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -161,13 +176,13 @@ func (uc *EventUseCase) DeleteEvent(ctx context.Context, id int64, ownerID int64
 	return uc.eventRepo.Delete(ctx, event)
 }
 
-func (uc *EventUseCase) GetEvent(ctx context.Context, id int64, callerID int64) (*dto.EventResponse, error) {
+func (uc *EventUseCase) GetEvent(ctx context.Context, id string, callerID string) (*dto.EventResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	if event.Visibility == entities.VisibilityPrivate {
-		if callerID == 0 {
+		if callerID == "" {
 			return nil, errors.New("forbidden: event is private")
 		}
 		if event.OwnerID != callerID {
@@ -180,7 +195,7 @@ func (uc *EventUseCase) GetEvent(ctx context.Context, id int64, callerID int64) 
 	return uc.toEventResponse(event), nil
 }
 
-func (uc *EventUseCase) GetEvents(ctx context.Context, ownerID int64) ([]*dto.EventResponse, error) {
+func (uc *EventUseCase) GetEvents(ctx context.Context, ownerID string) ([]*dto.EventResponse, error) {
 	events, err := uc.eventRepo.FindByOwnerID(ctx, ownerID)
 	if err != nil {
 		return nil, err
@@ -192,7 +207,7 @@ func (uc *EventUseCase) GetEvents(ctx context.Context, ownerID int64) ([]*dto.Ev
 	return out, nil
 }
 
-func (uc *EventUseCase) GetEventsPaginated(ctx context.Context, ownerID int64, limit, offset int) (*dto.PaginatedEventsResponse, error) {
+func (uc *EventUseCase) GetEventsPaginated(ctx context.Context, ownerID string, limit, offset int) (*dto.PaginatedEventsResponse, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -210,7 +225,7 @@ func (uc *EventUseCase) GetEventsPaginated(ctx context.Context, ownerID int64, l
 	return &dto.PaginatedEventsResponse{Items: out, Total: total}, nil
 }
 
-func (uc *EventUseCase) GetInvitationEvents(ctx context.Context, userID int64) ([]*dto.EventResponse, error) {
+func (uc *EventUseCase) GetInvitationEvents(ctx context.Context, userID string) ([]*dto.EventResponse, error) {
 	events, err := uc.eventRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -222,24 +237,32 @@ func (uc *EventUseCase) GetInvitationEvents(ctx context.Context, userID int64) (
 	return out, nil
 }
 
-// GetMyInvitations returns events the user is invited to, with invite (id + status) for each.
-func (uc *EventUseCase) GetMyInvitations(ctx context.Context, userID int64) ([]*dto.InvitationWithEventResponse, error) {
-	invites, err := uc.eventInviteRepo.ListByUserID(ctx, userID)
+// GetMyInvitations returns events the user is invited to (by user_id or by email when invite has no account yet).
+func (uc *EventUseCase) GetMyInvitations(ctx context.Context, userID string) ([]*dto.InvitationWithEventResponse, error) {
+	user, err := uc.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	invites, err := uc.eventInviteRepo.ListByUserIDOrEmail(ctx, userID, user.Email)
 	if err != nil {
 		return nil, err
 	}
 	return uc.invitesToInvitationResponses(ctx, invites), nil
 }
 
-// GetMyInvitationsPaginated returns paginated invitations for the user.
-func (uc *EventUseCase) GetMyInvitationsPaginated(ctx context.Context, userID int64, limit, offset int) (*dto.PaginatedInvitationsResponse, error) {
+// GetMyInvitationsPaginated returns paginated invitations for the user (by user_id or email).
+func (uc *EventUseCase) GetMyInvitationsPaginated(ctx context.Context, userID string, limit, offset int) (*dto.PaginatedInvitationsResponse, error) {
+	user, err := uc.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	if limit <= 0 {
 		limit = 20
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	invites, total, err := uc.eventInviteRepo.ListByUserIDPaginated(ctx, userID, limit, offset)
+	invites, total, err := uc.eventInviteRepo.ListByUserIDOrEmailPaginated(ctx, userID, user.Email, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -255,16 +278,8 @@ func (uc *EventUseCase) invitesToInvitationResponses(ctx context.Context, invite
 			continue
 		}
 		out = append(out, &dto.InvitationWithEventResponse{
-			Event: *uc.toEventResponse(event),
-			Invite: dto.EventInviteResponse{
-				ID:        inv.ID,
-				EventID:   inv.EventID,
-				UserID:    inv.UserID,
-				Email:     inv.Email,
-				Status:    inv.Status,
-				SeatID:    inv.SeatID,
-				CreatedAt: inv.CreatedAt.Format(time.RFC3339),
-			},
+			Event:  *uc.toEventResponse(event),
+			Invite: *uc.toEventInviteResponse(inv),
 		})
 	}
 	return out
@@ -272,7 +287,7 @@ func (uc *EventUseCase) invitesToInvitationResponses(ctx context.Context, invite
 
 // RespondToInvite updates the current user's RSVP status for an event (confirmed or declined). Optionally assigns seat(s) when confirming (guest_seat_id for plus-one).
 // For public events, if the user has no invite yet, one is created so they can RSVP.
-func (uc *EventUseCase) RespondToInvite(ctx context.Context, userID int64, eventID int64, status string, seatID *int64, guestSeatID *int64) (*dto.EventInviteResponse, error) {
+func (uc *EventUseCase) RespondToInvite(ctx context.Context, userID string, eventID string, status string, seatID *string, guestSeatID *string) (*dto.EventInviteResponse, error) {
 	if status != "confirmed" && status != "declined" {
 		return nil, errors.New("status must be confirmed or declined")
 	}
@@ -288,50 +303,60 @@ func (uc *EventUseCase) RespondToInvite(ctx context.Context, userID int64, event
 	}
 	invite, err := uc.eventInviteRepo.FindByEventAndUser(ctx, eventID, userID)
 	if err != nil {
-		if event.Visibility != entities.VisibilityPublic {
-			return nil, errors.New("invitation not found")
-		}
 		user, errUser := uc.userRepo.FindByID(ctx, userID)
 		if errUser != nil {
 			return nil, errors.New("user not found")
 		}
-		invite = &entities.EventInvite{
-			EventID:   eventID,
-			UserID:    userID,
-			Email:     user.Email,
-			Status:    status,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
-		if seatID != nil && *seatID > 0 {
-			seat, errSeat := uc.eventSeatRepo.FindByID(ctx, *seatID)
-			if errSeat == nil {
-				table, _ := uc.eventTableRepo.FindByID(ctx, seat.EventTableID)
-				if table != nil && table.EventID == eventID {
-					invite.SeatID = seatID
+		inviteByEmail, errEmail := uc.eventInviteRepo.FindByEventAndEmail(ctx, eventID, user.Email)
+		if errEmail == nil && inviteByEmail != nil {
+			invite = inviteByEmail
+			if invite.UserID == nil {
+				invite.UserID = &userID
+				_ = uc.eventInviteRepo.Update(ctx, invite)
+			}
+			// fall through to update status/seat
+		} else {
+			if event.Visibility != entities.VisibilityPublic {
+				return nil, errors.New("invitation not found")
+			}
+			invite = &entities.EventInvite{
+				EventID:   eventID,
+				UserID:    &userID,
+				Email:     user.Email,
+				Status:    status,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			if seatID != nil && *seatID != "" {
+				seat, errSeat := uc.eventSeatRepo.FindByID(ctx, *seatID)
+				if errSeat == nil {
+					table, _ := uc.eventTableRepo.FindByID(ctx, seat.EventTableID)
+					if table != nil && table.EventID == eventID {
+						invite.SeatID = seatID
+					}
 				}
 			}
-		}
-		if guestSeatID != nil && *guestSeatID > 0 {
-			seat, errSeat := uc.eventSeatRepo.FindByID(ctx, *guestSeatID)
-			if errSeat == nil {
-				table, _ := uc.eventTableRepo.FindByID(ctx, seat.EventTableID)
-				if table != nil && table.EventID == eventID {
-					invite.GuestSeatID = guestSeatID
+			if guestSeatID != nil && *guestSeatID != "" {
+				seat, errSeat := uc.eventSeatRepo.FindByID(ctx, *guestSeatID)
+				if errSeat == nil {
+					table, _ := uc.eventTableRepo.FindByID(ctx, seat.EventTableID)
+					if table != nil && table.EventID == eventID {
+						invite.GuestSeatID = guestSeatID
+					}
 				}
 			}
+			if errCreate := uc.eventInviteRepo.Create(ctx, invite); errCreate != nil {
+				return nil, errCreate
+			}
+			return uc.toEventInviteResponse(invite), nil
 		}
-		if errCreate := uc.eventInviteRepo.Create(ctx, invite); errCreate != nil {
-			return nil, errCreate
-		}
-		return uc.toEventInviteResponse(invite), nil
 	}
 	invite.Status = status
 	if status == "declined" {
 		invite.SeatID = nil
 		invite.GuestSeatID = nil
 	} else {
-		if seatID != nil && *seatID > 0 {
+		if seatID != nil && *seatID != "" {
 			seat, err := uc.eventSeatRepo.FindByID(ctx, *seatID)
 			if err != nil {
 				return nil, errors.New("seat not found")
@@ -342,7 +367,7 @@ func (uc *EventUseCase) RespondToInvite(ctx context.Context, userID int64, event
 			}
 			invite.SeatID = seatID
 		}
-		if guestSeatID != nil && *guestSeatID > 0 {
+		if guestSeatID != nil && *guestSeatID != "" {
 			seat, err := uc.eventSeatRepo.FindByID(ctx, *guestSeatID)
 			if err != nil {
 				return nil, errors.New("guest seat not found")
@@ -351,7 +376,7 @@ func (uc *EventUseCase) RespondToInvite(ctx context.Context, userID int64, event
 			if err != nil || table.EventID != eventID {
 				return nil, errors.New("guest seat does not belong to this event")
 			}
-			if seatID != nil && *guestSeatID == *seatID {
+			if seatID != nil && guestSeatID != nil && *guestSeatID == *seatID {
 				return nil, errors.New("primary and guest seat must be different")
 			}
 			invite.GuestSeatID = guestSeatID
@@ -367,10 +392,14 @@ func (uc *EventUseCase) RespondToInvite(ctx context.Context, userID int64, event
 }
 
 func (uc *EventUseCase) toEventInviteResponse(inv *entities.EventInvite) *dto.EventInviteResponse {
+	var userID string
+	if inv.UserID != nil {
+		userID = *inv.UserID
+	}
 	return &dto.EventInviteResponse{
 		ID:          inv.ID,
 		EventID:     inv.EventID,
-		UserID:      inv.UserID,
+		UserID:      userID,
 		Email:       inv.Email,
 		Status:      inv.Status,
 		SeatID:      inv.SeatID,
@@ -398,8 +427,8 @@ func (uc *EventUseCase) ListPublicEvents(ctx context.Context, search string, lim
 	return out, nil
 }
 
-// InviteUserToEvent invites a user (by email) to an event. Only the event owner can invite.
-func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID int64, email string) (*dto.EventInviteResponse, error) {
+// InviteUserToEvent invites a guest (by email) to an event. Email may belong to an existing user or not; if not, they receive the invite by email and can RSVP after signing up.
+func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID string, email string) (*dto.EventInviteResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return nil, err
@@ -410,27 +439,40 @@ func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID 
 	if email == "" {
 		return nil, errors.New("email is required")
 	}
+	email = strings.TrimSpace(strings.ToLower(email))
 
-	user, err := uc.userRepo.FindByEmail(ctx, email)
-	if err != nil {
-		return nil, errors.New("no user found with this email")
-	}
-
-	exists, err := uc.eventInviteRepo.ExistsByEventAndUser(ctx, eventID, user.ID)
+	existsByEmail, err := uc.eventInviteRepo.ExistsByEventAndEmail(ctx, eventID, email)
 	if err != nil {
 		return nil, err
 	}
-	if exists {
-		return nil, errors.New("user is already invited to this event")
+	if existsByEmail {
+		return nil, errors.New("this email is already invited to this event")
 	}
 
-	invite := &entities.EventInvite{
-		EventID:   eventID,
-		UserID:    user.ID,
-		Email:     user.Email,
-		Status:    "pending",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	var invite *entities.EventInvite
+	user, err := uc.userRepo.FindByEmail(ctx, email)
+	if err == nil {
+		existsByUser, _ := uc.eventInviteRepo.ExistsByEventAndUser(ctx, eventID, user.ID)
+		if existsByUser {
+			return nil, errors.New("user is already invited to this event")
+		}
+		invite = &entities.EventInvite{
+			EventID:   eventID,
+			UserID:    &user.ID,
+			Email:     user.Email,
+			Status:    "pending",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+	} else {
+		invite = &entities.EventInvite{
+			EventID:   eventID,
+			UserID:    nil,
+			Email:     email,
+			Status:    "pending",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
 	}
 	if err := invite.Validate(); err != nil {
 		return nil, err
@@ -439,18 +481,14 @@ func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID 
 		return nil, err
 	}
 
-	return &dto.EventInviteResponse{
-		ID:        invite.ID,
-		EventID:   invite.EventID,
-		UserID:    invite.UserID,
-		Email:     invite.Email,
-		Status:    invite.Status,
-		CreatedAt: invite.CreatedAt.Format(time.RFC3339),
-	}, nil
+	rsvpPath := fmt.Sprintf("/events/%s/rsvp", eventID)
+	_ = uc.mailer.SendInviteEmail(ctx, invite.Email, event.Name, rsvpPath)
+
+	return uc.toEventInviteResponse(invite), nil
 }
 
 // ListEventInvites returns invites for an event. Only the event owner can list.
-func (uc *EventUseCase) ListEventInvites(ctx context.Context, ownerID, eventID int64) ([]*dto.EventInviteResponse, error) {
+func (uc *EventUseCase) ListEventInvites(ctx context.Context, ownerID, eventID string) ([]*dto.EventInviteResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return nil, err
@@ -470,7 +508,7 @@ func (uc *EventUseCase) ListEventInvites(ctx context.Context, ownerID, eventID i
 }
 
 // ListEventInvitesPaginated returns paginated invites for an event. Only the event owner can list.
-func (uc *EventUseCase) ListEventInvitesPaginated(ctx context.Context, ownerID, eventID int64, limit, offset int) (*dto.PaginatedInvitesResponse, error) {
+func (uc *EventUseCase) ListEventInvitesPaginated(ctx context.Context, ownerID, eventID string, limit, offset int) (*dto.PaginatedInvitesResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return nil, err
@@ -496,7 +534,7 @@ func (uc *EventUseCase) ListEventInvitesPaginated(ctx context.Context, ownerID, 
 }
 
 // CreateEventTable creates a table and capacity seats for an event. Owner only.
-func (uc *EventUseCase) CreateEventTable(ctx context.Context, ownerID, eventID int64, req dto.CreateEventTableRequest) (*dto.EventTableResponse, error) {
+func (uc *EventUseCase) CreateEventTable(ctx context.Context, ownerID, eventID string, req dto.CreateEventTableRequest) (*dto.EventTableResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return nil, err
@@ -579,13 +617,13 @@ func (uc *EventUseCase) CreateEventTable(ctx context.Context, ownerID, eventID i
 }
 
 // ListEventSeating returns tables with seats and which invite (if any) is assigned to each seat. Caller must be owner or invited guest.
-func (uc *EventUseCase) ListEventSeating(ctx context.Context, eventID int64, callerID int64) ([]*dto.EventTableResponse, error) {
+func (uc *EventUseCase) ListEventSeating(ctx context.Context, eventID string, callerID string) ([]*dto.EventTableResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
 	canAccess := event.OwnerID == callerID || event.Visibility == entities.VisibilityPublic
-	if !canAccess && callerID != 0 {
+	if !canAccess && callerID != "" {
 		invited, _ := uc.eventInviteRepo.ExistsByEventAndUser(ctx, eventID, callerID)
 		canAccess = invited
 	}
@@ -597,7 +635,7 @@ func (uc *EventUseCase) ListEventSeating(ctx context.Context, eventID int64, cal
 		return nil, err
 	}
 	invites, _ := uc.eventInviteRepo.ListByEventID(ctx, eventID)
-	seatToInvite := make(map[int64]int64)
+	seatToInvite := make(map[string]string)
 	for _, inv := range invites {
 		if inv.SeatID != nil {
 			seatToInvite[*inv.SeatID] = inv.ID
@@ -614,13 +652,13 @@ func (uc *EventUseCase) ListEventSeating(ctx context.Context, eventID int64, cal
 	return out, nil
 }
 
-func (uc *EventUseCase) buildEventTableResponse(ctx context.Context, t *entities.EventTable, seats []*entities.EventSeat, seatToInvite map[int64]int64) *dto.EventTableResponse {
+func (uc *EventUseCase) buildEventTableResponse(ctx context.Context, t *entities.EventTable, seats []*entities.EventSeat, seatToInvite map[string]string) *dto.EventTableResponse {
 	if seatToInvite == nil {
-		seatToInvite = make(map[int64]int64)
+		seatToInvite = make(map[string]string)
 	}
 	seatResp := make([]*dto.EventSeatResponse, len(seats))
 	for i := range seats {
-		var inviteID *int64
+		var inviteID *string
 		if id, ok := seatToInvite[seats[i].ID]; ok {
 			inviteID = &id
 		}
@@ -652,7 +690,7 @@ func (uc *EventUseCase) buildEventTableResponse(ctx context.Context, t *entities
 }
 
 // UpdateEventTable updates a table. Owner only. Changing capacity does not add/remove seats (future enhancement).
-func (uc *EventUseCase) UpdateEventTable(ctx context.Context, ownerID, eventID, tableID int64, req dto.UpdateEventTableRequest) (*dto.EventTableResponse, error) {
+func (uc *EventUseCase) UpdateEventTable(ctx context.Context, ownerID, eventID, tableID string, req dto.UpdateEventTableRequest) (*dto.EventTableResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return nil, err
@@ -710,7 +748,7 @@ func (uc *EventUseCase) UpdateEventTable(ctx context.Context, ownerID, eventID, 
 	}
 	seats, _ := uc.eventSeatRepo.ListByEventTableID(ctx, t.ID)
 	invites, _ := uc.eventInviteRepo.ListByEventID(ctx, eventID)
-	seatToInvite := make(map[int64]int64)
+	seatToInvite := make(map[string]string)
 	for _, inv := range invites {
 		if inv.SeatID != nil {
 			seatToInvite[*inv.SeatID] = inv.ID
@@ -723,7 +761,7 @@ func (uc *EventUseCase) UpdateEventTable(ctx context.Context, ownerID, eventID, 
 }
 
 // ReorderEventTables updates display_order of tables to match the given order. Owner only.
-func (uc *EventUseCase) ReorderEventTables(ctx context.Context, ownerID, eventID int64, orderedTableIDs []int64) error {
+func (uc *EventUseCase) ReorderEventTables(ctx context.Context, ownerID, eventID string, orderedTableIDs []string) error {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -738,7 +776,7 @@ func (uc *EventUseCase) ReorderEventTables(ctx context.Context, ownerID, eventID
 	if len(orderedTableIDs) != len(tables) {
 		return errors.New("table order must include all tables exactly once")
 	}
-	idToTable := make(map[int64]*entities.EventTable)
+	idToTable := make(map[string]*entities.EventTable)
 	for _, t := range tables {
 		idToTable[t.ID] = t
 	}
@@ -757,7 +795,7 @@ func (uc *EventUseCase) ReorderEventTables(ctx context.Context, ownerID, eventID
 }
 
 // DeleteEventTable deletes a table and its seats. Owner only.
-func (uc *EventUseCase) DeleteEventTable(ctx context.Context, ownerID, eventID, tableID int64) error {
+func (uc *EventUseCase) DeleteEventTable(ctx context.Context, ownerID, eventID, tableID string) error {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
 	if err != nil {
 		return err

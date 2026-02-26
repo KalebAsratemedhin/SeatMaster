@@ -13,23 +13,24 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { EventCard } from "@/components/events/event-card";
 import { InvitationCard } from "@/components/events/invitation-card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, ChevronLeft, ChevronRight } from "lucide-react";
-
-const PAGE_SIZE = 12;
+import { Pagination } from "@/components/ui/pagination";
+import { PlusCircle } from "lucide-react";
 
 export default function EventsPage() {
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
+  const [eventsPageSize, setEventsPageSize] = useState(10);
   const [eventsPage, setEventsPage] = useState(0);
+  const [invPageSize, setInvPageSize] = useState(10);
   const [invPage, setInvPage] = useState(0);
 
   const { data: myEventsData, isLoading: myLoading } = useGetMyEventsQuery(
-    { limit: PAGE_SIZE, offset: eventsPage * PAGE_SIZE },
+    { limit: eventsPageSize, offset: eventsPage * eventsPageSize },
     { skip: !token }
   );
   const { data: invitationsData, isLoading: invLoading } =
     useGetMyInvitationsQuery(
-      { limit: PAGE_SIZE, offset: invPage * PAGE_SIZE },
+      { limit: invPageSize, offset: invPage * invPageSize },
       { skip: !token }
     );
 
@@ -37,6 +38,9 @@ export default function EventsPage() {
   const eventsTotal = myEventsData?.total ?? 0;
   const invitations = invitationsData?.items ?? [];
   const invitationsTotal = invitationsData?.total ?? 0;
+
+  useEffect(() => setEventsPage(0), [eventsPageSize]);
+  useEffect(() => setInvPage(0), [invPageSize]);
 
   useEffect(() => {
     if (typeof token === "string" && !token) {
@@ -80,31 +84,15 @@ export default function EventsPage() {
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>
-              {eventsTotal > PAGE_SIZE && (
-                <div className="mt-6 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-xl flex items-center justify-between">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Showing {eventsPage * PAGE_SIZE + 1} to{" "}
-                    {Math.min((eventsPage + 1) * PAGE_SIZE, eventsTotal)} of{" "}
-                    {eventsTotal} events
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEventsPage((p) => Math.max(0, p - 1))}
-                      disabled={eventsPage === 0}
-                    >
-                      <ChevronLeft className="size-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEventsPage((p) => p + 1)}
-                      disabled={(eventsPage + 1) * PAGE_SIZE >= eventsTotal}
-                    >
-                      <ChevronRight className="size-4" />
-                    </Button>
-                  </div>
+              {eventsTotal > 0 && (
+                <div className="mt-6 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-xl">
+                  <Pagination
+                    total={eventsTotal}
+                    pageSize={eventsPageSize}
+                    page={eventsPage}
+                    onPageChange={setEventsPage}
+                    onPageSizeChange={setEventsPageSize}
+                  />
                 </div>
               )}
             </>
@@ -126,31 +114,15 @@ export default function EventsPage() {
                   <InvitationCard key={inv.invite.id} invitation={inv} />
                 ))}
               </div>
-              {invitationsTotal > PAGE_SIZE && (
-                <div className="mt-6 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-xl flex items-center justify-between">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Showing {invPage * PAGE_SIZE + 1} to{" "}
-                    {Math.min((invPage + 1) * PAGE_SIZE, invitationsTotal)} of{" "}
-                    {invitationsTotal} invitations
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setInvPage((p) => Math.max(0, p - 1))}
-                      disabled={invPage === 0}
-                    >
-                      <ChevronLeft className="size-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setInvPage((p) => p + 1)}
-                      disabled={(invPage + 1) * PAGE_SIZE >= invitationsTotal}
-                    >
-                      <ChevronRight className="size-4" />
-                    </Button>
-                  </div>
+              {invitationsTotal > 0 && (
+                <div className="mt-6 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-xl">
+                  <Pagination
+                    total={invitationsTotal}
+                    pageSize={invPageSize}
+                    page={invPage}
+                    onPageChange={setInvPage}
+                    onPageSizeChange={setInvPageSize}
+                  />
                 </div>
               )}
             </>

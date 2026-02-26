@@ -8,15 +8,15 @@ import (
 
 type EventRepository interface {
 	Create(ctx context.Context, event *entities.Event) error
-	FindByID(ctx context.Context, id int64) (*entities.Event, error)
-	FindByOwnerID(ctx context.Context, ownerID int64) ([]*entities.Event, error)
-	FindByOwnerIDPaginated(ctx context.Context, ownerID int64, limit, offset int) ([]*entities.Event, int64, error)
-	FindByUserID(ctx context.Context, userID int64) ([]*entities.Event, error)
-	FindByUserIDPaginated(ctx context.Context, userID int64, limit, offset int) ([]*entities.Event, int64, error)
+	FindByID(ctx context.Context, id string) (*entities.Event, error)
+	FindByOwnerID(ctx context.Context, ownerID string) ([]*entities.Event, error)
+	FindByOwnerIDPaginated(ctx context.Context, ownerID string, limit, offset int) ([]*entities.Event, int64, error)
+	FindByUserID(ctx context.Context, userID string) ([]*entities.Event, error)
+	FindByUserIDPaginated(ctx context.Context, userID string, limit, offset int) ([]*entities.Event, int64, error)
 	FindByEmail(ctx context.Context, email string) (*entities.Event, error)
-	ExistsByID(ctx context.Context, id int64) (bool, error)
-	ExistsByOwnerID(ctx context.Context, ownerID int64) (bool, error)
-	ExistsByUserID(ctx context.Context, userID int64) (bool, error)
+	ExistsByID(ctx context.Context, id string) (bool, error)
+	ExistsByOwnerID(ctx context.Context, ownerID string) (bool, error)
+	ExistsByUserID(ctx context.Context, userID string) (bool, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	ExistsByName(ctx context.Context, name string) (bool, error)
 	Delete(ctx context.Context, event *entities.Event) error

@@ -3,8 +3,8 @@ package entities
 import "time"
 
 type EventTable struct {
-	ID           int64     `json:"id"`
-	EventID      int64     `json:"event_id"`
+	ID           string    `json:"id"`
+	EventID      string    `json:"event_id"`
 	Name         string    `json:"name"`   // Auto-set to "Table 1", "Table 2", etc.
 	Shape        string    `json:"shape"`  // "round", "rectangular", or "grid"
 	TableRows    *int      `json:"table_rows,omitempty"`    // for grid

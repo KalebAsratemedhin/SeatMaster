@@ -27,18 +27,18 @@ import {
 import { getErrorMessage } from "@/lib/api/errors";
 import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
-import { ArrowLeft, ImageIcon, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, ImageIcon, CalendarDays, MapPin } from "lucide-react";
 
 type AttendanceChoice = "confirmed" | "declined";
 
 export default function EventRsvpPage() {
   const params = useParams();
   const router = useRouter();
-  const id = Number(params.id);
+  const id = params.id as string;
   const token = useSelector((state: RootState) => state.auth.token);
 
   const { data: event, isLoading: eventLoading, error: eventError } = useGetEventQuery(id, {
-    skip: !id || isNaN(id),
+    skip: !id,
   });
   const { data: invitationsData, isLoading: invLoading } = useGetMyInvitationsQuery(
     { limit: 100, offset: 0 },
@@ -49,10 +49,10 @@ export default function EventRsvpPage() {
   const invite = myInvitation?.invite;
   const isInvited = !!myInvitation;
 
-  const { data: seating = [] } = useGetEventSeatingQuery(id, { skip: !id || !token });
+  const { data: seating = [] } = useGetEventSeatingQuery(id, { skip: !id });
 
   const [attendance, setAttendance] = useState<AttendanceChoice | null>(null);
-  const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([]);
+  const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [plusOne, setPlusOne] = useState(false);
   const [dietary, setDietary] = useState("");
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -65,7 +65,7 @@ export default function EventRsvpPage() {
     else setAttendance(null);
   }, [invite?.status]);
   useEffect(() => {
-    const ids: number[] = [];
+    const ids: string[] = [];
     if (invite?.seat_id != null) ids.push(invite.seat_id);
     if (invite?.guest_seat_id != null) ids.push(invite.guest_seat_id);
     setSelectedSeatIds(ids);
@@ -82,7 +82,7 @@ export default function EventRsvpPage() {
   const [respondToInvite, { isLoading: isSubmitting, error: submitError }] =
     useRespondToInviteMutation();
 
-  const handleSeatToggle = (seatId: number) => {
+  const handleSeatToggle = (seatId: string) => {
     setSelectedSeatIds((prev) => {
       if (prev.includes(seatId)) return prev.filter((id) => id !== seatId);
       if (prev.length >= maxSeats) return prev;
@@ -93,6 +93,10 @@ export default function EventRsvpPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (attendance === null) return;
+    if (typeof window !== "undefined" && !token) {
+      router.replace(`/auth?mode=signin&redirect=${encodeURIComponent(`/events/${id}/rsvp`)}`);
+      return;
+    }
     respondToInvite({
       eventId: id,
       status: attendance,
@@ -107,22 +111,21 @@ export default function EventRsvpPage() {
       .catch(() => {});
   };
 
-  const isLoading = eventLoading || invLoading;
+  const isLoading = eventLoading || (!!token && invLoading);
   const notFound = eventError || !event;
   const isPublic = event?.visibility === "public";
-  const forbidden = !invLoading && !eventLoading && event && !isPublic && !isInvited;
+  const isForbidden = !!token && !invLoading && !eventLoading && event && !isPublic && !isInvited;
   const isEventPast =
     event?.event_date != null &&
     event.event_date < new Date().toISOString().slice(0, 10);
+  const eventErrorStatus = eventError && typeof eventError === "object" && "status" in eventError
+    ? (eventError as { status?: number }).status
+    : undefined;
+  const isPrivateEventRequiresAuth = eventErrorStatus === 403;
 
-  if (typeof window !== "undefined" && !token) {
-    router.replace(`/auth?mode=signin&redirect=${encodeURIComponent(`/events/${id}/rsvp`)}`);
-    return null;
-  }
-
-  if (isLoading || (!event && !eventError)) {
+  if (isLoading || (!event && !eventError && !isPrivateEventRequiresAuth)) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22]">
+      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
         <SiteHeader />
         <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
           <p className="text-muted-foreground">Loading...</p>
@@ -131,9 +134,27 @@ export default function EventRsvpPage() {
     );
   }
 
+  if (isPrivateEventRequiresAuth) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
+        <SiteHeader />
+        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
+          <p className="text-muted-foreground">
+            This event is private. Sign in with the account that received the invitation to view and respond.
+          </p>
+          <Button asChild className="mt-4">
+            <Link href={`/auth?mode=signin&redirect=${encodeURIComponent(`/events/${id}/rsvp`)}`}>
+              Sign in
+            </Link>
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
   if (notFound) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22]">
+      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
         <SiteHeader />
         <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
           <p className="text-destructive">Event not found.</p>
@@ -145,9 +166,9 @@ export default function EventRsvpPage() {
     );
   }
 
-  if (forbidden) {
+  if (isForbidden) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22]">
+      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
         <SiteHeader />
         <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
           <p className="text-destructive">You don&apos;t have an invitation to this event.</p>
@@ -161,7 +182,7 @@ export default function EventRsvpPage() {
 
   if (event && isEventPast) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#fcfbf7] dark:bg-[#0a1a14] text-slate-900 dark:text-slate-100">
+      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14] text-slate-900 dark:text-slate-100">
         <SiteHeader />
         <main className="flex-1 container max-w-3xl mx-auto px-4 py-8 md:py-12">
           <nav className="mb-6 text-sm text-muted-foreground">
@@ -173,11 +194,11 @@ export default function EventRsvpPage() {
             <span className="mx-2">/</span>
             <span className="text-foreground">RSVP</span>
           </nav>
-          <div className="rounded-xl border border-[#d4af37]/20 bg-white dark:bg-[#0f241d] p-6 md:p-10 shadow-sm text-center">
+          <div className="rounded-2xl border border-[#d4af37]/25 bg-white dark:bg-[#0d2a21] p-8 md:p-12 shadow-lg text-center">
             <p className="text-slate-600 dark:text-slate-400 font-medium">
               This event has already passed. RSVPs are no longer accepted.
             </p>
-            <Button variant="outline" asChild className="mt-6">
+            <Button variant="outline" asChild className="mt-6 rounded-xl">
               <Link href={`/events/${id}`}>View event details</Link>
             </Button>
           </div>
@@ -187,234 +208,231 @@ export default function EventRsvpPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fcfbf7] dark:bg-[#0a1a14] text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <SiteHeader />
 
-      {/* Full-width banner */}
+      {/* Hero: compact */}
       {event!.banner_url ? (
         <div
-          className="w-full min-h-[320px] md:min-h-[400px] bg-cover bg-center flex flex-col justify-end relative border-b-4 border-double border-[#d4af37]/30"
+          className="w-full h-[200px] md:h-[240px] bg-cover bg-center flex flex-col justify-end"
           style={{
-            backgroundImage: `linear-gradient(0deg, rgba(6, 78, 59, 0.85) 0%, rgba(6, 78, 59, 0.35) 55%, transparent 100%), url(${event!.banner_url})`,
+            backgroundImage: `linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 60%), url(${event!.banner_url})`,
           }}
         >
-          <div className="flex flex-col p-8 md:p-16 items-center text-center">
-            <h1 className="text-[#d4af37] tracking-[0.12em] text-3xl md:text-4xl font-normal leading-tight mb-4 font-serif">
+          <div className="container max-w-3xl mx-auto px-4 pb-5">
+            <h1 className="text-white text-2xl md:text-3xl font-semibold drop-shadow-md">
               {event!.name}
             </h1>
-            <div className="w-20 h-px bg-[#d4af37] mb-4" />
             {event!.message && (
-              <p className="text-white/90 text-lg md:text-xl italic max-w-xl">
-                {event!.message}
-              </p>
+              <p className="text-white/90 text-sm mt-1 line-clamp-2">{event!.message}</p>
             )}
           </div>
         </div>
       ) : (
-        <div className="w-full min-h-[280px] bg-[#064e3b] dark:bg-emerald-900 flex flex-col justify-end border-b-4 border-double border-[#d4af37]/30">
-          <div className="flex flex-col p-8 md:p-12 items-center text-center">
-            <div className="size-16 rounded-full bg-white/10 flex items-center justify-center mb-4">
-              <ImageIcon className="size-8 text-white/70" />
+        <div className="w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50">
+          <div className="container max-w-3xl mx-auto px-4 py-6 flex items-center gap-4">
+            <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center shrink-0">
+              <ImageIcon className="size-6 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h1 className="text-[#d4af37] tracking-[0.12em] text-2xl md:text-3xl font-normal font-serif">
-              {event!.name}
-            </h1>
+            <div>
+              <h1 className="text-xl md:text-2xl font-semibold text-slate-900 dark:text-white">
+                {event!.name}
+              </h1>
+              {event!.message && (
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5 line-clamp-1">
+                  {event!.message}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      <main className="flex-1 container max-w-3xl mx-auto px-4 py-8 md:py-12">
-        <nav className="mb-6 text-sm text-muted-foreground">
-          <Link href="/invitations" className="hover:text-foreground transition-colors flex items-center gap-1">
+      <main className="flex-1 container max-w-3xl mx-auto px-4 py-6 md:py-8">
+        <nav className="mb-6 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+          <Link
+            href="/invitations"
+            className="hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1"
+          >
             <ArrowLeft className="size-3.5" /> Invitations
           </Link>
-          <span className="mx-2">/</span>
-          <span className="text-foreground font-medium truncate">{event!.name}</span>
-          <span className="mx-2">/</span>
-          <span className="text-foreground">RSVP</span>
+          <span aria-hidden>/</span>
+          <span className="text-slate-700 dark:text-slate-300 truncate max-w-[120px] md:max-w-none">
+            {event!.name}
+          </span>
+          <span aria-hidden>/</span>
+          <span className="text-slate-900 dark:text-white font-medium">RSVP</span>
         </nav>
 
-        {/* Event details card */}
-        <div className="rounded-xl border border-[#d4af37]/20 bg-white dark:bg-[#0f241d] p-6 md:p-8 mb-10 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#d4af37] font-medium mb-2">
-            When & where
-          </p>
-          <p className="text-xl font-medium text-slate-900 dark:text-[#d4af37]">
-            {formatEventDate(event!.event_date)} · {formatEventTimeRange(event!.start_time, event!.end_time)}
-          </p>
+        {/* When & where: inline strip, no card */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-8 pb-8 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <CalendarDays className="size-4 text-slate-400 dark:text-slate-500 shrink-0" />
+            <span>
+              {formatEventDate(event!.event_date)} · {formatEventTimeRange(event!.start_time, event!.end_time)}
+            </span>
+          </div>
           {event!.location && (
-            <p className="mt-2 text-slate-600 dark:text-slate-400">{event!.location}</p>
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+              <MapPin className="size-4 text-slate-400 dark:text-slate-500 shrink-0" />
+              <span>{event!.location}</span>
+            </div>
           )}
         </div>
 
-        <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-serif tracking-wide text-slate-900 dark:text-[#d4af37]">
-            Kindly Respond
-          </h2>
-          <div className="flex items-center justify-center gap-3 mt-2">
-            <div className="h-px w-10 bg-[#d4af37]/50" />
-            <p className="text-slate-500 dark:text-slate-400 text-sm italic">
-              Your response helps us plan
-            </p>
-            <div className="h-px w-10 bg-[#d4af37]/50" />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-[#d4af37]/20 bg-white dark:bg-[#0f241d] p-6 md:p-10 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#d4af37]/30 rounded-tl" />
-          <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-[#d4af37]/30 rounded-tr" />
-          <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-[#d4af37]/30 rounded-bl" />
-          <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#d4af37]/30 rounded-br" />
-
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="space-y-4">
-              <Label className="text-base font-medium uppercase tracking-wider text-center block text-slate-900 dark:text-[#d4af37]">
-                Attendance
-              </Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label
-                  className={`relative flex cursor-pointer border rounded-lg p-6 transition-all duration-200 ${
-                    attendance === "confirmed"
-                      ? "border-[#064e3b] dark:border-[#d4af37] bg-emerald-50/50 dark:bg-emerald-950/30"
-                      : "border-slate-200 dark:border-slate-600 hover:border-[#d4af37]/40"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="attendance"
-                    value="confirmed"
-                    checked={attendance === "confirmed"}
-                    onChange={() => setAttendance("confirmed")}
-                    className="sr-only"
-                  />
-                  <div className="flex flex-col items-center gap-3 w-full">
-                    <CheckCircle
-                      className={`size-10 ${
-                        attendance === "confirmed"
-                          ? "text-[#064e3b] dark:text-[#d4af37]"
-                          : "text-slate-400"
-                      }`}
-                    />
-                    <span className="font-semibold uppercase tracking-wider text-sm">
-                      Joyfully Accepts
-                    </span>
-                  </div>
-                </label>
-                <label
-                  className={`relative flex cursor-pointer border rounded-lg p-6 transition-all duration-200 ${
-                    attendance === "declined"
-                      ? "border-[#064e3b] dark:border-[#d4af37] bg-emerald-50/50 dark:bg-emerald-950/30"
-                      : "border-slate-200 dark:border-slate-600 hover:border-[#d4af37]/40"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="attendance"
-                    value="declined"
-                    checked={attendance === "declined"}
-                    onChange={() => setAttendance("declined")}
-                    className="sr-only"
-                  />
-                  <div className="flex flex-col items-center gap-3 w-full">
-                    <XCircle
-                      className={`size-10 ${
-                        attendance === "declined"
-                          ? "text-[#064e3b] dark:text-[#d4af37]"
-                          : "text-slate-400"
-                      }`}
-                    />
-                    <span className="font-semibold uppercase tracking-wider text-sm">
-                      Regretfully Declines
-                    </span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between p-6 rounded-lg border border-[#d4af37]/20 bg-emerald-50/30 dark:bg-emerald-900/10 gap-4">
-              <div className="text-center sm:text-left">
-                <p className="font-semibold uppercase tracking-wider text-sm text-slate-900 dark:text-[#d4af37]">
-                  Guest accompaniment
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                  Will you be bringing a guest?
-                </p>
-              </div>
-              <label className="inline-flex items-center cursor-pointer">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Section: Attendance — segmented control */}
+          <section>
+            <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+              Will you attend?
+            </h2>
+            <div
+              className="inline-flex p-1 rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+              role="group"
+              aria-label="Attendance"
+            >
+              <label
+                className={`cursor-pointer px-5 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                  attendance === "confirmed"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
                 <input
-                  type="checkbox"
-                  checked={plusOne}
-                  onChange={(e) => setPlusOne(e.target.checked)}
-                  className="sr-only peer"
+                  type="radio"
+                  name="attendance"
+                  value="confirmed"
+                  checked={attendance === "confirmed"}
+                  onChange={() => setAttendance("confirmed")}
+                  className="sr-only"
                 />
-                <span className="relative inline-block w-12 h-6 rounded-full bg-slate-200 dark:bg-slate-600 peer-checked:bg-[#064e3b] dark:peer-checked:bg-[#d4af37]/30 after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-[#d4af37] after:transition-transform after:content-[''] peer-checked:after:translate-x-6" />
+                I&apos;ll be there
+              </label>
+              <label
+                className={`cursor-pointer px-5 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                  attendance === "declined"
+                    ? "bg-slate-700 dark:bg-slate-600 text-white shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="attendance"
+                  value="declined"
+                  checked={attendance === "declined"}
+                  onChange={() => setAttendance("declined")}
+                  className="sr-only"
+                />
+                Can&apos;t make it
               </label>
             </div>
+          </section>
 
-            {seating.length > 0 && (
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-[#d4af37] block text-center">
-                  {attendance === "confirmed" ? (plusOne ? "Choose your seats (you + guest)" : "Choose your seat") : "Seating arrangement"}
-                </Label>
-                <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-                  {attendance === "confirmed"
-                    ? plusOne
-                      ? "Click up to two available seats. Assigned seats are green."
-                      : "Click an available seat (gray) to reserve it. Assigned seats are green."
-                    : "Select &quot;Joyfully Accepts&quot; above to pick a seat."}
-                </p>
-                <SeatingChartFloor
-                  tables={seating}
-                  selectable={attendance === "confirmed"}
-                  selectedSeatIds={selectedSeatIds}
-                  currentInviteId={invite?.id}
-                  onSeatSelect={handleSeatToggle}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="dietary"
-                className="text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-[#d4af37]"
-              >
-                Dietary requirements
-              </Label>
-              <Textarea
-                id="dietary"
-                placeholder="Allergies or preferences..."
-                rows={3}
-                value={dietary}
-                onChange={(e) => setDietary(e.target.value)}
-                className="resize-none border-[#d4af37]/20 focus:border-[#d4af37] dark:border-[#d4af37]/30 bg-transparent"
+          {/* Section: Guest — single row with switch */}
+          <section className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4 border-y border-slate-200 dark:border-slate-800">
+            <div>
+              <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Bringing a guest?
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Optional; only if you&apos;re attending
+              </p>
+            </div>
+            <label className="inline-flex items-center gap-2 cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                checked={plusOne}
+                onChange={(e) => setPlusOne(e.target.checked)}
+                className="sr-only peer"
               />
-            </div>
+              <span className="relative inline-block w-11 h-6 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:content-[''] peer-checked:bg-emerald-600 peer-checked:after:translate-x-5" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                {plusOne ? "Yes" : "No"}
+              </span>
+            </label>
+          </section>
 
-            {submitError && (
-              <p className="text-sm text-destructive">
-                {getErrorMessage(submitError)}
+          {/* Section: Seating — heading + chart only */}
+          {seating.length > 0 && (
+            <section>
+              <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                {attendance === "confirmed"
+                  ? plusOne
+                    ? "Choose seats (you + guest)"
+                    : "Choose your seat"
+                  : "Seating"}
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                {attendance === "confirmed"
+                  ? plusOne
+                    ? "Select up to two seats."
+                    : "Select one seat."
+                  : "Accept above to pick a seat."}
+              </p>
+              <SeatingChartFloor
+                tables={seating}
+                selectable={attendance === "confirmed"}
+                selectedSeatIds={selectedSeatIds}
+                currentInviteId={invite?.id}
+                onSeatSelect={handleSeatToggle}
+              />
+            </section>
+          )}
+
+          {/* Section: Dietary — label + field */}
+          <section>
+            <Label
+              htmlFor="dietary"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Dietary requirements
+            </Label>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 mb-2">
+              Optional
+            </p>
+            <Textarea
+              id="dietary"
+              placeholder="Allergies or preferences..."
+              rows={3}
+              value={dietary}
+              onChange={(e) => setDietary(e.target.value)}
+              className="mt-1 w-full resize-none rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+            />
+          </section>
+
+          {submitError && (
+            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">
+              {getErrorMessage(submitError)}
+            </p>
+          )}
+
+          {/* Submit */}
+          <section className="pt-4 flex flex-col items-center gap-3">
+            {!token && (
+              <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
+                Sign in or create an account to submit your response.
               </p>
             )}
+            <Button
+              type="submit"
+              disabled={attendance === null || isSubmitting}
+              className="w-full sm:w-auto min-w-[200px] bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+            >
+              {isSubmitting ? "Sending…" : token ? "Submit response" : "Sign in to respond"}
+            </Button>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              You can change your response until the event.
+            </p>
+          </section>
+        </form>
 
-            <div className="pt-4 flex flex-col items-center">
-              <Button
-                type="submit"
-                disabled={attendance === null || isSubmitting}
-                className="min-w-[260px] h-12 bg-[#064e3b] hover:bg-[#065f46] text-[#d4af37] border border-[#d4af37]/50 font-semibold uppercase tracking-widest text-xs"
-              >
-                {isSubmitting ? "Sending…" : "Send response"}
-              </Button>
-              <p className="mt-4 text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                You can update your response until the event
-              </p>
-            </div>
-          </form>
-        </div>
-
-        <div className="mt-8 text-center">
-          <Button variant="outline" asChild>
-            <Link href={`/events/${id}`}>View event details</Link>
-          </Button>
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
+          <Link
+            href={`/events/${id}`}
+            className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
+          >
+            View event details →
+          </Link>
         </div>
       </main>
 

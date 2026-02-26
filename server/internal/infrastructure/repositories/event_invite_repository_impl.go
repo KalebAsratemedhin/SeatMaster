@@ -5,7 +5,7 @@ import (
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
-
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,10 +19,13 @@ func NewEventInviteRepository(db *gorm.DB) repositories.EventInviteRepository {
 }
 
 func (r *eventInviteRepositoryImpl) Create(ctx context.Context, invite *entities.EventInvite) error {
+	if invite.ID == "" {
+		invite.ID = uuid.New().String()
+	}
 	return r.db.WithContext(ctx).Create(invite).Error
 }
 
-func (r *eventInviteRepositoryImpl) ListByEventID(ctx context.Context, eventID int64) ([]*entities.EventInvite, error) {
+func (r *eventInviteRepositoryImpl) ListByEventID(ctx context.Context, eventID string) ([]*entities.EventInvite, error) {
 	var invites []*entities.EventInvite
 	err := r.db.WithContext(ctx).Where("event_id = ?", eventID).Order("created_at DESC").Find(&invites).Error
 	if err != nil {
@@ -31,7 +34,7 @@ func (r *eventInviteRepositoryImpl) ListByEventID(ctx context.Context, eventID i
 	return invites, nil
 }
 
-func (r *eventInviteRepositoryImpl) ListByEventIDPaginated(ctx context.Context, eventID int64, limit, offset int) ([]*entities.EventInvite, int64, error) {
+func (r *eventInviteRepositoryImpl) ListByEventIDPaginated(ctx context.Context, eventID string, limit, offset int) ([]*entities.EventInvite, int64, error) {
 	var total int64
 	if err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).Where("event_id = ?", eventID).Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -50,14 +53,14 @@ func (r *eventInviteRepositoryImpl) ListByEventIDPaginated(ctx context.Context, 
 	return invites, total, nil
 }
 
-func (r *eventInviteRepositoryImpl) ExistsByEventAndUser(ctx context.Context, eventID, userID int64) (bool, error) {
+func (r *eventInviteRepositoryImpl) ExistsByEventAndUser(ctx context.Context, eventID, userID string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).
 		Where("event_id = ? AND user_id = ?", eventID, userID).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *eventInviteRepositoryImpl) ListByUserID(ctx context.Context, userID int64) ([]*entities.EventInvite, error) {
+func (r *eventInviteRepositoryImpl) ListByUserID(ctx context.Context, userID string) ([]*entities.EventInvite, error) {
 	var invites []*entities.EventInvite
 	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&invites).Error
 	if err != nil {
@@ -66,7 +69,7 @@ func (r *eventInviteRepositoryImpl) ListByUserID(ctx context.Context, userID int
 	return invites, nil
 }
 
-func (r *eventInviteRepositoryImpl) ListByUserIDPaginated(ctx context.Context, userID int64, limit, offset int) ([]*entities.EventInvite, int64, error) {
+func (r *eventInviteRepositoryImpl) ListByUserIDPaginated(ctx context.Context, userID string, limit, offset int) ([]*entities.EventInvite, int64, error) {
 	var total int64
 	if err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -85,9 +88,18 @@ func (r *eventInviteRepositoryImpl) ListByUserIDPaginated(ctx context.Context, u
 	return invites, total, nil
 }
 
-func (r *eventInviteRepositoryImpl) FindByEventAndUser(ctx context.Context, eventID, userID int64) (*entities.EventInvite, error) {
+func (r *eventInviteRepositoryImpl) FindByEventAndUser(ctx context.Context, eventID, userID string) (*entities.EventInvite, error) {
 	var invite entities.EventInvite
 	err := r.db.WithContext(ctx).Where("event_id = ? AND user_id = ?", eventID, userID).First(&invite).Error
+	if err != nil {
+		return nil, err
+	}
+	return &invite, nil
+}
+
+func (r *eventInviteRepositoryImpl) FindByEventAndEmail(ctx context.Context, eventID string, email string) (*entities.EventInvite, error) {
+	var invite entities.EventInvite
+	err := r.db.WithContext(ctx).Where("event_id = ? AND LOWER(email) = LOWER(?)", eventID, email).First(&invite).Error
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +110,39 @@ func (r *eventInviteRepositoryImpl) Update(ctx context.Context, invite *entities
 	return r.db.WithContext(ctx).Save(invite).Error
 }
 
-func (r *eventInviteRepositoryImpl) ExistsByEventAndEmail(ctx context.Context, eventID int64, email string) (bool, error) {
+func (r *eventInviteRepositoryImpl) ExistsByEventAndEmail(ctx context.Context, eventID string, email string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).
-		Where("event_id = ? AND email = ?", eventID, email).Count(&count).Error
+		Where("event_id = ? AND LOWER(email) = LOWER(?)", eventID, email).Count(&count).Error
 	return count > 0, err
+}
+
+func (r *eventInviteRepositoryImpl) ListByUserIDOrEmail(ctx context.Context, userID string, email string) ([]*entities.EventInvite, error) {
+	var invites []*entities.EventInvite
+	err := r.db.WithContext(ctx).Where("user_id = ? OR (user_id IS NULL AND LOWER(email) = LOWER(?))", userID, email).
+		Order("created_at DESC").Find(&invites).Error
+	if err != nil {
+		return nil, err
+	}
+	return invites, nil
+}
+
+func (r *eventInviteRepositoryImpl) ListByUserIDOrEmailPaginated(ctx context.Context, userID string, email string, limit, offset int) ([]*entities.EventInvite, int64, error) {
+	where := "user_id = ? OR (user_id IS NULL AND LOWER(email) = LOWER(?))"
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&entities.EventInvite{}).Where(where, userID, email).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	var invites []*entities.EventInvite
+	err := r.db.WithContext(ctx).Where(where, userID, email).Order("created_at DESC").Limit(limit).Offset(offset).Find(&invites).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return invites, total, nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -18,12 +19,15 @@ func NewEventTableRepository(db *gorm.DB) repositories.EventTableRepository {
 }
 
 func (r *eventTableRepositoryImpl) Create(ctx context.Context, t *entities.EventTable) error {
+	if t.ID == "" {
+		t.ID = uuid.New().String()
+	}
 	return r.db.WithContext(ctx).Create(t).Error
 }
 
-func (r *eventTableRepositoryImpl) FindByID(ctx context.Context, id int64) (*entities.EventTable, error) {
+func (r *eventTableRepositoryImpl) FindByID(ctx context.Context, id string) (*entities.EventTable, error) {
 	var row entities.EventTable
-	err := r.db.WithContext(ctx).First(&row, id).Error
+	err := r.db.WithContext(ctx).First(&row, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
@@ -33,7 +37,7 @@ func (r *eventTableRepositoryImpl) FindByID(ctx context.Context, id int64) (*ent
 	return &row, nil
 }
 
-func (r *eventTableRepositoryImpl) ListByEventID(ctx context.Context, eventID int64) ([]*entities.EventTable, error) {
+func (r *eventTableRepositoryImpl) ListByEventID(ctx context.Context, eventID string) ([]*entities.EventTable, error) {
 	var list []*entities.EventTable
 	err := r.db.WithContext(ctx).Where("event_id = ?", eventID).Order("display_order ASC, id ASC").Find(&list).Error
 	if err != nil {

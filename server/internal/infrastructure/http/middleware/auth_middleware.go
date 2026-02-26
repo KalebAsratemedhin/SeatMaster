@@ -54,7 +54,7 @@ func (m *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 
 // OptionalAuth runs after Middleware. It does not require a token: if a valid Bearer token
 // is present, it sets the user ID and email in context; otherwise the request continues with
-// no user in context (GetUserID returns 0, false). Use for routes that work for both
+// no user in context (GetUserID returns "", false). Use for routes that work for both
 // authenticated and unauthenticated callers (e.g. GET single event).
 func (m *AuthMiddleware) OptionalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,11 +81,11 @@ func (m *AuthMiddleware) OptionalAuth(next http.Handler) http.Handler {
 }
 
 // GetUserID returns the user ID from context if set (e.g. by AuthMiddleware). Second return is false if missing or invalid.
-func GetUserID(ctx context.Context) (int64, bool) {
+func GetUserID(ctx context.Context) (string, bool) {
 	v := ctx.Value(UserIDKey)
 	if v == nil {
-		return 0, false
+		return "", false
 	}
-	id, ok := v.(int64)
+	id, ok := v.(string)
 	return id, ok
 }

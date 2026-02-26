@@ -8,6 +8,7 @@ import (
 	"github.com/KalebAsratemedhin/seatmaster/internal/application/dto"
 	"github.com/KalebAsratemedhin/seatmaster/internal/application/usecases"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/middleware"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -21,7 +22,7 @@ func NewEventHandler(eventUseCase *usecases.EventUseCase) *EventHandler {
 
 func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -42,7 +43,7 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 
 func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -70,7 +71,7 @@ func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 
 func (h *EventHandler) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -111,7 +112,7 @@ func (h *EventHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
 
 func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -129,7 +130,7 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
 
 func (h *EventHandler) GetInvitationEvents(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r.Context())
-	if !ok || userID == 0 {
+	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -172,7 +173,7 @@ func (h *EventHandler) ListPublicEvents(w http.ResponseWriter, r *http.Request) 
 
 func (h *EventHandler) InviteUserToEvent(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -199,7 +200,7 @@ func (h *EventHandler) InviteUserToEvent(w http.ResponseWriter, r *http.Request)
 
 func (h *EventHandler) ListEventInvites(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -222,7 +223,7 @@ func (h *EventHandler) ListEventInvites(w http.ResponseWriter, r *http.Request) 
 
 func (h *EventHandler) GetMyInvitations(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r.Context())
-	if !ok || userID == 0 {
+	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -240,7 +241,7 @@ func (h *EventHandler) GetMyInvitations(w http.ResponseWriter, r *http.Request) 
 
 func (h *EventHandler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r.Context())
-	if !ok || userID == 0 {
+	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -262,10 +263,16 @@ func (h *EventHandler) RespondToInvite(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, resp)
 }
 
-func parseIDFromPath(r *http.Request) (int64, error) {
+func parseIDFromPath(r *http.Request) (string, error) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
-	return strconv.ParseInt(idStr, 10, 64)
+	if idStr == "" {
+		return "", strconv.ErrSyntax
+	}
+	if _, err := uuid.Parse(idStr); err != nil {
+		return "", err
+	}
+	return idStr, nil
 }
 
 func parseLimitOffset(r *http.Request) (limit, offset int) {
@@ -286,7 +293,7 @@ func parseLimitOffset(r *http.Request) (limit, offset int) {
 
 func (h *EventHandler) CreateEventTable(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -310,7 +317,7 @@ func (h *EventHandler) CreateEventTable(w http.ResponseWriter, r *http.Request) 
 
 func (h *EventHandler) ReorderEventTables(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -351,7 +358,7 @@ func (h *EventHandler) ListEventSeating(w http.ResponseWriter, r *http.Request) 
 
 func (h *EventHandler) UpdateEventTable(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -380,7 +387,7 @@ func (h *EventHandler) UpdateEventTable(w http.ResponseWriter, r *http.Request) 
 
 func (h *EventHandler) DeleteEventTable(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
-	if !ok || ownerID == 0 {
+	if !ok || ownerID == "" {
 		respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -401,8 +408,14 @@ func (h *EventHandler) DeleteEventTable(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func parseTableIDFromPath(r *http.Request) (int64, error) {
+func parseTableIDFromPath(r *http.Request) (string, error) {
 	vars := mux.Vars(r)
 	idStr := vars["tableId"]
-	return strconv.ParseInt(idStr, 10, 64)
+	if idStr == "" {
+		return "", strconv.ErrSyntax
+	}
+	if _, err := uuid.Parse(idStr); err != nil {
+		return "", err
+	}
+	return idStr, nil
 }

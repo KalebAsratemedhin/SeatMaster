@@ -14,7 +14,7 @@ type CreateEventRequest struct {
 	Longitude  float64 `json:"longitude"`
 }
 type UpdateEventRequest struct {
-	ID        int64  `json:"id"`
+	ID        string `json:"id"`
 	Name  string `json:"name"`
 	BannerURL  string `json:"banner_url"`
 	Visibility  string `json:"visibility"`
@@ -29,8 +29,8 @@ type UpdateEventRequest struct {
 }
 
 type EventResponse struct {
-	ID        int64  `json:"id"`
-	OwnerID   int64  `json:"owner_id"`
+	ID        string `json:"id"`
+	OwnerID   string `json:"owner_id"`
 	Name  string `json:"name"`
 	BannerURL  string `json:"banner_url"`
 	Visibility  string `json:"visibility"`
@@ -53,14 +53,14 @@ type InviteEventRequest struct {
 
 // EventInviteResponse is returned when listing invites for an event.
 type EventInviteResponse struct {
-	ID        int64  `json:"id"`
-	EventID   int64  `json:"event_id"`
-	UserID    int64  `json:"user_id"`
-	Email     string `json:"email"`
-	Status    string `json:"status"`
-	SeatID       *int64 `json:"seat_id,omitempty"`
-	GuestSeatID  *int64 `json:"guest_seat_id,omitempty"`
-	CreatedAt    string `json:"created_at"`
+	ID           string  `json:"id"`
+	EventID      string  `json:"event_id"`
+	UserID       string  `json:"user_id"` // empty when invite-by-email only
+	Email        string  `json:"email"`
+	Status       string  `json:"status"`
+	SeatID       *string `json:"seat_id,omitempty"`
+	GuestSeatID  *string `json:"guest_seat_id,omitempty"`
+	CreatedAt    string  `json:"created_at"`
 }
 
 // InvitationWithEventResponse is returned when a guest lists their invitations (event + invite status).
@@ -71,9 +71,9 @@ type InvitationWithEventResponse struct {
 
 // RespondToInviteRequest is the body for a guest to update their RSVP status.
 type RespondToInviteRequest struct {
-	Status      string `json:"status"` // "confirmed" or "declined"
-	SeatID      *int64 `json:"seat_id,omitempty"`      // optional: primary seat when confirming
-	GuestSeatID *int64 `json:"guest_seat_id,omitempty"` // optional: plus-one seat when bringing a guest
+	Status      string  `json:"status"` // "confirmed" or "declined"
+	SeatID      *string `json:"seat_id,omitempty"`      // optional: primary seat when confirming
+	GuestSeatID *string `json:"guest_seat_id,omitempty"` // optional: plus-one seat when bringing a guest
 }
 
 // PaginatedEventsResponse is used for GET /events with limit/offset.
@@ -96,8 +96,8 @@ type PaginatedInvitesResponse struct {
 
 // EventTableResponse is a table in the seating chart.
 type EventTableResponse struct {
-	ID           int64                `json:"id"`
-	EventID      int64                `json:"event_id"`
+	ID           string               `json:"id"`
+	EventID      string               `json:"event_id"`
 	Name         string               `json:"name"`
 	Shape        string               `json:"shape"` // "round", "rectangular", or "grid"
 	Rows         *int                 `json:"rows,omitempty"`    // for grid
@@ -111,11 +111,11 @@ type EventTableResponse struct {
 
 // EventSeatResponse is a single seat (can show assigned invite).
 type EventSeatResponse struct {
-	ID           int64  `json:"id"`
-	EventTableID int64  `json:"event_table_id"`
-	Label        string `json:"label"`
-	DisplayOrder int    `json:"display_order"`
-	InviteID     *int64 `json:"invite_id,omitempty"` // set if a guest has chosen this seat
+	ID           string  `json:"id"`
+	EventTableID string  `json:"event_table_id"`
+	Label        string  `json:"label"`
+	DisplayOrder int     `json:"display_order"`
+	InviteID     *string `json:"invite_id,omitempty"` // set if a guest has chosen this seat
 }
 
 // CreateEventTableRequest for adding a table to an event. Name is auto-set to "Table N".
@@ -140,5 +140,5 @@ type UpdateEventTableRequest struct {
 
 // ReorderEventTablesRequest for reordering tables/sitting areas.
 type ReorderEventTablesRequest struct {
-	TableIDs []int64 `json:"table_ids"`
+	TableIDs []string `json:"table_ids"`
 }

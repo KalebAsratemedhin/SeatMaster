@@ -4,7 +4,7 @@ import { axiosBaseQuery } from "./axiosBaseQuery";
 export type RegisterRequest = { email: string; password: string };
 export type LoginRequest = { email: string; password: string };
 export type UserResponse = {
-  id: number;
+  id: string;
   email: string;
   first_name: string;
   last_name: string;

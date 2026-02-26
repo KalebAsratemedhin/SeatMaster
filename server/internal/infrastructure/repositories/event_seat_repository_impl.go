@@ -6,6 +6,7 @@ import (
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -18,6 +19,9 @@ func NewEventSeatRepository(db *gorm.DB) repositories.EventSeatRepository {
 }
 
 func (r *eventSeatRepositoryImpl) Create(ctx context.Context, s *entities.EventSeat) error {
+	if s.ID == "" {
+		s.ID = uuid.New().String()
+	}
 	return r.db.WithContext(ctx).Create(s).Error
 }
 
@@ -25,12 +29,17 @@ func (r *eventSeatRepositoryImpl) CreateBulk(ctx context.Context, seats []*entit
 	if len(seats) == 0 {
 		return nil
 	}
+	for _, s := range seats {
+		if s.ID == "" {
+			s.ID = uuid.New().String()
+		}
+	}
 	return r.db.WithContext(ctx).Create(&seats).Error
 }
 
-func (r *eventSeatRepositoryImpl) FindByID(ctx context.Context, id int64) (*entities.EventSeat, error) {
+func (r *eventSeatRepositoryImpl) FindByID(ctx context.Context, id string) (*entities.EventSeat, error) {
 	var row entities.EventSeat
-	err := r.db.WithContext(ctx).First(&row, id).Error
+	err := r.db.WithContext(ctx).First(&row, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
@@ -40,7 +49,7 @@ func (r *eventSeatRepositoryImpl) FindByID(ctx context.Context, id int64) (*enti
 	return &row, nil
 }
 
-func (r *eventSeatRepositoryImpl) ListByEventTableID(ctx context.Context, tableID int64) ([]*entities.EventSeat, error) {
+func (r *eventSeatRepositoryImpl) ListByEventTableID(ctx context.Context, tableID string) ([]*entities.EventSeat, error) {
 	var list []*entities.EventSeat
 	err := r.db.WithContext(ctx).Where("event_table_id = ?", tableID).Order("display_order ASC, id ASC").Find(&list).Error
 	if err != nil {
@@ -49,7 +58,7 @@ func (r *eventSeatRepositoryImpl) ListByEventTableID(ctx context.Context, tableI
 	return list, nil
 }
 
-func (r *eventSeatRepositoryImpl) ListByEventID(ctx context.Context, eventID int64) ([]*entities.EventSeat, error) {
+func (r *eventSeatRepositoryImpl) ListByEventID(ctx context.Context, eventID string) ([]*entities.EventSeat, error) {
 	var list []*entities.EventSeat
 	err := r.db.WithContext(ctx).Table("event_seats").
 		Joins("INNER JOIN event_tables ON event_tables.id = event_seats.event_table_id").
@@ -71,6 +80,6 @@ func (r *eventSeatRepositoryImpl) Delete(ctx context.Context, s *entities.EventS
 	return r.db.WithContext(ctx).Delete(s).Error
 }
 
-func (r *eventSeatRepositoryImpl) DeleteByTableID(ctx context.Context, eventTableID int64) error {
+func (r *eventSeatRepositoryImpl) DeleteByTableID(ctx context.Context, eventTableID string) error {
 	return r.db.WithContext(ctx).Where("event_table_id = ?", eventTableID).Delete(&entities.EventSeat{}).Error
 }

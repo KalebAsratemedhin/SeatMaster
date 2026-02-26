@@ -15,11 +15,11 @@ export type CreateEventRequest = {
   longitude: number;
 };
 
-export type UpdateEventRequest = CreateEventRequest & { id: number };
+export type UpdateEventRequest = CreateEventRequest & { id: string };
 
 export type EventResponse = {
-  id: number;
-  owner_id: number;
+  id: string;
+  owner_id: string;
   name: string;
   banner_url: string;
   visibility: string;
@@ -36,27 +36,27 @@ export type EventResponse = {
 };
 
 export type EventInviteResponse = {
-  id: number;
-  event_id: number;
-  user_id: number;
+  id: string;
+  event_id: string;
+  user_id: string;
   email: string;
   status: string;
-  seat_id?: number | null;
-  guest_seat_id?: number | null;
+  seat_id?: string | null;
+  guest_seat_id?: string | null;
   created_at: string;
 };
 
 export type EventSeatResponse = {
-  id: number;
-  event_table_id: number;
+  id: string;
+  event_table_id: string;
   label: string;
   display_order: number;
-  invite_id?: number | null;
+  invite_id?: string | null;
 };
 
 export type EventTableResponse = {
-  id: number;
-  event_id: number;
+  id: string;
+  event_id: string;
   name: string;
   shape: "round" | "rectangular" | "grid";
   rows?: number | null;
@@ -116,11 +116,11 @@ export const eventsApi = createApi({
       }),
       invalidatesTags: ["Events", "Event", "EventInvites"],
     }),
-    deleteEvent: builder.mutation<void, number>({
+    deleteEvent: builder.mutation<void, string>({
       query: (id) => ({ url: `/api/v1/events/${id}`, method: "DELETE" }),
       invalidatesTags: ["Events"],
     }),
-    getEvent: builder.query<EventResponse, number>({
+    getEvent: builder.query<EventResponse, string>({
       query: (id) => `/api/v1/events/${id}`,
       providesTags: (_result, _err, id) => [{ type: "Event", id }],
     }),
@@ -146,7 +146,7 @@ export const eventsApi = createApi({
     }),
     respondToInvite: builder.mutation<
       EventInviteResponse,
-      { eventId: number; status: "confirmed" | "declined"; seat_id?: number | null; guest_seat_id?: number | null }
+      { eventId: string; status: "confirmed" | "declined"; seat_id?: string | null; guest_seat_id?: string | null }
     >({
       query: ({ eventId, status, seat_id, guest_seat_id }) => ({
         url: `/api/v1/events/${eventId}/rsvp`,
@@ -155,11 +155,11 @@ export const eventsApi = createApi({
       }),
       invalidatesTags: ["Events", "EventInvites"],
     }),
-    getEventSeating: builder.query<EventTableResponse[], number>({
+    getEventSeating: builder.query<EventTableResponse[], string>({
       query: (eventId) => `/api/v1/events/${eventId}/seating`,
       providesTags: ["EventInvites"],
     }),
-    createEventTable: builder.mutation<EventTableResponse, { eventId: number; body: CreateEventTableRequest }>({
+    createEventTable: builder.mutation<EventTableResponse, { eventId: string; body: CreateEventTableRequest }>({
       query: ({ eventId, body }) => ({
         url: `/api/v1/events/${eventId}/tables`,
         method: "POST",
@@ -169,7 +169,7 @@ export const eventsApi = createApi({
     }),
     updateEventTable: builder.mutation<
       EventTableResponse,
-      { eventId: number; tableId: number; body: UpdateEventTableRequest }
+      { eventId: string; tableId: string; body: UpdateEventTableRequest }
     >({
       query: ({ eventId, tableId, body }) => ({
         url: `/api/v1/events/${eventId}/tables/${tableId}`,
@@ -178,14 +178,14 @@ export const eventsApi = createApi({
       }),
       invalidatesTags: ["Event", "EventInvites"],
     }),
-    deleteEventTable: builder.mutation<void, { eventId: number; tableId: number }>({
+    deleteEventTable: builder.mutation<void, { eventId: string; tableId: string }>({
       query: ({ eventId, tableId }) => ({
         url: `/api/v1/events/${eventId}/tables/${tableId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Event", "EventInvites"],
     }),
-    reorderEventTables: builder.mutation<void, { eventId: number; tableIds: number[] }>({
+    reorderEventTables: builder.mutation<void, { eventId: string; tableIds: string[] }>({
       query: ({ eventId, tableIds }) => ({
         url: `/api/v1/events/${eventId}/seating/order`,
         method: "PUT",
@@ -206,7 +206,7 @@ export const eventsApi = createApi({
       },
       providesTags: ["Events"],
     }),
-    inviteToEvent: builder.mutation<EventInviteResponse, { eventId: number; email: string }>({
+    inviteToEvent: builder.mutation<EventInviteResponse, { eventId: string; email: string }>({
       query: ({ eventId, email }) => ({
         url: `/api/v1/events/${eventId}/invites`,
         method: "POST",
@@ -214,7 +214,7 @@ export const eventsApi = createApi({
       }),
       invalidatesTags: ["Events", "EventInvites"],
     }),
-    getEventInvites: builder.query<PaginatedInvitesResponse, { eventId: number; limit?: number; offset?: number }>({
+    getEventInvites: builder.query<PaginatedInvitesResponse, { eventId: string; limit?: number; offset?: number }>({
       query: ({ eventId, limit = 50, offset = 0 }) =>
         `/api/v1/events/${eventId}/invites?limit=${limit}&offset=${offset}`,
       providesTags: ["EventInvites"],

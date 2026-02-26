@@ -6,7 +6,7 @@ import (
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
-
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +19,9 @@ func NewUserRepository(db *gorm.DB) repositories.UserRepository {
 }
 
 func (r *userRepositoryImpl) Create(ctx context.Context, user *entities.User) error {
+	if user.ID == "" {
+		user.ID = uuid.New().String()
+	}
 	result := r.db.WithContext(ctx).Create(user)
 	if result.Error != nil {
 		return result.Error
@@ -38,9 +41,9 @@ func (r *userRepositoryImpl) FindByEmail(ctx context.Context, email string) (*en
 	return &user, nil
 }
 
-func (r *userRepositoryImpl) FindByID(ctx context.Context, id int64) (*entities.User, error) {
+func (r *userRepositoryImpl) FindByID(ctx context.Context, id string) (*entities.User, error) {
 	var user entities.User
-	result := r.db.WithContext(ctx).First(&user, id)
+	result := r.db.WithContext(ctx).First(&user, "id = ?", id)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, result.Error

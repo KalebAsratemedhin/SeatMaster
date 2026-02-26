@@ -7,23 +7,20 @@ import (
 )
 
 type EventInvite struct {
-	ID           int64     `json:"id"`
-	EventID      int64     `json:"event_id"`
-	UserID       int64     `json:"user_id"`
-	Email        string    `json:"email"`
-	Status       string    `json:"status"`
-	SeatID       *int64    `json:"seat_id,omitempty"`
-	GuestSeatID  *int64    `json:"guest_seat_id,omitempty"` // plus-one seat when bringing a guest
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	EventID     string    `json:"event_id"`
+	UserID      *string   `json:"user_id,omitempty"` // nil when invited by email only (no account yet)
+	Email       string    `json:"email"`
+	Status      string    `json:"status"`
+	SeatID      *string   `json:"seat_id,omitempty"`
+	GuestSeatID *string   `json:"guest_seat_id,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (e *EventInvite) Validate() error {
-	if e.EventID == 0 {
+	if e.EventID == "" {
 		return errors.ErrInvalidEventID
-	}
-	if e.UserID == 0 {
-		return errors.ErrInvalidUserID
 	}
 	if e.Email == "" {
 		return errors.ErrInvalidEmail
