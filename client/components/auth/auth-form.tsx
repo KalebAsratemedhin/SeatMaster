@@ -31,6 +31,8 @@ export function AuthForm() {
   const dispatch = useDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const searchParams = useSearchParams();
@@ -49,7 +51,7 @@ export function AuthForm() {
     e.preventDefault();
     try {
       const res = mode === "signup"
-        ? await register({ email, password }).unwrap()
+        ? await register({ email, password, first_name: firstName.trim(), last_name: lastName.trim() }).unwrap()
         : await login({ email, password }).unwrap();
       dispatch(setCredentials({ token: res.token, user: res.user }));
       router.push("/");
@@ -79,6 +81,38 @@ export function AuthForm() {
         <AuthModeTabs mode={mode} onModeChange={setMode} />
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {mode === "signup" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="first_name" className="text-slate-700 dark:text-slate-200 font-bold">
+                  First name
+                </Label>
+                <Input
+                  id="first_name"
+                  type="text"
+                  placeholder="First name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-[#10b981] focus:ring-4 focus:ring-[#10b981]/10"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="last_name" className="text-slate-700 dark:text-slate-200 font-bold">
+                  Last name
+                </Label>
+                <Input
+                  id="last_name"
+                  type="text"
+                  placeholder="Last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-[#10b981] focus:ring-4 focus:ring-[#10b981]/10"
+                  required
+                />
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="email" className="text-slate-700 dark:text-slate-200 font-bold">
               Email Address

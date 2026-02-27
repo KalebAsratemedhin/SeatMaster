@@ -11,7 +11,6 @@ import {
   useRespondToInviteMutation,
 } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
-import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -125,66 +124,52 @@ export default function EventRsvpPage() {
 
   if (isLoading || (!event && !eventError && !isPrivateEventRequiresAuth)) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
-        <SiteHeader />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
-          <p className="text-muted-foreground">Loading...</p>
-        </main>
+      <div className="container max-w-3xl mx-auto px-4 py-8">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
   if (isPrivateEventRequiresAuth) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
-        <SiteHeader />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
-          <p className="text-muted-foreground">
-            This event is private. Sign in with the account that received the invitation to view and respond.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href={`/auth?mode=signin&redirect=${encodeURIComponent(`/events/${id}/rsvp`)}`}>
-              Sign in
-            </Link>
-          </Button>
-        </main>
+      <div className="container max-w-3xl mx-auto px-4 py-8">
+        <p className="text-muted-foreground">
+          This event is private. Sign in with the account that received the invitation to view and respond.
+        </p>
+        <Button asChild className="mt-4">
+          <Link href={`/auth?mode=signin&redirect=${encodeURIComponent(`/events/${id}/rsvp`)}`}>
+            Sign in
+          </Link>
+        </Button>
       </div>
     );
   }
 
   if (notFound) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
-        <SiteHeader />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
-          <p className="text-destructive">Event not found.</p>
-          <Button variant="outline" asChild className="mt-4">
-            <Link href="/events">Back to Events</Link>
-          </Button>
-        </main>
+      <div className="container max-w-3xl mx-auto px-4 py-8">
+        <p className="text-destructive">Event not found.</p>
+        <Button variant="outline" asChild className="mt-4">
+          <Link href="/events">Back to Events</Link>
+        </Button>
       </div>
     );
   }
 
   if (isForbidden) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14]">
-        <SiteHeader />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
-          <p className="text-destructive">You don&apos;t have an invitation to this event.</p>
-          <Button variant="outline" asChild className="mt-4">
-            <Link href="/invitations">View your invitations</Link>
-          </Button>
-        </main>
+      <div className="container max-w-3xl mx-auto px-4 py-8">
+        <p className="text-destructive">You don&apos;t have an invitation to this event.</p>
+        <Button variant="outline" asChild className="mt-4">
+          <Link href="/invitations">View your invitations</Link>
+        </Button>
       </div>
     );
   }
 
   if (event && isEventPast) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#faf8f5] dark:bg-[#071a14] text-slate-900 dark:text-slate-100">
-        <SiteHeader />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8 md:py-12">
+      <div className="container max-w-3xl mx-auto px-4 py-8 md:py-12">
           <nav className="mb-6 text-sm text-muted-foreground">
             <Link href="/invitations" className="hover:text-foreground transition-colors flex items-center gap-1">
               <ArrowLeft className="size-3.5" /> Invitations
@@ -202,15 +187,12 @@ export default function EventRsvpPage() {
               <Link href={`/events/${id}`}>View event details</Link>
             </Button>
           </div>
-        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <SiteHeader />
-
+    <div className="text-slate-900 dark:text-slate-100">
       {/* Hero: compact */}
       {event!.banner_url ? (
         <div
@@ -248,7 +230,7 @@ export default function EventRsvpPage() {
         </div>
       )}
 
-      <main className="flex-1 container max-w-3xl mx-auto px-4 py-6 md:py-8">
+      <div className="container max-w-3xl mx-auto px-4 py-6 md:py-8">
         <nav className="mb-6 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
           <Link
             href="/invitations"
@@ -263,6 +245,17 @@ export default function EventRsvpPage() {
           <span aria-hidden>/</span>
           <span className="text-slate-900 dark:text-white font-medium">RSVP</span>
         </nav>
+
+        {invite?.status === "confirmed" && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+              You&apos;re confirmed. Get your ticket with QR code for check-in.
+            </p>
+            <Button asChild size="sm" className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Link href={`/events/${id}/ticket`}>Download ticket</Link>
+            </Button>
+          </div>
+        )}
 
         {/* When & where: inline strip, no card */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-8 pb-8 border-b border-slate-200 dark:border-slate-800">
@@ -434,7 +427,7 @@ export default function EventRsvpPage() {
             View event details →
           </Link>
         </div>
-      </main>
+      </div>
 
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
@@ -442,9 +435,17 @@ export default function EventRsvpPage() {
             <AlertDialogTitle>Response received</AlertDialogTitle>
             <AlertDialogDescription>
               Thank you! Your response has been recorded. You can update your RSVP until the event.
+              {attendance === "confirmed" && " Get your ticket with QR code for check-in."}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            {attendance === "confirmed" && (
+              <Button asChild className="rounded-lg bg-emerald-600 hover:bg-emerald-700">
+                <Link href={`/events/${id}/ticket`} onClick={() => setShowSuccessDialog(false)}>
+                  Get your ticket
+                </Link>
+              </Button>
+            )}
             <AlertDialogAction onClick={() => setShowSuccessDialog(false)}>
               Done
             </AlertDialogAction>

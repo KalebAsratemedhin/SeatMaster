@@ -6,7 +6,6 @@ import (
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 )
 
-// EventInviteRepository defines persistence for event invites.
 type EventInviteRepository interface {
 	Create(ctx context.Context, invite *entities.EventInvite) error
 	ListByEventID(ctx context.Context, eventID string) ([]*entities.EventInvite, error)
@@ -20,4 +19,6 @@ type EventInviteRepository interface {
 	ListByUserIDOrEmail(ctx context.Context, userID string, email string) ([]*entities.EventInvite, error)
 	ListByUserIDOrEmailPaginated(ctx context.Context, userID string, email string, limit, offset int) ([]*entities.EventInvite, int64, error)
 	Update(ctx context.Context, invite *entities.EventInvite) error
+	ListRecentByOwnerID(ctx context.Context, ownerID string, limit int) ([]*entities.EventInvite, error)
+	CountByOwnerIDGroupByStatus(ctx context.Context, ownerID string) (total int64, confirmed int64, declined int64, pending int64, err error)
 }

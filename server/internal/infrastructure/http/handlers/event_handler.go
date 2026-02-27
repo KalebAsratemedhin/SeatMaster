@@ -110,6 +110,33 @@ func (h *EventHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, resp)
 }
 
+func (h *EventHandler) GetTicket(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r.Context())
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	eventID, err := parseIDFromPath(r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+	resp, err := h.eventUseCase.GetTicketData(r.Context(), eventID, userID)
+	if err != nil {
+		if err.Error() == "event not found" || err.Error() == "you are not invited to this event" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if err.Error() == "ticket is only available after you confirm your RSVP" {
+			respondWithError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, resp)
+}
+
 func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
 	ownerID, ok := middleware.GetUserID(r.Context())
 	if !ok || ownerID == "" {

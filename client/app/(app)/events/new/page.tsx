@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useSelector } from "react-redux";
 import { useCreateEventMutation } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
-import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,10 +108,8 @@ export default function NewEventPage() {
   if (!token) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22] text-slate-900 dark:text-slate-100">
-      <SiteHeader />
-      <main className="flex-1 container max-w-2xl mx-auto px-4 py-8">
-        {/* Breadcrumbs */}
+    <div className="container max-w-2xl mx-auto">
+      {/* Breadcrumbs */}
         <nav className="mb-6 text-sm text-muted-foreground">
           <Link href="/events" className="hover:text-foreground transition-colors">
             Events
@@ -376,7 +373,6 @@ export default function NewEventPage() {
             </div>
           </div>
         </form>
-      </main>
     </div>
   );
 }

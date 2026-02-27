@@ -3,12 +3,14 @@ package usecases
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/application/dto"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/security"
+	pkgerrors "github.com/KalebAsratemedhin/seatmaster/pkg/errors"
 )
 
 type AuthUseCase struct {
@@ -30,6 +32,15 @@ func NewAuthUseCase(
 }
 
 func (uc *AuthUseCase) Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+	firstName := strings.TrimSpace(req.FirstName)
+	lastName := strings.TrimSpace(req.LastName)
+	if firstName == "" {
+		return nil, pkgerrors.ErrFirstNameRequired
+	}
+	if lastName == "" {
+		return nil, pkgerrors.ErrLastNameRequired
+	}
+
 	exists, err := uc.userRepo.ExistsByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, err
@@ -46,6 +57,8 @@ func (uc *AuthUseCase) Register(ctx context.Context, req dto.RegisterRequest) (*
 	user := &entities.User{
 		Email:     req.Email,
 		Password:  hashedPassword,
+		FirstName: firstName,
+		LastName:  lastName,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

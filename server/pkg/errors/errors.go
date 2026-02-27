@@ -3,9 +3,11 @@ package errors
 import "errors"
 
 var (
-	ErrInvalidEmail     = errors.New("invalid email")
-	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
-	
+	ErrInvalidEmail       = errors.New("invalid email")
+	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
+	ErrFirstNameRequired  = errors.New("first name is required")
+	ErrLastNameRequired  = errors.New("last name is required")
+
 	ErrInvalidName      = errors.New("name is required")
 	ErrInvalidBannerURL = errors.New("banner URL is required")
 	ErrInvalidVisibility = errors.New("visibility is required")

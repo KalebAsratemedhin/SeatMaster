@@ -25,7 +25,6 @@ import {
 } from "@/lib/api/chatApi";
 import { useChatWebSocket } from "@/lib/hooks/useChatWebSocket";
 import type { RootState } from "@/lib/store";
-import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -78,6 +77,8 @@ export default function EventDetailPage() {
   const [guestsPage, setGuestsPage] = useState(0);
   const [guestsPageSize, setGuestsPageSize] = useState(10);
   const [shareCopied, setShareCopied] = useState(false);
+  type TabId = "comments" | "chats" | "seating" | "invites";
+  const [activeTab, setActiveTab] = useState<TabId>("comments");
 
   const isOwner = user && event && event.owner_id === user.id;
 
@@ -212,27 +213,21 @@ export default function EventDetailPage() {
 
   if (isLoading || (!event && !error)) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22]">
-        <SiteHeader />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
-          <p className="text-muted-foreground">Loading...</p>
-        </main>
+      <div className="container max-w-3xl mx-auto px-4 py-8">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
   if (error || !event) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22]">
-        <SiteHeader />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 py-8">
-          <p className="text-destructive">
-            Event not found or you don&apos;t have access.
-          </p>
-          <Button variant="outline" asChild className="mt-4">
-            <Link href="/events">Back to Events</Link>
-          </Button>
-        </main>
+      <div className="container max-w-3xl mx-auto px-4 py-8">
+        <p className="text-destructive">
+          Event not found or you don&apos;t have access.
+        </p>
+        <Button variant="outline" asChild className="mt-4">
+          <Link href="/events">Back to Events</Link>
+        </Button>
       </div>
     );
   }
@@ -244,9 +239,7 @@ export default function EventDetailPage() {
       : 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22] text-slate-900 dark:text-slate-100">
-      <SiteHeader />
-
+    <div className="text-slate-900 dark:text-slate-100">
       {/* Full-width banner */}
       {event.banner_url ? (
         <div
@@ -339,7 +332,7 @@ export default function EventDetailPage() {
                 );
               })()}
               {(event.latitude !== 0 || event.longitude !== 0) && (
-                <div className="mt-6 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="mt-6 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30 relative z-0">
                   <EventLocationMapDynamic
                     latitude={event.latitude}
                     longitude={event.longitude}
@@ -350,76 +343,287 @@ export default function EventDetailPage() {
               )}
             </section>
 
-            {isOwner && token && (
-              <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm mt-8">
-                <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Guest Invitation List
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Manage your event guest list.
-                  </p>
-                </div>
-                <div className="p-6 border-b border-slate-200/80 dark:border-slate-700/80">
-                  <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor="invite-email" className="text-sm font-semibold">Email address</Label>
-                      <Input id="invite-email" type="email" placeholder="guest@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="rounded-lg h-10" />
-                    </div>
-                    <div className="flex items-end">
-                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()} className="bg-[#059669] hover:bg-[#047857] text-white rounded-lg font-semibold flex items-center gap-2 h-10 px-6">
-                        <UserPlus className="size-4" /> Add Guest
-                      </Button>
-                    </div>
-                  </form>
-                  {inviteError && <p className="text-destructive text-sm mt-2">{"data" in inviteError && typeof (inviteError as { data?: { error?: string } }).data?.error === "string" ? (inviteError as { data: { error: string } }).data.error : "Failed to invite"}</p>}
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-700/80">
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Name</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Email Address</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">RSVP Status</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Seating</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Invited</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/80">
-                      {invites.length === 0 ? (
-                        <tr><td colSpan={5} className="px-6 py-10 text-center text-muted-foreground text-sm">No guests invited yet. Add a guest by email above.</td></tr>
-                      ) : invites.map((inv) => (
-                        <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-full bg-[#059669] text-white flex items-center justify-center text-sm font-semibold shrink-0">{getInitialsFromEmail(inv.email)}</div>
-                              <span className="font-medium text-slate-900 dark:text-slate-100">{inv.email.split("@")[0]}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.email}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-2 text-sm font-medium ${inv.status === "confirmed" ? "text-emerald-600 dark:text-emerald-400" : inv.status === "declined" ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"}`}>
-                              <span className={`size-2 rounded-full shrink-0 ${inv.status === "confirmed" ? "bg-emerald-500" : inv.status === "declined" ? "bg-rose-500" : "bg-amber-500"}`} />
-                              {inv.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.seat_id != null ? seatIdToLabel[inv.seat_id] ?? `Seat #${inv.seat_id}` : "—"}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{new Date(inv.created_at).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {invitesTotal > 0 && (
-                  <div className="px-6 py-3 border-t border-slate-200/80 dark:border-slate-700/80">
-                    <Pagination total={invitesTotal} pageSize={guestsPageSize} page={guestsPage} onPageChange={setGuestsPage} onPageSizeChange={(v) => { setGuestsPageSize(v); setGuestsPage(0); }} />
-                  </div>
+            {/* Tabbed sections below the map */}
+            <div className="mt-8 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm">
+              <div className="flex border-b border-slate-200/80 dark:border-slate-700/80 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("comments")}
+                  className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    activeTab === "comments"
+                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  }`}
+                >
+                  Comments
+                </button>
+                {token && (isOwner || currentThread) && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("chats")}
+                    className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "chats"
+                        ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    }`}
+                  >
+                    Chat
+                  </button>
+                )}
+                {token && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("seating")}
+                    className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "seating"
+                        ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    }`}
+                  >
+                    Seating arrangement
+                  </button>
+                )}
+                {isOwner && token && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("invites")}
+                    className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === "invites"
+                        ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    }`}
+                  >
+                    Invitation list
+                  </button>
                 )}
               </div>
-            )}
-
-            {isOwner && token && (
-              <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm mt-8">
+              <div className="p-0">
+                {activeTab === "comments" && (
+            <section className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
+              <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <MessageSquare className="size-5 text-[#059669]" />
+                  Comments
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Public comments visible to everyone with access to this event.
+                </p>
+              </div>
+              <div className="p-6 space-y-4">
+                {token && (
+                  <form onSubmit={(e) => handlePostComment(e)} className="flex gap-3">
+                    <Input
+                      placeholder="Write a comment..."
+                      value={commentBody}
+                      onChange={(e) => setCommentBody(e.target.value)}
+                      className="flex-1 rounded-xl"
+                      maxLength={2000}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={isPostingComment || !commentBody.trim()}
+                      className="bg-[#059669] hover:bg-[#047857] text-white rounded-xl shrink-0"
+                    >
+                      {isPostingComment ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                      Post
+                    </Button>
+                  </form>
+                )}
+                <div className="space-y-3">
+                  {commentTree.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4">No comments yet.</p>
+                  ) : (
+                    (function renderCommentNodes(nodes: CommentNode[], depth: number) {
+                      return nodes.map((node) => (
+                        <div key={node.comment.id} className={depth > 0 ? "ml-6 mt-2 border-l-2 border-slate-200/60 dark:border-slate-600 pl-4" : ""}>
+                          <div className="flex gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30 p-4">
+                            <Avatar className="size-9 shrink-0 border border-slate-200/60 dark:border-slate-600">
+                              <AvatarFallback className="bg-[#059669]/10 text-[#059669] text-xs font-medium">
+                                {getInitialsFromName(node.comment.author)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-slate-900 dark:text-white">{node.comment.author}</p>
+                              <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 whitespace-pre-wrap">{node.comment.body}</p>
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(node.comment.created_at).toLocaleString()}
+                                </p>
+                                {token && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs text-[#059669] hover:text-[#047857] hover:bg-[#059669]/10 -ml-1"
+                                    onClick={() => { setReplyingToId(node.comment.id); setCommentBody(""); }}
+                                  >
+                                    <Reply className="size-3.5 mr-1" />
+                                    Reply
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {replyingToId === node.comment.id && token && (
+                            <form onSubmit={(e) => handlePostComment(e, node.comment.id)} className="mt-2 flex gap-2 ml-12">
+                              <Input
+                                placeholder="Write a reply..."
+                                value={commentBody}
+                                onChange={(e) => setCommentBody(e.target.value)}
+                                className="flex-1 rounded-lg text-sm"
+                                maxLength={2000}
+                                autoFocus
+                              />
+                              <Button type="submit" disabled={isPostingComment || !commentBody.trim()} size="sm" className="rounded-lg bg-[#059669] hover:bg-[#047857]">
+                                {isPostingComment ? <Loader2 className="size-4 animate-spin" /> : "Reply"}
+                              </Button>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => { setReplyingToId(null); setCommentBody(""); }}>Cancel</Button>
+                            </form>
+                          )}
+                          {node.replies.length > 0 && renderCommentNodes(node.replies, depth + 1)}
+                        </div>
+                      ));
+                    })(commentTree, 0)
+                  )}
+                </div>
+              </div>
+            </section>
+                )}
+                {activeTab === "chats" && token && (isOwner || currentThread) && (
+                  <section className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
+                    <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                        <MessageSquare className="size-5 text-[#059669]" />
+                        Private chat
+                      </h2>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        One-to-one with the organizer. Only you and the organizer see these messages.
+                      </p>
+                    </div>
+                    <div className="p-6 flex flex-col gap-4">
+                      {isOwner && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                            Guest conversations
+                          </p>
+                          {chatThreads.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-2">No guest chats yet.</p>
+                          ) : (
+                            <div className="flex flex-col gap-1 max-h-[180px] overflow-y-auto rounded-xl border border-slate-200/60 dark:border-slate-700/60 divide-y divide-slate-200/60 dark:divide-slate-700/60">
+                              {chatThreads.map((t) => (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() => setSelectedThreadId(t.id)}
+                                  className={`flex items-center gap-3 w-full px-4 py-3 text-left rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/50 ${
+                                    selectedThreadId === t.id
+                                      ? "bg-[#059669]/10 dark:bg-[#059669]/20 border border-[#059669]/30"
+                                      : ""
+                                  }`}
+                                >
+                                  <Avatar className="size-9 shrink-0 border border-slate-200/60 dark:border-slate-600">
+                                    <AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
+                                      {getInitialsFromName(t.guest_name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                                    {t.guest_name}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {threadIdForApi && (
+                        <>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            {connected && <span className="size-2 rounded-full bg-emerald-500" title="Connected" />}
+                            {!connected && threadIdForApi && <span className="size-2 rounded-full bg-amber-500" title="Connecting..." />}
+                            {isOwner && selectedThreadId && (
+                              <span>Chat with {(chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"}</span>
+                            )}
+                            {!isOwner && currentThread && (
+                              <span>Chat with organizer</span>
+                            )}
+                          </div>
+                          <div className="min-h-[200px] max-h-[320px] overflow-y-auto rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/30 dark:bg-slate-900/30 p-4 space-y-3">
+                            {allMessages.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No messages yet. Say hello!</p>
+                            ) : (
+                              allMessages.map((m) => {
+                                const isMe = m.sender_id === user?.id;
+                                const otherName = isOwner
+                                  ? (chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"
+                                  : "Organizer";
+                                return (
+                                  <div
+                                    key={m.id}
+                                    className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                                  >
+                                    <Avatar className="size-8 shrink-0 border border-slate-200/60 dark:border-slate-600">
+                                      {isMe && user?.avatar_url ? (
+                                        <AvatarImage src={user.avatar_url} alt="" className="object-cover" />
+                                      ) : null}
+                                      <AvatarFallback
+                                        className={`text-xs font-medium ${
+                                          isMe
+                                            ? "bg-[#059669]/20 text-[#059669]"
+                                            : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
+                                        }`}
+                                      >
+                                        {isMe
+                                          ? (user?.first_name && user?.last_name
+                                              ? getInitialsFromName(`${user.first_name} ${user.last_name}`)
+                                              : getInitialsFromEmail(user?.email))
+                                          : getInitialsFromName(otherName)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div
+                                      className={`flex flex-col max-w-[80%] ${isMe ? "items-end" : "items-start"}`}
+                                    >
+                                      <div
+                                        className={`rounded-2xl px-4 py-2 text-sm ${
+                                          isMe
+                                            ? "bg-[#059669] text-white"
+                                            : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                                        }`}
+                                      >
+                                        <p className="whitespace-pre-wrap">{m.body}</p>
+                                        <p className={`text-xs mt-1 ${isMe ? "text-emerald-100" : "text-muted-foreground"}`}>
+                                          {new Date(m.created_at).toLocaleTimeString()}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                          <form onSubmit={handleSendChat} className="flex gap-2">
+                            <Input
+                              placeholder="Type a message..."
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              className="flex-1 rounded-xl"
+                              maxLength={2000}
+                            />
+                            <Button
+                              type="submit"
+                              disabled={!chatInput.trim()}
+                              className="bg-[#059669] hover:bg-[#047857] text-white rounded-xl shrink-0"
+                            >
+                              <Send className="size-4" />
+                            </Button>
+                          </form>
+                        </>
+                      )}
+                    </div>
+                  </section>
+                )}
+                {activeTab === "seating" && token && (
+                  isOwner ? (
+                  <div className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
                 <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
                   <h2 className="text-2xl font-black leading-tight tracking-tight text-[#111418] dark:text-white flex items-center gap-2">
                     <Table2 className="size-6 text-[#10b981]" />
@@ -555,232 +759,86 @@ export default function EventDetailPage() {
                   )}
                 </div>
               </div>
-            )}
-
-            {/* Public comments */}
-            <section className="mt-8 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm">
-              <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <MessageSquare className="size-5 text-[#059669]" />
-                  Comments
-                </h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Public comments visible to everyone with access to this event.
-                </p>
-              </div>
-              <div className="p-6 space-y-4">
-                {token && (
-                  <form onSubmit={(e) => handlePostComment(e)} className="flex gap-3">
-                    <Input
-                      placeholder="Write a comment..."
-                      value={commentBody}
-                      onChange={(e) => setCommentBody(e.target.value)}
-                      className="flex-1 rounded-xl"
-                      maxLength={2000}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={isPostingComment || !commentBody.trim()}
-                      className="bg-[#059669] hover:bg-[#047857] text-white rounded-xl shrink-0"
-                    >
-                      {isPostingComment ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                      Post
-                    </Button>
-                  </form>
-                )}
-                <div className="space-y-3">
-                  {commentTree.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">No comments yet.</p>
                   ) : (
-                    (function renderCommentNodes(nodes: CommentNode[], depth: number) {
-                      return nodes.map((node) => (
-                        <div key={node.comment.id} className={depth > 0 ? "ml-6 mt-2 border-l-2 border-slate-200/60 dark:border-slate-600 pl-4" : ""}>
-                          <div className="flex gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30 p-4">
-                            <Avatar className="size-9 shrink-0 border border-slate-200/60 dark:border-slate-600">
-                              <AvatarFallback className="bg-[#059669]/10 text-[#059669] text-xs font-medium">
-                                {getInitialsFromName(node.comment.author)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-slate-900 dark:text-white">{node.comment.author}</p>
-                              <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5 whitespace-pre-wrap">{node.comment.body}</p>
-                              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(node.comment.created_at).toLocaleString()}
-                                </p>
-                                {token && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs text-[#059669] hover:text-[#047857] hover:bg-[#059669]/10 -ml-1"
-                                    onClick={() => { setReplyingToId(node.comment.id); setCommentBody(""); }}
-                                  >
-                                    <Reply className="size-3.5 mr-1" />
-                                    Reply
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {replyingToId === node.comment.id && token && (
-                            <form onSubmit={(e) => handlePostComment(e, node.comment.id)} className="mt-2 flex gap-2 ml-12">
-                              <Input
-                                placeholder="Write a reply..."
-                                value={commentBody}
-                                onChange={(e) => setCommentBody(e.target.value)}
-                                className="flex-1 rounded-lg text-sm"
-                                maxLength={2000}
-                                autoFocus
-                              />
-                              <Button type="submit" disabled={isPostingComment || !commentBody.trim()} size="sm" className="rounded-lg bg-[#059669] hover:bg-[#047857]">
-                                {isPostingComment ? <Loader2 className="size-4 animate-spin" /> : "Reply"}
-                              </Button>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => { setReplyingToId(null); setCommentBody(""); }}>Cancel</Button>
-                            </form>
-                          )}
-                          {node.replies.length > 0 && renderCommentNodes(node.replies, depth + 1)}
-                        </div>
-                      ));
-                    })(commentTree, 0)
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Private chat (1:1 with organizer) */}
-            {token && (isOwner || currentThread) && (
-              <section className="mt-8 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm">
+                  <div className="px-6 py-8">
+                    <p className="text-sm text-muted-foreground mb-4">View the seating chart when you RSVP to choose your seat.</p>
+                    {seating.length > 0 ? (
+                      <SeatingChartFloor tables={seating} showDelete={false} />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No seating arrangement for this event yet.</p>
+                    )}
+                  </div>
+                  )
+                )}
+                {activeTab === "invites" && isOwner && token && (
+              <div className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
                 <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    <MessageSquare className="size-5 text-[#059669]" />
-                    Private chat
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+                    Guest Invitation List
                   </h2>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    One-to-one with the organizer. Only you and the organizer see these messages.
+                    Manage your event guest list.
                   </p>
                 </div>
-                <div className="p-6 flex flex-col gap-4">
-                  {isOwner && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                        Guest conversations
-                      </p>
-                      {chatThreads.length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-2">No guest chats yet.</p>
-                      ) : (
-                        <div className="flex flex-col gap-1 max-h-[180px] overflow-y-auto rounded-xl border border-slate-200/60 dark:border-slate-700/60 divide-y divide-slate-200/60 dark:divide-slate-700/60">
-                          {chatThreads.map((t) => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => setSelectedThreadId(t.id)}
-                              className={`flex items-center gap-3 w-full px-4 py-3 text-left rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/50 ${
-                                selectedThreadId === t.id
-                                  ? "bg-[#059669]/10 dark:bg-[#059669]/20 border border-[#059669]/30"
-                                  : ""
-                              }`}
-                            >
-                              <Avatar className="size-9 shrink-0 border border-slate-200/60 dark:border-slate-600">
-                                <AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
-                                  {getInitialsFromName(t.guest_name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                                {t.guest_name}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                <div className="p-6 border-b border-slate-200/80 dark:border-slate-700/80">
+                  <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor="invite-email" className="text-sm font-semibold">Email address</Label>
+                      <Input id="invite-email" type="email" placeholder="guest@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="rounded-lg h-10" />
                     </div>
-                  )}
-                  {threadIdForApi && (
-                    <>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {connected && <span className="size-2 rounded-full bg-emerald-500" title="Connected" />}
-                        {!connected && threadIdForApi && <span className="size-2 rounded-full bg-amber-500" title="Connecting..." />}
-                        {isOwner && selectedThreadId && (
-                          <span>Chat with {(chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"}</span>
-                        )}
-                        {!isOwner && currentThread && (
-                          <span>Chat with organizer</span>
-                        )}
-                      </div>
-                      <div className="min-h-[200px] max-h-[320px] overflow-y-auto rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/30 dark:bg-slate-900/30 p-4 space-y-3">
-                        {allMessages.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No messages yet. Say hello!</p>
-                        ) : (
-                          allMessages.map((m) => {
-                            const isMe = m.sender_id === user?.id;
-                            const otherName = isOwner
-                              ? (chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"
-                              : "Organizer";
-                            return (
-                              <div
-                                key={m.id}
-                                className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                              >
-                                <Avatar className="size-8 shrink-0 border border-slate-200/60 dark:border-slate-600">
-                                  {isMe && user?.avatar_url ? (
-                                    <AvatarImage src={user.avatar_url} alt="" className="object-cover" />
-                                  ) : null}
-                                  <AvatarFallback
-                                    className={`text-xs font-medium ${
-                                      isMe
-                                        ? "bg-[#059669]/20 text-[#059669]"
-                                        : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
-                                    }`}
-                                  >
-                                    {isMe
-                                      ? (user?.first_name && user?.last_name
-                                          ? getInitialsFromName(`${user.first_name} ${user.last_name}`)
-                                          : getInitialsFromEmail(user?.email))
-                                      : getInitialsFromName(otherName)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div
-                                  className={`flex flex-col max-w-[80%] ${isMe ? "items-end" : "items-start"}`}
-                                >
-                                  <div
-                                    className={`rounded-2xl px-4 py-2 text-sm ${
-                                      isMe
-                                        ? "bg-[#059669] text-white"
-                                        : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-                                    }`}
-                                  >
-                                    <p className="whitespace-pre-wrap">{m.body}</p>
-                                    <p className={`text-xs mt-1 ${isMe ? "text-emerald-100" : "text-muted-foreground"}`}>
-                                      {new Date(m.created_at).toLocaleTimeString()}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                      <form onSubmit={handleSendChat} className="flex gap-2">
-                        <Input
-                          placeholder="Type a message..."
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          className="flex-1 rounded-xl"
-                          maxLength={2000}
-                        />
-                        <Button
-                          type="submit"
-                          disabled={!chatInput.trim()}
-                          className="bg-[#059669] hover:bg-[#047857] text-white rounded-xl shrink-0"
-                        >
-                          <Send className="size-4" />
-                        </Button>
-                      </form>
-                    </>
-                  )}
+                    <div className="flex items-end">
+                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()} className="bg-[#059669] hover:bg-[#047857] text-white rounded-lg font-semibold flex items-center gap-2 h-10 px-6">
+                        <UserPlus className="size-4" /> Add Guest
+                      </Button>
+                    </div>
+                  </form>
+                  {inviteError && <p className="text-destructive text-sm mt-2">{"data" in inviteError && typeof (inviteError as { data?: { error?: string } }).data?.error === "string" ? (inviteError as { data: { error: string } }).data.error : "Failed to invite"}</p>}
                 </div>
-              </section>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-700/80">
+                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Name</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Email Address</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">RSVP Status</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Seating</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Invited</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/80">
+                      {invites.length === 0 ? (
+                        <tr><td colSpan={5} className="px-6 py-10 text-center text-muted-foreground text-sm">No guests invited yet. Add a guest by email above.</td></tr>
+                      ) : invites.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="size-9 rounded-full bg-[#059669] text-white flex items-center justify-center text-sm font-semibold shrink-0">{getInitialsFromEmail(inv.email)}</div>
+                              <span className="font-medium text-slate-900 dark:text-slate-100">{inv.email.split("@")[0]}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.email}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-2 text-sm font-medium ${inv.status === "confirmed" ? "text-emerald-600 dark:text-emerald-400" : inv.status === "declined" ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"}`}>
+                              <span className={`size-2 rounded-full shrink-0 ${inv.status === "confirmed" ? "bg-emerald-500" : inv.status === "declined" ? "bg-rose-500" : "bg-amber-500"}`} />
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.seat_id != null ? seatIdToLabel[inv.seat_id] ?? `Seat #${inv.seat_id}` : "—"}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{new Date(inv.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {invitesTotal > 0 && (
+                  <div className="px-6 py-3 border-t border-slate-200/80 dark:border-slate-700/80">
+                    <Pagination total={invitesTotal} pageSize={guestsPageSize} page={guestsPage} onPageChange={setGuestsPage} onPageSizeChange={(v) => { setGuestsPageSize(v); setGuestsPage(0); }} />
+                  </div>
+                )}
+              </div>
             )}
+              </div>
+            </div>
           </div>
 
           {/* Aside - single sticky container so stat cards don't scroll */}

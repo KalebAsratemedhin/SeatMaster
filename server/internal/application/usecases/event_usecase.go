@@ -408,6 +408,49 @@ func (uc *EventUseCase) toEventInviteResponse(inv *entities.EventInvite) *dto.Ev
 	}
 }
 
+// GetTicketData returns ticket data for a confirmed guest (for QR ticket download).
+func (uc *EventUseCase) GetTicketData(ctx context.Context, eventID, userID string) (*dto.TicketResponse, error) {
+	event, err := uc.eventRepo.FindByID(ctx, eventID)
+	if err != nil {
+		return nil, errors.New("event not found")
+	}
+	user, err := uc.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	invite, err := uc.eventInviteRepo.FindByEventAndUser(ctx, eventID, userID)
+	if err != nil {
+		invite, err = uc.eventInviteRepo.FindByEventAndEmail(ctx, eventID, user.Email)
+		if err != nil || invite == nil {
+			return nil, errors.New("you are not invited to this event")
+		}
+	}
+	if invite.Status != "confirmed" {
+		return nil, errors.New("ticket is only available after you confirm your RSVP")
+	}
+	guestName := strings.TrimSpace(user.FirstName + " " + user.LastName)
+	if guestName == "" {
+		guestName = user.Email
+	}
+	startTime := string(event.StartTime)
+	endTime := string(event.EndTime)
+	if len(startTime) >= 5 {
+		startTime = startTime[:5]
+	}
+	if len(endTime) >= 5 {
+		endTime = endTime[:5]
+	}
+	return &dto.TicketResponse{
+		TicketID:  invite.ID,
+		GuestName: guestName,
+		EventName: event.Name,
+		EventDate: event.EventDate.Format("2006-01-02"),
+		StartTime: startTime,
+		EndTime:   endTime,
+		Location:  event.Location,
+	}, nil
+}
+
 // ListPublicEvents returns public events for discovery (no auth). search is optional; limit/offset for pagination.
 func (uc *EventUseCase) ListPublicEvents(ctx context.Context, search string, limit, offset int) ([]*dto.EventResponse, error) {
 	if limit <= 0 {

@@ -52,12 +52,14 @@ func main() {
 	authUseCase := usecases.NewAuthUseCase(userRepo, jwtManager, passwordManager)
 	mailer := mail.NewSMTPMailer()
 	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, userRepo, mailer)
+	dashboardUseCase := usecases.NewDashboardUseCase(eventRepo, eventInviteRepo, userRepo)
 	profileUseCase := usecases.NewProfileUseCase(userRepo, authUseCase)
 	commentUseCase := usecases.NewCommentUseCase(eventRepo, eventInviteRepo, eventCommentRepo, userRepo)
 	chatUseCase := usecases.NewChatUseCase(eventRepo, eventInviteRepo, eventChatThreadRepo, eventChatMessageRepo, userRepo)
 
 	authHandler := handlers.NewAuthHandler(authUseCase)
 	eventHandler := handlers.NewEventHandler(eventUseCase)
+	dashboardHandler := handlers.NewDashboardHandler(dashboardUseCase)
 	profileHandler := handlers.NewProfileHandler(profileUseCase)
 	commentHandler := handlers.NewCommentHandler(commentUseCase)
 	chatHandler := handlers.NewChatHandler(chatUseCase)
@@ -76,7 +78,7 @@ func main() {
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
-	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, commentHandler, chatHandler, chatWSHandler, authMiddleware)
+	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, commentHandler, chatHandler, chatWSHandler, dashboardHandler, authMiddleware)
 	muxRouter := router.SetupRoutes(uploadDir)
 	handler := middleware.CORS(muxRouter)
 

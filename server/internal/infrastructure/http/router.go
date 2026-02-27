@@ -10,14 +10,15 @@ import (
 )
 
 type Router struct {
-	authHandler    *handlers.AuthHandler
-	eventHandler   *handlers.EventHandler
-	uploadHandler  *handlers.UploadHandler
-	profileHandler *handlers.ProfileHandler
-	commentHandler *handlers.CommentHandler
-	chatHandler   *handlers.ChatHandler
-	chatWSHandler *handlers.ChatWSHandler
-	authMiddleware *middleware.AuthMiddleware
+	authHandler      *handlers.AuthHandler
+	eventHandler     *handlers.EventHandler
+	uploadHandler    *handlers.UploadHandler
+	profileHandler   *handlers.ProfileHandler
+	commentHandler  *handlers.CommentHandler
+	chatHandler      *handlers.ChatHandler
+	chatWSHandler    *handlers.ChatWSHandler
+	dashboardHandler *handlers.DashboardHandler
+	authMiddleware   *middleware.AuthMiddleware
 }
 
 func NewRouter(
@@ -28,17 +29,19 @@ func NewRouter(
 	commentHandler *handlers.CommentHandler,
 	chatHandler *handlers.ChatHandler,
 	chatWSHandler *handlers.ChatWSHandler,
+	dashboardHandler *handlers.DashboardHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
-		authHandler:    authHandler,
-		eventHandler:   eventHandler,
-		uploadHandler:  uploadHandler,
-		profileHandler: profileHandler,
-		commentHandler: commentHandler,
-		chatHandler:    chatHandler,
-		chatWSHandler:  chatWSHandler,
-		authMiddleware: authMiddleware,
+		authHandler:      authHandler,
+		eventHandler:     eventHandler,
+		uploadHandler:    uploadHandler,
+		profileHandler:   profileHandler,
+		commentHandler:   commentHandler,
+		chatHandler:      chatHandler,
+		chatWSHandler:    chatWSHandler,
+		dashboardHandler: dashboardHandler,
+		authMiddleware:   authMiddleware,
 	}
 }
 
@@ -75,8 +78,10 @@ func (r *Router) SetupRoutes(uploadDir string) *mux.Router {
 	protected.HandleFunc("/upload/avatar", r.uploadHandler.UploadAvatar).Methods("POST")
 	protected.HandleFunc("/users/me", r.profileHandler.GetProfile).Methods("GET")
 	protected.HandleFunc("/users/me", r.profileHandler.UpdateProfile).Methods("PUT")
+	protected.HandleFunc("/dashboard", r.dashboardHandler.GetDashboard).Methods("GET")
 	protected.HandleFunc("/events", r.eventHandler.CreateEvent).Methods("POST")
 	protected.HandleFunc("/events", r.eventHandler.GetEvents).Methods("GET")
+	protected.HandleFunc("/events/{id}/ticket", r.eventHandler.GetTicket).Methods("GET")
 	protected.HandleFunc("/events/invitations", r.eventHandler.GetInvitationEvents).Methods("GET")
 	protected.HandleFunc("/invitations", r.eventHandler.GetMyInvitations).Methods("GET")
 	protected.HandleFunc("/events/{id}/invites", r.eventHandler.ListEventInvites).Methods("GET")

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,22 @@ import { getInitialsFromEmail } from "@/lib/user-display";
 import type { RootState } from "@/lib/store";
 import { LogOut, User, Settings } from "lucide-react";
 
-const PUBLIC_NAV_LINKS = [{ href: "/events/discover", label: "Discover" }];
+const NAV_LINKS_LOGGED_IN = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/guest-dashboard", label: "Guest" },
+  { href: "/events", label: "Events" },
+  { href: "/invitations", label: "Invitations" },
+];
+const NAV_LINK_DISCOVER = { href: "/events/discover", label: "Discover" };
 
 export function SiteHeader() {
   const dispatch = useDispatch();
   const router = useRouter();
+  const pathname = usePathname();
   const token = useSelector((state: RootState) => state.auth.token);
   const user = useSelector((state: RootState) => state.auth.user);
   const isLoggedIn = !!token;
+  const isLanding = pathname === "/";
 
   const handleLogout = () => {
     dispatch(logout());
@@ -33,44 +41,46 @@ export function SiteHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-emerald-900/10 dark:border-emerald-800/30 bg-white dark:bg-[#022c22] px-6 md:px-20 py-4">
-      <Logo />
-      <div className="flex flex-1 justify-end items-center gap-8">
-        <nav className="hidden md:flex items-center gap-8">
-          {isLoggedIn && (
-            <>
+    <header className="sticky top-0 z-[500] flex items-center justify-between border-b-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-[#022c22] px-6 md:px-20 py-4">
+      {isLanding ? (
+        <Link href="/" className="shrink-0" aria-label="SeatMaster home">
+          <Logo />
+        </Link>
+      ) : (
+        <div className="w-full" aria-hidden />
+      )}
+      <div className="flex items-center gap-8 shrink-0">
+        <Link
+          href="/"
+          className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
+        >
+          Home
+        </Link>
+        {isLanding && (
+          <nav className="hidden md:flex items-center gap-8">
+            {isLoggedIn && NAV_LINKS_LOGGED_IN.map(({ href, label }) => (
               <Link
-                href="/events"
+                key={href}
+                href={href}
                 className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
               >
-                Events
+                {label}
               </Link>
-              <Link
-                href="/invitations"
-                className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
-              >
-                Invitations
-              </Link>
-            </>
-          )}
-          {PUBLIC_NAV_LINKS.map(({ href, label }) => (
+            ))}
             <Link
-              key={href}
-              href={href}
+              href={NAV_LINK_DISCOVER.href}
               className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
             >
-              {label}
+              {NAV_LINK_DISCOVER.label}
             </Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-3">
+          </nav>
+        )}
           {isLoggedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="rounded-full p-0 h-9 w-9 focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex items-center gap-2 rounded-full py-1.5 pl-1 pr-3 focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label="Open account menu"
                 >
                   <Avatar
@@ -90,6 +100,11 @@ export function SiteHeader() {
                         : getInitialsFromEmail(user?.email)}
                     </AvatarFallback>
                   </Avatar>
+                  <span className="hidden sm:inline text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {user?.first_name || user?.last_name
+                      ? [user?.first_name, user?.last_name].filter(Boolean).join(" ")
+                      : user?.email ?? "Account"}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -133,7 +148,6 @@ export function SiteHeader() {
               </Button>
             </>
           )}
-        </div>
       </div>
     </header>
   );

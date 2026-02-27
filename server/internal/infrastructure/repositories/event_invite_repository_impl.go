@@ -146,3 +146,45 @@ func (r *eventInviteRepositoryImpl) ListByUserIDOrEmailPaginated(ctx context.Con
 	}
 	return invites, total, nil
 }
+
+func (r *eventInviteRepositoryImpl) ListRecentByOwnerID(ctx context.Context, ownerID string, limit int) ([]*entities.EventInvite, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	var invites []*entities.EventInvite
+	err := r.db.WithContext(ctx).Table("event_invites").
+		Joins("INNER JOIN events ON events.id = event_invites.event_id AND events.owner_id = ?", ownerID).
+		Select("event_invites.*").
+		Order("event_invites.created_at DESC").
+		Limit(limit).
+		Find(&invites).Error
+	return invites, err
+}
+
+func (r *eventInviteRepositoryImpl) CountByOwnerIDGroupByStatus(ctx context.Context, ownerID string) (total int64, confirmed int64, declined int64, pending int64, err error) {
+	type row struct {
+		Status string `gorm:"column:status"`
+		Count  int64  `gorm:"column:count"`
+	}
+	var rows []row
+	err = r.db.WithContext(ctx).Table("event_invites").
+		Joins("INNER JOIN events ON events.id = event_invites.event_id AND events.owner_id = ?", ownerID).
+		Select("event_invites.status AS status, COUNT(*) AS count").
+		Group("event_invites.status").
+		Scan(&rows).Error
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	for _, rw := range rows {
+		total += rw.Count
+		switch rw.Status {
+		case "confirmed":
+			confirmed += rw.Count
+		case "declined":
+			declined += rw.Count
+		default:
+			pending += rw.Count
+		}
+	}
+	return total, confirmed, declined, pending, nil
+}
