@@ -141,7 +141,7 @@ export default function ProfilePage() {
                 Email: <span className="font-medium text-foreground">{storedUser?.email ?? profile?.email}</span> (cannot be changed here)
               </p>
               {updateError && <p className="text-sm text-destructive">{getErrorMessage(updateError)}</p>}
-              <Button type="submit" disabled={isUpdating} className="w-full sm:w-auto bg-[#044b36] hover:bg-[#065f46]">
+              <Button type="submit" disabled={isUpdating} className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
                 {isUpdating ? (<><Loader2 className="mr-2 size-4 animate-spin" />Saving…</>) : "Save changes"}
               </Button>
             </form>

@@ -287,8 +287,8 @@ export default function EventDetailPage() {
                 <span
                   className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${
                     event.visibility === "private"
-                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-primary text-primary-foreground"
                   }`}
                 >
                   {event.visibility}
@@ -315,7 +315,7 @@ export default function EventDetailPage() {
                 return (
                   <div className="mt-6 flex flex-wrap items-center gap-3">
                     {!isOwner && !isEventPast && (
-                      <Button asChild className="bg-[#044b36] hover:bg-[#065f46] text-white rounded-xl">
+                      <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl">
                         <Link href={rsvpPath}>RSVP</Link>
                       </Button>
                     )}
@@ -351,7 +351,7 @@ export default function EventDetailPage() {
                   onClick={() => setActiveTab("comments")}
                   className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                     activeTab === "comments"
-                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                      ? "border-primary text-primary bg-primary/10"
                       : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   }`}
                 >
@@ -363,7 +363,7 @@ export default function EventDetailPage() {
                     onClick={() => setActiveTab("chats")}
                     className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                       activeTab === "chats"
-                        ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                        ? "border-primary text-primary bg-primary/10"
                         : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     }`}
                   >
@@ -376,7 +376,7 @@ export default function EventDetailPage() {
                     onClick={() => setActiveTab("seating")}
                     className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                       activeTab === "seating"
-                        ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                        ? "border-primary text-primary bg-primary/10"
                         : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     }`}
                   >
@@ -389,7 +389,7 @@ export default function EventDetailPage() {
                     onClick={() => setActiveTab("invites")}
                     className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                       activeTab === "invites"
-                        ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10"
+                        ? "border-primary text-primary bg-primary/10"
                         : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     }`}
                   >
@@ -402,7 +402,7 @@ export default function EventDetailPage() {
             <section className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
               <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <MessageSquare className="size-5 text-[#059669]" />
+                  <MessageSquare className="size-5 text-[var(--primary)]" />
                   Comments
                 </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -422,7 +422,7 @@ export default function EventDetailPage() {
                     <Button
                       type="submit"
                       disabled={isPostingComment || !commentBody.trim()}
-                      className="bg-[#059669] hover:bg-[#047857] text-white rounded-xl shrink-0"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shrink-0"
                     >
                       {isPostingComment ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                       Post
@@ -438,7 +438,7 @@ export default function EventDetailPage() {
                         <div key={node.comment.id} className={depth > 0 ? "ml-6 mt-2 border-l-2 border-slate-200/60 dark:border-slate-600 pl-4" : ""}>
                           <div className="flex gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30 p-4">
                             <Avatar className="size-9 shrink-0 border border-slate-200/60 dark:border-slate-600">
-                              <AvatarFallback className="bg-[#059669]/10 text-[#059669] text-xs font-medium">
+                              <AvatarFallback className="bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-medium">
                                 {getInitialsFromName(node.comment.author)}
                               </AvatarFallback>
                             </Avatar>
@@ -454,7 +454,7 @@ export default function EventDetailPage() {
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 text-xs text-[#059669] hover:text-[#047857] hover:bg-[#059669]/10 -ml-1"
+                                    className="h-7 text-xs text-[var(--primary)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 -ml-1"
                                     onClick={() => { setReplyingToId(node.comment.id); setCommentBody(""); }}
                                   >
                                     <Reply className="size-3.5 mr-1" />
@@ -474,7 +474,7 @@ export default function EventDetailPage() {
                                 maxLength={2000}
                                 autoFocus
                               />
-                              <Button type="submit" disabled={isPostingComment || !commentBody.trim()} size="sm" className="rounded-lg bg-[#059669] hover:bg-[#047857]">
+                              <Button type="submit" disabled={isPostingComment || !commentBody.trim()} size="sm" className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
                                 {isPostingComment ? <Loader2 className="size-4 animate-spin" /> : "Reply"}
                               </Button>
                               <Button type="button" variant="ghost" size="sm" onClick={() => { setReplyingToId(null); setCommentBody(""); }}>Cancel</Button>
@@ -493,7 +493,7 @@ export default function EventDetailPage() {
                   <section className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
                     <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
                       <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                        <MessageSquare className="size-5 text-[#059669]" />
+                        <MessageSquare className="size-5 text-[var(--primary)]" />
                         Private chat
                       </h2>
                       <p className="text-sm text-muted-foreground mt-0.5">
@@ -517,7 +517,7 @@ export default function EventDetailPage() {
                                   onClick={() => setSelectedThreadId(t.id)}
                                   className={`flex items-center gap-3 w-full px-4 py-3 text-left rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/50 ${
                                     selectedThreadId === t.id
-                                      ? "bg-[#059669]/10 dark:bg-[#059669]/20 border border-[#059669]/30"
+                                      ? "bg-[var(--primary)]/10 dark:bg-[var(--primary)]/20 border border-[var(--primary)]/30"
                                       : ""
                                   }`}
                                 >
@@ -538,8 +538,8 @@ export default function EventDetailPage() {
                       {threadIdForApi && (
                         <>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            {connected && <span className="size-2 rounded-full bg-emerald-500" title="Connected" />}
-                            {!connected && threadIdForApi && <span className="size-2 rounded-full bg-amber-500" title="Connecting..." />}
+                            {connected && <span className="size-2 rounded-full bg-primary" title="Connected" />}
+                            {!connected && threadIdForApi && <span className="size-2 rounded-full bg-primary/70" title="Connecting..." />}
                             {isOwner && selectedThreadId && (
                               <span>Chat with {(chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"}</span>
                             )}
@@ -568,7 +568,7 @@ export default function EventDetailPage() {
                                       <AvatarFallback
                                         className={`text-xs font-medium ${
                                           isMe
-                                            ? "bg-[#059669]/20 text-[#059669]"
+                                            ? "bg-[var(--primary)]/20 text-[var(--primary)]"
                                             : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
                                         }`}
                                       >
@@ -585,12 +585,12 @@ export default function EventDetailPage() {
                                       <div
                                         className={`rounded-2xl px-4 py-2 text-sm ${
                                           isMe
-                                            ? "bg-[#059669] text-white"
+                                            ? "bg-primary text-primary-foreground"
                                             : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                                         }`}
                                       >
                                         <p className="whitespace-pre-wrap">{m.body}</p>
-                                        <p className={`text-xs mt-1 ${isMe ? "text-emerald-100" : "text-muted-foreground"}`}>
+                                        <p className={`text-xs mt-1 ${isMe ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                                           {new Date(m.created_at).toLocaleTimeString()}
                                         </p>
                                       </div>
@@ -611,7 +611,7 @@ export default function EventDetailPage() {
                             <Button
                               type="submit"
                               disabled={!chatInput.trim()}
-                              className="bg-[#059669] hover:bg-[#047857] text-white rounded-xl shrink-0"
+                              className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white rounded-xl shrink-0"
                             >
                               <Send className="size-4" />
                             </Button>
@@ -626,7 +626,7 @@ export default function EventDetailPage() {
                   <div className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
                 <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
                   <h2 className="text-2xl font-black leading-tight tracking-tight text-[#111418] dark:text-white flex items-center gap-2">
-                    <Table2 className="size-6 text-[#10b981]" />
+                    <Table2 className="size-6 text-[var(--primary)]" />
                     Seating Arrangement
                   </h2>
                   <p className="text-[#617589] text-sm mt-1">
@@ -727,7 +727,7 @@ export default function EventDetailPage() {
                             (newTableRows < 1 || newTableColumns < 1 ||
                               newTableRows > 100 || newTableColumns > 100))
                         }
-                        className="bg-[#10b981] hover:bg-[#059669] h-9 rounded-lg font-bold text-sm"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-lg font-bold text-sm"
                       >
                         {isCreatingTable ? (
                           <Loader2 className="size-4 animate-spin" />
@@ -787,7 +787,7 @@ export default function EventDetailPage() {
                       <Input id="invite-email" type="email" placeholder="guest@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="rounded-lg h-10" />
                     </div>
                     <div className="flex items-end">
-                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()} className="bg-[#059669] hover:bg-[#047857] text-white rounded-lg font-semibold flex items-center gap-2 h-10 px-6">
+                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()} className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-semibold flex items-center gap-2 h-10 px-6">
                         <UserPlus className="size-4" /> Add Guest
                       </Button>
                     </div>
@@ -812,14 +812,14 @@ export default function EventDetailPage() {
                         <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-full bg-[#059669] text-white flex items-center justify-center text-sm font-semibold shrink-0">{getInitialsFromEmail(inv.email)}</div>
+                              <div className="size-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold shrink-0">{getInitialsFromEmail(inv.email)}</div>
                               <span className="font-medium text-slate-900 dark:text-slate-100">{inv.email.split("@")[0]}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.email}</td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-2 text-sm font-medium ${inv.status === "confirmed" ? "text-emerald-600 dark:text-emerald-400" : inv.status === "declined" ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400"}`}>
-                              <span className={`size-2 rounded-full shrink-0 ${inv.status === "confirmed" ? "bg-emerald-500" : inv.status === "declined" ? "bg-rose-500" : "bg-amber-500"}`} />
+                            <span className={`inline-flex items-center gap-2 text-sm font-medium ${inv.status === "confirmed" ? "text-primary" : inv.status === "declined" ? "text-muted-foreground" : "text-primary/90"}`}>
+                              <span className={`size-2 rounded-full shrink-0 ${inv.status === "confirmed" ? "bg-primary" : inv.status === "declined" ? "bg-muted" : "bg-primary/70"}`} />
                               {inv.status}
                             </span>
                           </td>
@@ -892,8 +892,8 @@ export default function EventDetailPage() {
             {isOwner && token && (
               <div className="space-y-2">
                 <div className="rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-4 flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <Users className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Users className="size-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">
@@ -903,8 +903,8 @@ export default function EventDetailPage() {
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-4 flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <CheckCircle className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <CheckCircle className="size-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">
@@ -914,8 +914,8 @@ export default function EventDetailPage() {
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-4 flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                    <Clock className="size-4 text-amber-600 dark:text-amber-400" />
+                  <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Clock className="size-4 text-primary/80" />
                   </div>
                   <div>
                     <p className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">

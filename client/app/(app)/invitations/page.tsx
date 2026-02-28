@@ -53,7 +53,7 @@ export default function InvitationsPage() {
           </p>
           <Link
             href="/events"
-            className="mt-4 inline-block text-[#044b36] dark:text-[#D4AF37] hover:underline font-medium"
+            className="mt-4 inline-block text-primary hover:underline font-medium"
           >
             Back to Events
           </Link>

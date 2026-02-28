@@ -334,7 +334,7 @@ function EditEventFormContent({
                 <Label htmlFor="message">Message / Description</Label>
                 <textarea
                   id="message"
-                  className="flex min-h-[80px] w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
+                  className="flex min-h-[80px] w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0"
                   value={form.message}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, message: e.target.value }))
@@ -357,7 +357,7 @@ function EditEventFormContent({
             <Button
               type="submit"
               disabled={isSaving}
-              className="bg-[#059669] hover:bg-[#047857] rounded-xl"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl"
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>

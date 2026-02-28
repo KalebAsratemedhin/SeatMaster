@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex bg-[#f6f7f8] dark:bg-[#101922] text-[#111418] dark:text-white">
+    <div className="min-h-screen flex bg-[var(--surface-warm)] dark:bg-[var(--brand-navy)] text-slate-800 dark:text-white">
       <AppSidebar />
       <div className="flex flex-1 flex-col min-w-0 lg:ml-72">
         <SiteHeader />

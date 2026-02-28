@@ -65,7 +65,7 @@ export default function GuestDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-lg">
+                <div className="p-2 bg-primary/15 text-primary rounded-lg">
                   <Calendar className="size-5" />
                 </div>
               </div>
@@ -76,8 +76,8 @@ export default function GuestDashboardPage() {
             </div>
             <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-lg">
-                  <span className="size-5 rounded-full bg-amber-500 block" />
+                <div className="p-2 bg-primary/15 text-primary rounded-lg">
+                  <span className="size-5 rounded-full bg-primary/80 block" />
                 </div>
               </div>
               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">
@@ -87,7 +87,7 @@ export default function GuestDashboardPage() {
             </div>
             <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg">
+                <div className="p-2 bg-primary/10 text-primary rounded-lg">
                   <Ticket className="size-5" />
                 </div>
               </div>
@@ -99,7 +99,7 @@ export default function GuestDashboardPage() {
           </div>
 
           {pending.length > 0 && (
-            <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800 p-6">
+            <div className="bg-primary/10 rounded-xl border border-primary/30 p-6">
               <h3 className="text-lg font-bold mb-4">Action required</h3>
               <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">
                 You have {pending.length} invitation{pending.length !== 1 ? "s" : ""} waiting for your
@@ -123,7 +123,7 @@ export default function GuestDashboardPage() {
               <h3 className="text-lg font-bold">Your invitations</h3>
               <Link
                 href="/invitations"
-                className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+                className="text-sm font-bold text-primary hover:underline transition-colors"
               >
                 View all
               </Link>

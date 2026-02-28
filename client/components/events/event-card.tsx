@@ -16,7 +16,7 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
   return (
     <Link
       href={href}
-      className="group block rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800/60 overflow-hidden shadow-sm hover:shadow-md hover:border-[#044b36]/30 dark:hover:border-[#D4AF37]/30 transition-all duration-200"
+      className="group block rounded-xl border border-slate-200/80 dark:border-slate-600/50 bg-white dark:bg-slate-800/50 overflow-hidden shadow-sm hover:shadow-md hover:border-[var(--brand-amber)]/30 dark:hover:border-[var(--brand-amber)]/40 transition-all duration-200"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
         {event.banner_url ? (
@@ -26,25 +26,30 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
-            <span className="text-4xl font-serif text-slate-400 dark:text-slate-500">
+            <span className="font-display text-4xl text-slate-400 dark:text-slate-500">
               {event.name.charAt(0)}
             </span>
           </div>
         )}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
+        {/* Dark gradient at bottom of banner for depth; stronger on hover */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+          aria-hidden
+        />
+        <div className="absolute bottom-0 left-0 right-0 p-3">
           <span
-            className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+            className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${
               event.visibility === "private"
-                ? "bg-amber-500/90 text-white"
-                : "bg-emerald-500/90 text-white"
+                ? "bg-primary/80 text-primary-foreground"
+                : "bg-primary text-primary-foreground"
             }`}
           >
             {event.visibility}
           </span>
         </div>
       </div>
-      <div className="p-5">
-        <h3 className="font-semibold text-lg leading-tight text-slate-900 dark:text-white group-hover:text-[#044b36] dark:group-hover:text-[#D4AF37] transition-colors">
+      <div className="p-4">
+        <h3 className="font-display font-semibold text-lg leading-tight text-slate-900 dark:text-white group-hover:text-[var(--brand-amber)] dark:group-hover:text-[var(--brand-amber)] transition-colors">
           {event.name}
         </h3>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -56,11 +61,11 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
           </p>
         )}
         {showActions && (
-          <div className="mt-4 flex justify-end">
+          <div className="mt-3 flex justify-end">
             <Button
               size="sm"
               variant="ghost"
-              className="text-[#044b36] dark:text-[#D4AF37] hover:bg-[#044b36]/10 dark:hover:bg-[#D4AF37]/10 gap-1"
+              className="text-[var(--brand-amber)] hover:bg-[var(--brand-amber)]/10 dark:hover:bg-[var(--brand-amber)]/20 gap-1 font-semibold"
               asChild
             >
               <span>

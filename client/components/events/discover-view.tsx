@@ -109,16 +109,16 @@ export function DiscoverContent() {
       <div className="flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-[#111418] dark:text-white">
+            <h1 className="font-display text-2xl lg:text-3xl font-semibold text-[var(--brand-navy)] dark:text-white">
               Discover Events
             </h1>
-            <p className="text-[#617589] dark:text-slate-400 text-base mt-1">
+            <p className="text-slate-500 dark:text-slate-400 text-base mt-1">
               Browse public events. Sign in to create or manage your own.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-end gap-4 rounded-xl border border-[#dbe0e6] dark:border-slate-700 bg-white dark:bg-slate-800/50 p-4">
+        <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 p-4">
           <div className="flex flex-col gap-1.5 min-w-[140px]">
             <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <Calendar className="size-3.5" />
@@ -162,16 +162,16 @@ export function DiscoverContent() {
               placeholder="Filter by location..."
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              className="bg-white dark:bg-slate-800 border-[#dbe0e6] dark:border-slate-600"
+              className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600"
             />
           </div>
         </div>
 
         {isLoading ? (
-          <p className="text-[#617589] dark:text-slate-400">Loading events...</p>
+          <p className="text-slate-500 dark:text-slate-400">Loading events...</p>
         ) : filteredEvents.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-[#dbe0e6] dark:border-slate-800 p-12 text-center">
-            <p className="text-[#617589] dark:text-slate-400">
+          <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-600 p-12 text-center">
+            <p className="text-slate-500 dark:text-slate-400">
               {events.length === 0
                 ? "No public events yet. Create one when you're signed in!"
                 : "No events match your filters. Try adjusting date, type, or location."}
@@ -179,7 +179,7 @@ export function DiscoverContent() {
           </div>
         ) : (
           <>
-            <p className="text-sm text-[#617589] dark:text-slate-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Showing {paginatedEvents.length} of {filteredEvents.length} events
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -188,8 +188,8 @@ export function DiscoverContent() {
               ))}
             </div>
             {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-xl border border-[#dbe0e6] dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-4">
-                <p className="text-sm text-[#617589] dark:text-slate-400">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-6 py-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   Page {page + 1} of {totalPages}
                 </p>
                 <div className="flex gap-2">
@@ -226,10 +226,10 @@ export function DiscoverFallback() {
     <div className="max-w-6xl mx-auto w-full">
       <div className="flex flex-col gap-8">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-[#111418] dark:text-white">
+          <h1 className="font-display text-2xl lg:text-3xl font-semibold text-[var(--brand-navy)] dark:text-white">
             Discover Events
           </h1>
-          <p className="text-[#617589] dark:text-slate-400 text-base mt-1">
+          <p className="text-slate-500 dark:text-slate-400 text-base mt-1">
             Loading...
           </p>
         </div>

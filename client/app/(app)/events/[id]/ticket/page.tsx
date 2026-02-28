@@ -50,7 +50,7 @@ export default function EventTicketPage() {
   if (isLoading || (!ticket && !error)) {
     return (
       <div className="container max-w-3xl mx-auto px-4 py-12 flex items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-emerald-600" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -71,9 +71,9 @@ export default function EventTicketPage() {
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
         <nav className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-6">
-          <Link href="/events" className="hover:text-emerald-600">Events</Link>
+          <Link href="/events" className="hover:text-primary">Events</Link>
           <span>/</span>
-          <Link href={`/events/${id}`} className="hover:text-emerald-600">{ticket.event_name}</Link>
+          <Link href={`/events/${id}`} className="hover:text-primary">{ticket.event_name}</Link>
           <span>/</span>
           <span className="font-semibold text-slate-900 dark:text-white">Your Ticket</span>
         </nav>
@@ -85,11 +85,11 @@ export default function EventTicketPage() {
           >
             <div className="flex-[2.5] flex flex-col p-8 border-r border-dashed border-slate-200 dark:border-slate-700">
               <div className="mb-8 flex items-center gap-3">
-                <div className="size-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                   <Calendar className="size-8" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
                     {ticket.event_name}
                   </p>
                   <h4 className="text-lg font-extrabold leading-tight text-slate-900 dark:text-white">
@@ -102,7 +102,7 @@ export default function EventTicketPage() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     Guest Name
                   </p>
-                  <h2 className="text-3xl font-black text-emerald-600">{ticket.guest_name}</h2>
+                  <h2 className="text-3xl font-black text-primary">{ticket.guest_name}</h2>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -122,7 +122,7 @@ export default function EventTicketPage() {
                 </div>
                 {ticket.location && (
                   <div className="flex items-center gap-2">
-                    <MapPin className="size-5 text-emerald-600 shrink-0" />
+                    <MapPin className="size-5 text-primary shrink-0" />
                     <p className="text-xs font-medium text-slate-600 dark:text-slate-400">{ticket.location}</p>
                   </div>
                 )}
@@ -161,7 +161,7 @@ export default function EventTicketPage() {
           <div className="flex flex-wrap items-center justify-center gap-6">
             <Button
               onClick={handleDownload}
-              className="rounded-lg gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+              className="rounded-lg gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Download className="size-4" />
               Download Ticket

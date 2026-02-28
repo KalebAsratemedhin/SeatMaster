@@ -8,7 +8,7 @@ const STATS = [
 
 export function StatsSection() {
   return (
-    <section className="px-6 md:px-20 py-8">
+    <section className="px-6 md:px-20 py-10">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {STATS.map((stat) => (
           <StatCard key={stat.label} {...stat} />

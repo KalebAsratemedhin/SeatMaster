@@ -50,7 +50,7 @@ export function HeaderSearch({
 
   return (
     <form onSubmit={handleSubmit} className={className} role="search">
-      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500/50">
+      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 overflow-hidden focus-within:ring-2 focus-within:ring-[var(--brand-amber)]/30 focus-within:border-[var(--brand-amber)]/50">
         <Search className="size-4 shrink-0 text-slate-400 ml-3" aria-hidden />
         <input
           type="search"
@@ -64,7 +64,7 @@ export function HeaderSearch({
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="shrink-0 flex items-center justify-center size-7 rounded-full mr-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/80 dark:hover:text-slate-300 dark:hover:bg-slate-700/80 transition-colors"
+            className="shrink-0 flex items-center justify-center size-7 rounded-full mr-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700/80 transition-colors"
             aria-label="Clear search"
           >
             <X className="size-4" strokeWidth={2.25} />
@@ -102,7 +102,7 @@ export function SiteHeader() {
       {!isLanding && (
         <Link
           href="/"
-          className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[#044b36] dark:hover:text-emerald-400 transition-colors"
+          className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[var(--brand-navy)] dark:hover:text-[var(--brand-amber)] transition-colors"
         >
           Home
         </Link>
@@ -111,7 +111,7 @@ export function SiteHeader() {
         <nav className="hidden md:flex items-center gap-8" aria-label="Main">
           <Link
             href="/dashboard"
-            className="text-sm font-semibold text-slate-600 dark:text-emerald-100/70 hover:text-[#044b36] dark:hover:text-[#D4AF37] transition-colors"
+            className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[var(--brand-navy)] dark:hover:text-[var(--brand-amber)] transition-colors"
           >
             Dashboard
           </Link>
@@ -177,14 +177,14 @@ export function SiteHeader() {
         <>
           <Button
             asChild
-            className="bg-[#044b36] hover:bg-[#065f46] text-white shadow-lg shadow-[#044b36]/20"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-md"
           >
             <Link href="/auth?mode=signup">Get Started</Link>
           </Button>
           <Button
             asChild
             variant="outline"
-            className="hidden sm:flex border-slate-200 dark:border-emerald-800/50 bg-slate-100 dark:bg-emerald-900/40"
+            className="hidden sm:flex border-slate-200 dark:border-slate-600 bg-transparent hover:bg-slate-100 dark:hover:bg-white/5"
           >
             <Link href="/auth?mode=signin">Login</Link>
           </Button>
@@ -195,7 +195,7 @@ export function SiteHeader() {
 
   return (
     <header
-      className={`sticky top-0 z-[500] border-b-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-[#022c22] px-6 md:px-20 py-4 ${
+      className={`sticky top-0 z-[500] border-b border-slate-200/80 dark:border-slate-700/50 bg-white/95 dark:bg-[var(--brand-navy)]/95 backdrop-blur-sm px-6 md:px-20 py-4 ${
         !isLanding ? "grid grid-cols-[1fr_auto_1fr] items-center gap-4 lg:flex lg:justify-between" : "flex items-center justify-between gap-4"
       }`}
     >

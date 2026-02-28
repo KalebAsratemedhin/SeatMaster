@@ -133,7 +133,7 @@ export function SeatingChartFloor({
     const positions = isRound ? ROUND_POSITIONS : RECT_POSITIONS;
     const tableLabel = (
       <>
-        <span className={`text-xs font-bold ${isFull ? "text-[#10b981]" : "text-[#111418] dark:text-white group-hover:text-[#10b981]"}`}>
+        <span className={`text-xs font-bold ${isFull ? "text-primary" : "text-[#111418] dark:text-white group-hover:text-primary"}`}>
           {t.name.toUpperCase()}
         </span>
         <span className="text-[10px] text-[#617589]">
@@ -153,7 +153,7 @@ export function SeatingChartFloor({
         <div
           className={`relative flex flex-col items-center justify-center group transition-all ${canMove || canReorder ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
             ${isRound ? "size-24 sm:size-32 rounded-full" : isGrid ? "rounded-lg p-2 min-w-[80px] min-h-[60px]" : "w-36 sm:w-48 h-16 sm:h-24 rounded-lg"}
-            ${isFull ? "bg-[#10b981]/10 dark:bg-emerald-900/30 border-2 border-[#10b981] ring-4 ring-[#10b981]/10 shadow-lg" : "bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 group-hover:border-[#10b981]"}
+            ${isFull ? "bg-primary/10 border-2 border-primary ring-4 ring-primary/10 shadow-lg" : "bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 group-hover:border-primary"}
           `}
           style={
             isGrid
@@ -169,7 +169,7 @@ export function SeatingChartFloor({
           {isGrid ? (
             <>
               <div className="absolute top-1 left-1 right-1 flex justify-between items-center pointer-events-none z-10">
-                <span className={`text-[10px] font-bold ${isFull ? "text-[#10b981]" : "text-[#111418] dark:text-white"}`}>
+                <span className={`text-[10px] font-bold ${isFull ? "text-primary" : "text-[#111418] dark:text-white"}`}>
                   {t.name.toUpperCase()}
                 </span>
                 <span className="text-[9px] text-[#617589]">{assigned}/{t.capacity}</span>
@@ -191,7 +191,7 @@ export function SeatingChartFloor({
                       key={s.id}
                       type="button"
                       className={`size-4 sm:size-5 rounded-full border-2 border-slate-400 dark:border-slate-500 shrink-0 shadow-sm
-                                ${assignedSeat ? "bg-[#10b981]" : isSelected ? "bg-[#10b981] ring-2 ring-[#10b981]" : canSelect ? "bg-gray-200 dark:bg-gray-700 cursor-pointer hover:ring-2 hover:ring-[#10b981]/50" : "bg-gray-100 dark:bg-gray-700"}
+                                ${assignedSeat ? "bg-primary" : isSelected ? "bg-primary ring-2 ring-primary" : canSelect ? "bg-gray-200 dark:bg-gray-700 cursor-pointer hover:ring-2 hover:ring-primary/50" : "bg-gray-100 dark:bg-gray-700"}
                               `}
                       disabled={!canSelect}
                       onClick={() => canSelect && onSeatSelect?.(s.id)}
@@ -215,7 +215,7 @@ export function SeatingChartFloor({
                   type="button"
                   className={`absolute size-5 sm:size-6 rounded-full border-2 border-slate-400 dark:border-slate-500 shrink-0 shadow-sm
                     ${pos.className}
-                    ${assignedSeat ? "bg-[#10b981]" : isSelected ? "bg-[#10b981] ring-2 ring-[#10b981]" : canSelect ? "bg-gray-200 dark:bg-gray-700 cursor-pointer hover:ring-2 hover:ring-[#10b981]/50" : "bg-gray-100 dark:bg-gray-700"}
+                    ${assignedSeat ? "bg-primary" : isSelected ? "bg-primary ring-2 ring-primary" : canSelect ? "bg-gray-200 dark:bg-gray-700 cursor-pointer hover:ring-2 hover:ring-primary/50" : "bg-gray-100 dark:bg-gray-700"}
                   `}
                   disabled={!canSelect}
                   onClick={() => canSelect && onSeatSelect?.(s.id)}
@@ -237,7 +237,7 @@ export function SeatingChartFloor({
         </div>
         <div className="flex items-center gap-1.5">
           <span
-            className={`size-2 rounded-full shrink-0 ${isFull ? "bg-[#10b981]" : assigned > 0 ? "bg-amber-500" : "bg-gray-300 dark:bg-gray-600"}`}
+            className={`size-2 rounded-full shrink-0 ${isFull ? "bg-primary" : assigned > 0 ? "bg-primary/70" : "bg-gray-300 dark:bg-gray-600"}`}
           />
           <span className="text-[11px] font-medium text-[#617589]">
             {isFull ? "Full" : assigned > 0 ? `${t.capacity - assigned} left` : "Empty"}
@@ -293,7 +293,7 @@ export function SeatingChartFloor({
       <div className="flex flex-wrap justify-between items-center gap-4 px-4 sm:px-6 py-3 border-t border-gray-200 dark:border-gray-800 text-[#617589] text-xs">
         <div className="flex flex-wrap gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full bg-[#10b981]" />
+            <span className="size-2.5 rounded-full bg-primary" />
             <span>Assigned Seat</span>
           </div>
           <div className="flex items-center gap-2">
@@ -301,7 +301,7 @@ export function SeatingChartFloor({
             <span>Available Seat</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full border-2 border-dashed border-[#10b981]/50" />
+            <span className="size-2.5 rounded-full border-2 border-dashed border-primary/50" />
             <span>Table</span>
           </div>
         </div>

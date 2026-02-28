@@ -7,7 +7,7 @@ import { CtaSection } from "@/components/landing/cta-section";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8faf9] dark:bg-[#022c22] text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex flex-col bg-[var(--surface-warm)] dark:bg-[var(--surface-warm)] text-slate-800 dark:text-slate-100">
       <SiteHeader />
       <main className="flex-1">
         <HeroSection />

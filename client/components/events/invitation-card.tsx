@@ -24,7 +24,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
   return (
     <Link
       href={href}
-      className="group block rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800/60 overflow-hidden shadow-sm hover:shadow-md hover:border-[#044b36]/30 dark:hover:border-[#D4AF37]/30 transition-all duration-200"
+      className="group block rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800/60 overflow-hidden shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
         {event.banner_url ? (
@@ -44,10 +44,10 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           <span
             className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${
               invite.status === "confirmed"
-                ? "bg-emerald-500/90 text-white"
+                ? "bg-primary text-primary-foreground"
                 : invite.status === "declined"
-                  ? "bg-slate-500/90 text-white"
-                  : "bg-amber-500/90 text-white"
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-primary/80 text-primary-foreground"
             }`}
           >
             {label}
@@ -55,7 +55,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
         </div>
       </div>
       <div className="p-5">
-        <h3 className="font-semibold text-lg leading-tight text-slate-900 dark:text-white group-hover:text-[#044b36] dark:group-hover:text-[#D4AF37] transition-colors">
+        <h3 className="font-semibold text-lg leading-tight text-slate-900 dark:text-white group-hover:text-primary transition-colors">
           {event.name}
         </h3>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -70,7 +70,7 @@ export function InvitationCard({ invitation }: InvitationCardProps) {
           <Button
             size="sm"
             variant="ghost"
-            className="text-[#044b36] dark:text-[#D4AF37] hover:bg-[#044b36]/10 dark:hover:bg-[#D4AF37]/10 gap-1"
+            className="text-primary hover:bg-primary/10 gap-1"
             asChild
           >
             <span>

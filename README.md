@@ -11,8 +11,7 @@ SeatMaster is a full-stack app with a **Go API** and a **Next.js** frontend.
 ```
 SeatMaster/
 ├── client/          # Next.js 16 frontend (React 19, TypeScript)
-├── server/          # Go REST API
-└── stitch-seatmaster/   # Design / Stitch UI assets
+└── server/          # Go REST API
 ```
 
 ### Backend (server/)
@@ -24,7 +23,7 @@ Layered structure with clear boundaries:
 | **Entry** | `cmd/server/` | Wiring, DB, migrations, HTTP server |
 | **Domain** | `internal/domain/entities/` | Core entities (User, Event, EventTable, EventSeat, EventInvite) and validation |
 | **Application** | `internal/application/usecases/` | Business logic (auth, events, profile) and DTOs |
-| **Infrastructure** | `internal/infrastructure/` | HTTP handlers, Gorilla Mux router, PostgreSQL (GORM), JWT, file uploads, CORS |
+| **Infrastructure** | `internal/infrastructure/` | HTTP handlers, Gorilla Mux router, PostgreSQL (GORM), JWT, CORS |
 
 API base path: `/api/v1`. Auth is JWT-based; some routes use optional auth so public event and seating data can be read without logging in.
 
@@ -42,42 +41,27 @@ API base path: `/api/v1`. Auth is JWT-based; some routes use optional auth so pu
 |------|--------------|
 | **Backend** | Go 1.25, Gorilla Mux, GORM, PostgreSQL, JWT (golang-jwt), bcrypt (golang.org/x/crypto), golang-migrate, godotenv |
 | **Frontend** | Next.js 16, React 19, TypeScript, Redux Toolkit, Tailwind CSS 4, Radix UI, Leaflet / react-leaflet, Axios |
-| **DevOps** | Migrations in `server/migrations/`; uploads under `server/uploads/` (banners, avatars) |
+| **DevOps** | Migrations in `server/migrations/` |
 
 ---
 
 ## Features
 
-- **Auth** — Register (first name, last name, email, password), login, JWT; optional auth for public content.
-- **Profile** — View/update profile; avatar upload.
-- **App shell** — Sidebar: Dashboard, Events, Invitations, Discover, Profile. Header: logo, search bar (left on app, center on home), Home link (app layout), user name + avatar dropdown. Mobile: menu icon opens nav popup; logo centered.
-- **Dashboard** — Organizer and guest event stats (pie charts); Recent RSVPs and Events you RSVP'd to (tables, empty states).
-- **Events** — CRUD; visibility; location + map; type, date, times; banner. Detail: map, tabs (Comments, Chat, Seating, Invitation list for organizer).
-- **Discover** — Public events; filters by date, type, location. Header search → discover with query.
-- **Invitations** — Invite by email; list invites; my invitations; RSVP (accept/decline).
-- **Seating** — Tables and seats per event; reorder.
-- **Uploads** — Event banners and avatars (`/uploads/`).
+What you can do with SeatMaster:
 
----
-
-## Testing the backend before deploy
-
-1. **Build** — Ensure the binary compiles:  
-   `cd server && go build ./cmd/server` (or `make build` to produce a `server` binary).
-2. **Tests** — Run Go tests:  
-   `go test ./...` (no tests in repo yet; add unit/integration tests as needed).
-3. **Run locally** — With `.env` and PostgreSQL available:  
-   `go run ./cmd/server` (or run the built binary). Server starts migrations then listens (default `:8080`).
-4. **Smoke test** — Hit a public endpoint to confirm the API is up:  
-   `curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/v1/events/public`  
-   Expect `200` (or `404` if route prefix differs; adjust URL to match your router).
+- **Run events with a real guest list** — Create events (name, type, date, time, location, visibility). Invite guests by email and see who’s coming, who’s pending, and who declined in one place.
+- **Get and track RSVPs** — Guests receive invitations and can accept or decline (with optional plus-one). Organizers see response rates and recent RSVPs at a glance.
+- **Plan seating before the day** — Define tables and seats per event (round or grid). Guests who accept can pick their seat (or two for plus-one). Organizers can move tables and see the chart fill up.
+- **Engage before and after** — Public comments on the event page; private chat between organizer and guest for questions. Event detail shows a map, seating tab, and (for organizers) the full invitation list.
+- **Find and promote events** — Public events are discoverable with search and filters (date, type, location). Organizers can share event or RSVP links; event pages work for logged-out visitors where allowed.
+- **Manage one identity across events** — Sign up once; use one profile (name, avatar) as organizer or guest. Dashboard summarizes your activity as both: events you run, invitations you’ve received, and RSVP status.
 
 ---
 
 ## Quick Start
 
 1. **Backend**  
-   - Copy `.env` from `server/.env.example` in `server/`. Set `DATABASE_URL` (or `DB_URL`) to your Postgres connection string, plus `JWT_SECRET`, `PORT`, `UPLOAD_DIR`, `BASE_URL` as needed.  
+   - Copy `.env` from `server/.env.example` in `server/`. Set `DATABASE_URL` to your Postgres connection string, plus `JWT_SECRET`, `PORT`, and `BASE_URL` as needed.  
    - From `server/`: run migrations (they run on server start, or use `make migrate-up` with the migrate CLI), then start the API (e.g. `go run ./cmd/server` or `make build && ./server`).
 
 2. **Frontend**  

@@ -131,7 +131,7 @@ export default function NewEventPage() {
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#059669] rounded-full transition-all"
+                className="h-full bg-primary rounded-full transition-all"
                 style={{ width: "25%" }}
               />
             </div>
@@ -145,7 +145,7 @@ export default function NewEventPage() {
                 key={step.id}
                 className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium ${
                   i === 0
-                    ? "bg-[#059669] text-white"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-slate-100 dark:bg-slate-800 text-muted-foreground"
                 }`}
               >
@@ -285,7 +285,7 @@ export default function NewEventPage() {
                 <Label htmlFor="message">Message / Description</Label>
                 <textarea
                   id="message"
-                  className="flex min-h-[80px] w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#059669] focus-visible:ring-offset-0"
+                  className="flex min-h-[80px] w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0"
                   placeholder="Optional description"
                   value={form.message}
                   onChange={(e) =>
@@ -338,7 +338,7 @@ export default function NewEventPage() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="bg-[#059669] hover:bg-[#047857] text-white rounded-xl"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl"
             >
               {isLoading ? "Creating..." : "Create Event"}
               <ChevronRight className="size-4 ml-1" />
@@ -348,8 +348,8 @@ export default function NewEventPage() {
           {/* Info boxes */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/30 p-4 flex gap-3 items-start">
-              <div className="size-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <Lightbulb className="size-4 text-emerald-600 dark:text-emerald-400" />
+<div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Lightbulb className="size-4 text-primary" />
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-snug">
                 Using a high-quality banner image increases RSVP rates by 20%.

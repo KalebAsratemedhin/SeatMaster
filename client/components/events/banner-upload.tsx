@@ -84,7 +84,7 @@ export function BannerUpload({ value, onChange, disabled, className }: BannerUpl
           "bg-slate-50 dark:bg-slate-800/50",
           (value || uploading) ? "border-slate-200 dark:border-slate-700 p-0 overflow-hidden" : "border-slate-300 dark:border-slate-600 p-8",
           (value || uploading) && "min-h-[160px] flex flex-col items-center justify-center",
-          !value && !uploading && "hover:border-[#059669]/50 cursor-pointer",
+          !value && !uploading && "hover:border-primary/50 cursor-pointer",
           disabled && "opacity-60 pointer-events-none"
         )}
       >
@@ -99,7 +99,7 @@ export function BannerUpload({ value, onChange, disabled, className }: BannerUpl
 
         {uploading && (
           <div className="flex flex-col items-center justify-center gap-2 py-8">
-            <Loader2 className="size-10 text-[#059669] animate-spin" />
+            <Loader2 className="size-10 text-primary animate-spin" />
             <p className="text-sm text-muted-foreground">Uploading...</p>
           </div>
         )}
@@ -135,7 +135,7 @@ export function BannerUpload({ value, onChange, disabled, className }: BannerUpl
               <ImageIcon className="size-6 text-slate-500" />
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              <span className="text-[#059669] font-medium">Upload a file</span>
+              <span className="text-primary font-medium">Upload a file</span>
               {" "}or drag and drop
             </p>
             <p className="text-xs text-muted-foreground">

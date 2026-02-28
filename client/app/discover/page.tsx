@@ -9,8 +9,8 @@ import { HeaderSearch } from "@/components/layout/site-header";
 
 export default function PublicDiscoverPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f6f7f8] dark:bg-[#101922] text-[#111418] dark:text-white">
-      <header className="sticky top-0 z-50 flex items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-[#022c22] px-6 md:px-20 py-4">
+    <div className="min-h-screen flex flex-col bg-[var(--surface-warm)] dark:bg-[var(--brand-navy)] text-slate-800 dark:text-white">
+      <header className="sticky top-0 z-50 flex items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-700/50 bg-white/95 dark:bg-[var(--brand-navy)]/95 backdrop-blur-sm px-6 md:px-20 py-4">
         <Link href="/" className="shrink-0" aria-label="SeatMaster home">
           <Logo />
         </Link>
@@ -21,7 +21,7 @@ export default function PublicDiscoverPage() {
           <Button asChild variant="ghost" size="sm" className="text-slate-600 dark:text-slate-300">
             <Link href="/auth?mode=signin">Sign in</Link>
           </Button>
-          <Button asChild size="sm" className="bg-[#044b36] hover:bg-[#065f46] text-white">
+          <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold">
             <Link href="/auth?mode=signup">Get started</Link>
           </Button>
         </div>

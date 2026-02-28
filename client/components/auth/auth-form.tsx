@@ -67,7 +67,7 @@ export function AuthForm() {
     <AuthLayout>
       <div className="space-y-8">
         <div className="flex flex-col gap-2">
-          <h2 className="text-slate-900 dark:text-white text-3xl font-bold tracking-tight">
+          <h2 className="font-display text-slate-900 dark:text-white text-2xl font-semibold tracking-tight">
             {mode === "signin" ? "Welcome Back" : "Create Account"}
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-base">
@@ -92,7 +92,7 @@ export function AuthForm() {
                   placeholder="First name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-[#10b981] focus:ring-4 focus:ring-[#10b981]/10"
+                  className="rounded-lg border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 py-3 focus:border-primary focus:ring-2 focus:ring-primary/20"
                   required
                 />
               </div>
@@ -106,7 +106,7 @@ export function AuthForm() {
                   placeholder="Last name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-[#10b981] focus:ring-4 focus:ring-[#10b981]/10"
+                  className="rounded-lg border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 py-3 focus:border-primary focus:ring-2 focus:ring-primary/20"
                   required
                 />
               </div>
@@ -124,7 +124,7 @@ export function AuthForm() {
                 placeholder="email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-11 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-[#10b981] focus:ring-4 focus:ring-[#10b981]/10"
+                className="pl-11 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-primary focus:ring-2 focus:ring-primary/20"
                 required
               />
             </div>
@@ -138,7 +138,7 @@ export function AuthForm() {
               {mode === "signin" && (
                 <Link
                   href="#"
-                  className="text-xs font-semibold text-[#10b981] dark:text-emerald-400 hover:underline"
+                  className="text-xs font-semibold text-[var(--brand-amber)] hover:underline"
                 >
                   Forgot Password?
                 </Link>
@@ -152,13 +152,13 @@ export function AuthForm() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-11 pr-11 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-[#10b981] focus:ring-4 focus:ring-[#10b981]/10"
+                className="pl-11 pr-11 rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 py-3.5 focus:border-primary focus:ring-2 focus:ring-primary/20"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#10b981] transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[var(--brand-amber)] transition-colors"
               >
                 {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
               </button>
@@ -167,7 +167,7 @@ export function AuthForm() {
 
           <Button
             type="submit"
-            className="w-full rounded-xl bg-[#10b981] hover:bg-[#059669] py-4 text-base font-bold text-white shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all"
+            className="w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 py-3.5 text-base font-semibold shadow-md active:scale-[0.99] transition-all"
             disabled={isLoading}
           >
             {isLoading ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
@@ -177,7 +177,7 @@ export function AuthForm() {
         {mode === "signup" && (
           <p className="text-center text-sm text-slate-500 dark:text-slate-400">
             By creating an account, you agree to our{" "}
-            <Link href="#" className="font-semibold text-[#10b981] dark:text-emerald-400 hover:underline">
+            <Link href="/terms" className="font-semibold text-[var(--brand-amber)] hover:underline">
               Terms of Service
             </Link>
             .

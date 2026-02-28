@@ -60,8 +60,8 @@ function NavLinks({
                 group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
                 transition-all duration-200 ease-out
                 ${current
-                  ? "bg-emerald-500/90 text-white shadow-md shadow-emerald-500/25 dark:bg-emerald-600 dark:shadow-emerald-900/30"
-                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
                 }
               `}
             >
@@ -69,12 +69,12 @@ function NavLinks({
                 className={`
                   flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-200
                   ${current
-                    ? "bg-white/20"
-                    : "bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200 dark:group-hover:bg-slate-700"
+                    ? "bg-primary-foreground/20 text-inherit"
+                    : "bg-slate-100 dark:bg-slate-700/80 text-inherit group-hover:bg-slate-200 dark:group-hover:bg-slate-600/80"
                   }
                 `}
               >
-                <Icon className="size-5 shrink-0" aria-hidden />
+                <Icon className="size-5 shrink-0 text-inherit" aria-hidden />
               </span>
               <span>{label}</span>
             </Link>
@@ -93,17 +93,17 @@ export function AppSidebar() {
       className="
         fixed left-0 top-0 bottom-0 z-40 hidden w-72 shrink-0 flex-col
         border-r border-slate-200/80 dark:border-slate-700/50
-        bg-white dark:bg-slate-900/95
-        shadow-[4px_0_24px_-4px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_-4px_rgba(0,0,0,0.25)]
+        bg-white/95 dark:bg-[var(--brand-navy)]/98
+        shadow-[4px_0_24px_-4px_rgba(0,0,0,0.06)] dark:shadow-none
         backdrop-blur-sm
         lg:flex
       "
     >
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-slate-100 dark:border-slate-800/80 px-5 py-5">
+        <div className="shrink-0 border-b border-slate-100 dark:border-slate-700/50 px-5 py-5">
           <Link
             href="/"
-            className="block rounded-lg transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+            className="block rounded-lg transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--brand-amber)]/50 focus:ring-offset-2 dark:focus:ring-offset-[var(--brand-navy)]"
             aria-label="SeatMaster home"
           >
             <Logo />

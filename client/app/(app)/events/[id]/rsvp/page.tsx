@@ -213,8 +213,8 @@ export default function EventRsvpPage() {
       ) : (
         <div className="w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50">
           <div className="container max-w-3xl mx-auto px-4 py-6 flex items-center gap-4">
-            <div className="size-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center shrink-0">
-              <ImageIcon className="size-6 text-emerald-600 dark:text-emerald-400" />
+            <div className="size-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <ImageIcon className="size-6 text-primary" />
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-slate-900 dark:text-white">
@@ -247,11 +247,11 @@ export default function EventRsvpPage() {
         </nav>
 
         {invite?.status === "confirmed" && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+          <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/30 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-primary">
               You&apos;re confirmed. Get your ticket with QR code for check-in.
             </p>
-            <Button asChild size="sm" className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button asChild size="sm" className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
               <Link href={`/events/${id}/ticket`}>Download ticket</Link>
             </Button>
           </div>
@@ -287,7 +287,7 @@ export default function EventRsvpPage() {
               <label
                 className={`cursor-pointer px-5 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   attendance === "confirmed"
-                    ? "bg-emerald-600 text-white shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
@@ -304,7 +304,7 @@ export default function EventRsvpPage() {
               <label
                 className={`cursor-pointer px-5 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   attendance === "declined"
-                    ? "bg-slate-700 dark:bg-slate-600 text-white shadow-sm"
+                    ? "bg-muted text-muted-foreground shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
@@ -338,7 +338,7 @@ export default function EventRsvpPage() {
                 onChange={(e) => setPlusOne(e.target.checked)}
                 className="sr-only peer"
               />
-              <span className="relative inline-block w-11 h-6 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:content-[''] peer-checked:bg-emerald-600 peer-checked:after:translate-x-5" />
+              <span className="relative inline-block w-11 h-6 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-5" />
               <span className="text-sm text-slate-600 dark:text-slate-400">
                 {plusOne ? "Yes" : "No"}
               </span>
@@ -389,7 +389,7 @@ export default function EventRsvpPage() {
               rows={3}
               value={dietary}
               onChange={(e) => setDietary(e.target.value)}
-              className="mt-1 w-full resize-none rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+              className="mt-1 w-full resize-none rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </section>
 
@@ -409,7 +409,7 @@ export default function EventRsvpPage() {
             <Button
               type="submit"
               disabled={attendance === null || isSubmitting}
-              className="w-full sm:w-auto min-w-[200px] bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="w-full sm:w-auto min-w-[200px] bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
             >
               {isSubmitting ? "Sending…" : token ? "Submit response" : "Sign in to respond"}
             </Button>
@@ -422,7 +422,7 @@ export default function EventRsvpPage() {
         <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
           <Link
             href={`/events/${id}`}
-            className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
+            className="text-sm text-primary hover:underline"
           >
             View event details →
           </Link>
@@ -440,7 +440,7 @@ export default function EventRsvpPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             {attendance === "confirmed" && (
-              <Button asChild className="rounded-lg bg-emerald-600 hover:bg-emerald-700">
+              <Button asChild className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
                 <Link href={`/events/${id}/ticket`} onClick={() => setShowSuccessDialog(false)}>
                   Get your ticket
                 </Link>

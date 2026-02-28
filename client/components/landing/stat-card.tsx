@@ -7,20 +7,22 @@ type StatCardProps = {
 };
 
 const ACCENT_CLASS = {
-  primary: "bg-[#044b36]",
-  gold: "bg-[#D4AF37]",
-  emerald: "bg-[#065f46]",
+  primary: "bg-primary",
+  gold: "bg-primary/80",
+  emerald: "bg-muted",
 };
 
 export function StatCard({ label, value, accentColor }: StatCardProps) {
   return (
-    <Card className="rounded-2xl border-emerald-900/10 dark:border-emerald-800/50 bg-white dark:bg-emerald-950/30 shadow-sm">
-      <CardContent className="p-8 flex flex-col gap-2">
-        <p className="text-sm font-bold uppercase tracking-widest text-emerald-800/60 dark:text-emerald-100/40">
+    <Card className="rounded-xl border-slate-200/80 dark:border-slate-600/50 bg-white/80 dark:bg-slate-800/50 shadow-sm backdrop-blur-sm">
+      <CardContent className="p-6 flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
           {label}
         </p>
-        <p className="text-4xl font-black leading-tight text-emerald-950 dark:text-white">{value}</p>
-        <div className={`h-1 w-12 rounded-full ${ACCENT_CLASS[accentColor]}`} />
+        <p className="font-display text-3xl font-semibold leading-tight text-[var(--brand-navy)] dark:text-white">
+          {value}
+        </p>
+        <div className={`h-1 w-10 rounded-full ${ACCENT_CLASS[accentColor]}`} />
       </CardContent>
     </Card>
   );
