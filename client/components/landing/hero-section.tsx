@@ -19,10 +19,10 @@ export function HeroSection() {
       <div className="flex flex-col gap-10 md:flex-row md:items-center">
         <div className="flex flex-1 flex-col gap-8">
           <div className="flex flex-col gap-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] text-xs font-bold tracking-widest uppercase w-fit">
+            {/* <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] text-xs font-bold tracking-widest uppercase w-fit">
               <Star className="size-3.5" />
               Premium Event Planning
-            </div>
+            </div> */}
             <h1 className="text-5xl md:text-6xl font-black leading-[1.1] tracking-tight text-emerald-950 dark:text-white">
               Elevate Your{" "}
               <span className="text-[#044b36] dark:text-[#D4AF37]">Event Management</span> Experience
@@ -33,10 +33,10 @@ export function HeroSection() {
           </div>
           <div className="flex flex-wrap gap-4">
             <Button asChild size="lg" className="min-w-[180px] h-14 rounded-xl bg-[#044b36] hover:bg-[#065f46] text-white shadow-xl shadow-[#044b36]/30 hover:scale-[1.02] transition-transform">
-              <Link href="/events/discover">Start Your Event</Link>
+              <Link href="/discover">Start Your Event</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="min-w-[180px] h-14 rounded-xl border-2 border-emerald-900/10 dark:border-emerald-800 hover:border-[#D4AF37]/50">
-              <Link href="/events/discover">Watch Demo</Link>
+              <Link href="/discover">Watch Demo</Link>
             </Button>
           </div>
           <div className="flex items-center gap-4 text-sm text-emerald-900/50 dark:text-emerald-100/40">

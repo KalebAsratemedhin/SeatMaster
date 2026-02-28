@@ -7,7 +7,6 @@ import { useDispatch } from "react-redux";
 import { setCredentials } from "@/lib/slices/authSlice";
 import { AuthLayout } from "./auth-layout";
 import { AuthModeTabs } from "./auth-mode-tabs";
-import { SocialButtons } from "./social-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -174,8 +173,6 @@ export function AuthForm() {
             {isLoading ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
           </Button>
         </form>
-
-        <SocialButtons />
 
         {mode === "signup" && (
           <p className="text-center text-sm text-slate-500 dark:text-slate-400">

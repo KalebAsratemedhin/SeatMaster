@@ -9,6 +9,9 @@ import (
 func CORS(next http.Handler) http.Handler {
 	allowedOrigins := os.Getenv("CORS_ORIGINS")
 	if allowedOrigins == "" {
+		allowedOrigins = os.Getenv("FRONTEND_URL")
+	}
+	if allowedOrigins == "" {
 		allowedOrigins = "http://localhost:3000"
 	}
 	origins := strings.Split(allowedOrigins, ",")

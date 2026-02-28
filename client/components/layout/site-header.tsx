@@ -27,9 +27,10 @@ import {
   Mail,
   Compass,
   Search,
+  X,
 } from "lucide-react";
 
-function HeaderSearch({
+export function HeaderSearch({
   placeholder = "Search events...",
   className = "",
 }: {
@@ -37,26 +38,38 @@ function HeaderSearch({
   className?: string;
 }) {
   const router = useRouter();
+  const token = useSelector((state: RootState) => state.auth.token);
   const [query, setQuery] = useState("");
+  const discoverPath = token ? "/events/discover" : "/discover";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();
-    router.push(q ? `/events/discover?q=${encodeURIComponent(q)}` : "/events/discover");
+    router.push(q ? `${discoverPath}?q=${encodeURIComponent(q)}` : discoverPath);
   };
 
   return (
     <form onSubmit={handleSubmit} className={className} role="search">
-      <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500/50">
+      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500/50">
         <Search className="size-4 shrink-0 text-slate-400 ml-3" aria-hidden />
         <input
           type="search"
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent py-2 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent py-2 pr-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
           aria-label="Search events"
         />
+        {query.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            className="shrink-0 flex items-center justify-center size-7 rounded-full mr-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/80 dark:hover:text-slate-300 dark:hover:bg-slate-700/80 transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="size-4" strokeWidth={2.25} />
+          </button>
+        )}
       </div>
     </form>
   );

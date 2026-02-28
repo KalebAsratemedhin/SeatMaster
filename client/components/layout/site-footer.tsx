@@ -4,7 +4,7 @@ import { Logo } from "@/components/ui/logo";
 const FOOTER_LINKS = {
   Product: [
     { href: "/events", label: "My Events" },
-    { href: "/events/discover", label: "Discover Events" },
+    { href: "/discover", label: "Discover Events" },
   ],
   Company: [
     { href: "/about", label: "About" },
