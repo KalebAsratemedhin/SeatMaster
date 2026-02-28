@@ -1,5 +1,7 @@
-# Database connection string - can be overridden via environment
-DB_URL ?= postgres://postgres:postgres@localhost:5435/seatmaster?sslmode=disable
+# Database: set DATABASE_URL (or DB_URL) - used by server and migrate CLI
+# Example: postgres://user:pass@host:5432/dbname?sslmode=require
+DATABASE_URL ?= postgres://postgres:postgres@localhost:5435/seatmaster?sslmode=disable
+DB_URL ?= $(DATABASE_URL)
 MIGRATIONS_PATH ?= migrations
 BINARY ?= server
 

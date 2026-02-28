@@ -77,15 +77,15 @@ API base path: `/api/v1`. Auth is JWT-based; some routes use optional auth so pu
 ## Quick Start
 
 1. **Backend**  
-   - Copy `.env` (e.g. from a template) in `server/` with DB URL, JWT secret, `PORT`, `UPLOAD_DIR`, `BASE_URL`.  
-   - From `server/`: run migrations, then start the API (e.g. `go run ./cmd/server` or use the Makefile).
+   - Copy `.env` from `server/.env.example` in `server/`. Set `DATABASE_URL` (or `DB_URL`) to your Postgres connection string, plus `JWT_SECRET`, `PORT`, `UPLOAD_DIR`, `BASE_URL` as needed.  
+   - From `server/`: run migrations (they run on server start, or use `make migrate-up` with the migrate CLI), then start the API (e.g. `go run ./cmd/server` or `make build && ./server`).
 
 2. **Frontend**  
    - In `client/`, set `NEXT_PUBLIC_API_URL` if the API is not at `http://localhost:8080`.  
    - Run `npm install` and `npm run dev`.
 
 3. **Database**  
-   - PostgreSQL; connection string and migration usage are configured in `server/` (see `database` package and `cmd/server/main.go`).
+   - PostgreSQL; the server expects a single connection string in `DATABASE_URL` or `DB_URL` (e.g. `postgres://user:pass@host:port/dbname?sslmode=require`).
 
 ---
 
