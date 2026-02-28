@@ -48,13 +48,29 @@ API base path: `/api/v1`. Auth is JWT-based; some routes use optional auth so pu
 
 ## Features
 
-- **Auth** — Register, login, JWT-protected routes, optional auth for public content.
-- **Profile** — View and update profile; avatar upload.
-- **Events** — Create, list, get, update, delete; public/private visibility; location and map (lat/lng); event type, date, start/end time; banner upload.
-- **Discover** — List public events.
-- **Invitations** — Invite users to events; list event invites; list “my invitations”; RSVP (accept/decline).
-- **Seating** — Event tables (create, update, delete); seats per table; seating order for events.
-- **Uploads** — Banner images for events; avatar images for users (served under `/uploads/`).
+- **Auth** — Register (first name, last name, email, password), login, JWT; optional auth for public content.
+- **Profile** — View/update profile; avatar upload.
+- **App shell** — Sidebar: Dashboard, Events, Invitations, Discover, Profile. Header: logo, search bar (left on app, center on home), Home link (app layout), user name + avatar dropdown. Mobile: menu icon opens nav popup; logo centered.
+- **Dashboard** — Organizer and guest event stats (pie charts); Recent RSVPs and Events you RSVP'd to (tables, empty states).
+- **Events** — CRUD; visibility; location + map; type, date, times; banner. Detail: map, tabs (Comments, Chat, Seating, Invitation list for organizer).
+- **Discover** — Public events; filters by date, type, location. Header search → discover with query.
+- **Invitations** — Invite by email; list invites; my invitations; RSVP (accept/decline).
+- **Seating** — Tables and seats per event; reorder.
+- **Uploads** — Event banners and avatars (`/uploads/`).
+
+---
+
+## Testing the backend before deploy
+
+1. **Build** — Ensure the binary compiles:  
+   `cd server && go build ./cmd/server` (or `make build` to produce a `server` binary).
+2. **Tests** — Run Go tests:  
+   `go test ./...` (no tests in repo yet; add unit/integration tests as needed).
+3. **Run locally** — With `.env` and PostgreSQL available:  
+   `go run ./cmd/server` (or run the built binary). Server starts migrations then listens (default `:8080`).
+4. **Smoke test** — Hit a public endpoint to confirm the API is up:  
+   `curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/v1/events/public`  
+   Expect `200` (or `404` if route prefix differs; adjust URL to match your router).
 
 ---
 

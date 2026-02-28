@@ -50,7 +50,7 @@ function NavLinks({
   return (
     <ul className="space-y-1" role="list">
       {items.map(({ href, label, icon: Icon, match }) => {
-        const itemKey = `${href}\n${item.label}`;
+        const itemKey = `${href}\n${label}`;
         const current = activeKey === itemKey;
         return (
           <li key={itemKey}>

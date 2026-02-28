@@ -1,6 +1,15 @@
 # Database connection string - can be overridden via environment
 DB_URL ?= postgres://postgres:postgres@localhost:5435/seatmaster?sslmode=disable
 MIGRATIONS_PATH ?= migrations
+BINARY ?= server
+
+# Build the API binary (no DB required)
+build:
+	go build -o $(BINARY) ./cmd/server
+
+# Run all tests
+test:
+	go test ./...
 
 # Migrate - uses Go program (reads from .env)
 migrate:
@@ -31,4 +40,4 @@ deps:
 	go mod download
 	go mod tidy
 
-.PHONY: migrate migrate-up migrate-down migrate-version migrate-create migrate-clean deps
+.PHONY: build test migrate migrate-up migrate-down migrate-version migrate-create migrate-clean deps
