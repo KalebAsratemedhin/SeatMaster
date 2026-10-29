@@ -10,15 +10,16 @@ import (
 )
 
 type Router struct {
-	authHandler      *handlers.AuthHandler
-	eventHandler     *handlers.EventHandler
-	uploadHandler    *handlers.UploadHandler
-	profileHandler   *handlers.ProfileHandler
-	commentHandler  *handlers.CommentHandler
-	chatHandler      *handlers.ChatHandler
-	chatWSHandler    *handlers.ChatWSHandler
-	dashboardHandler *handlers.DashboardHandler
-	authMiddleware   *middleware.AuthMiddleware
+	authHandler            *handlers.AuthHandler
+	eventHandler           *handlers.EventHandler
+	uploadHandler          *handlers.UploadHandler
+	profileHandler         *handlers.ProfileHandler
+	commentHandler         *handlers.CommentHandler
+	chatHandler            *handlers.ChatHandler
+	chatWSHandler          *handlers.ChatWSHandler
+	dashboardHandler       *handlers.DashboardHandler
+	invitationCardHandler  *handlers.InvitationCardHandler
+	authMiddleware         *middleware.AuthMiddleware
 }
 
 func NewRouter(
@@ -30,18 +31,20 @@ func NewRouter(
 	chatHandler *handlers.ChatHandler,
 	chatWSHandler *handlers.ChatWSHandler,
 	dashboardHandler *handlers.DashboardHandler,
+	invitationCardHandler *handlers.InvitationCardHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) *Router {
 	return &Router{
-		authHandler:      authHandler,
-		eventHandler:     eventHandler,
-		uploadHandler:    uploadHandler,
-		profileHandler:   profileHandler,
-		commentHandler:   commentHandler,
-		chatHandler:      chatHandler,
-		chatWSHandler:    chatWSHandler,
-		dashboardHandler: dashboardHandler,
-		authMiddleware:   authMiddleware,
+		authHandler:           authHandler,
+		eventHandler:          eventHandler,
+		uploadHandler:         uploadHandler,
+		profileHandler:        profileHandler,
+		commentHandler:        commentHandler,
+		chatHandler:           chatHandler,
+		chatWSHandler:         chatWSHandler,
+		dashboardHandler:      dashboardHandler,
+		invitationCardHandler: invitationCardHandler,
+		authMiddleware:        authMiddleware,
 	}
 }
 
@@ -65,19 +68,25 @@ func (r *Router) SetupRoutes(uploadDir string) *mux.Router {
 	eventsPublic.HandleFunc("/{id}", r.eventHandler.GetEvent).Methods("GET")
 	// Public comments (optional auth: need access to event)
 	eventsPublic.HandleFunc("/{id}/comments", r.commentHandler.ListComments).Methods("GET")
+	// Invitation card: owner sees draft; others only when published
+	eventsPublic.HandleFunc("/{id}/invitation-card", r.invitationCardHandler.Get).Methods("GET")
 
 	// Protected event routes
 	protected := api.PathPrefix("").Subrouter()
 	protected.Use(r.authMiddleware.Middleware)
 	protected.HandleFunc("/upload/banner", r.uploadHandler.UploadBanner).Methods("POST")
 	protected.HandleFunc("/events/{id}/comments", r.commentHandler.CreateComment).Methods("POST")
+	protected.HandleFunc("/events/{id}/invitation-card", r.invitationCardHandler.Upsert).Methods("PUT")
+	protected.HandleFunc("/events/{id}/invitation-card", r.invitationCardHandler.Delete).Methods("DELETE")
 	protected.HandleFunc("/events/{id}/chat/threads", r.chatHandler.ListThreads).Methods("GET")
 	protected.HandleFunc("/events/{id}/chat/thread", r.chatHandler.GetOrCreateThread).Methods("GET")
 	protected.HandleFunc("/events/{id}/chat/threads/{threadId}/messages", r.chatHandler.ListMessages).Methods("GET")
 	protected.HandleFunc("/events/{id}/chat/threads/{threadId}/messages", r.chatHandler.SendMessage).Methods("POST")
 	protected.HandleFunc("/upload/avatar", r.uploadHandler.UploadAvatar).Methods("POST")
+	protected.HandleFunc("/users/me/password", r.profileHandler.ChangePassword).Methods("PUT")
 	protected.HandleFunc("/users/me", r.profileHandler.GetProfile).Methods("GET")
 	protected.HandleFunc("/users/me", r.profileHandler.UpdateProfile).Methods("PUT")
+	protected.HandleFunc("/users/me", r.profileHandler.DeleteAccount).Methods("DELETE")
 	protected.HandleFunc("/dashboard", r.dashboardHandler.GetDashboard).Methods("GET")
 	protected.HandleFunc("/events", r.eventHandler.CreateEvent).Methods("POST")
 	protected.HandleFunc("/events", r.eventHandler.GetEvents).Methods("GET")

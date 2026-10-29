@@ -33,3 +33,17 @@ type UpdateProfileRequest struct {
 	Phone     string `json:"phone"`
 	AvatarURL string `json:"avatar_url"`
 }
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+type DeleteAccountRequest struct {
+	Password     string `json:"password"`
+	Confirmation string `json:"confirmation"`
+}
+
+type OkResponse struct {
+	OK bool `json:"ok"`
+}

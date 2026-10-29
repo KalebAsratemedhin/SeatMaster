@@ -19,7 +19,6 @@ import { getInitialsFromEmail } from "@/lib/user-display";
 import type { RootState } from "@/lib/store";
 import {
   LogOut,
-  User,
   Settings,
   Menu,
   LayoutDashboard,
@@ -88,7 +87,7 @@ export function SiteHeader() {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/invitations", label: "Invitations", icon: Mail },
     { href: "/events/discover", label: "Events", icon: Calendar },
-    { href: "/profile", label: "Profile", icon: User },
+    { href: "/settings", label: "Settings", icon: Settings },
   ] as const;
 
   const handleLogout = () => {
@@ -129,7 +128,8 @@ export function SiteHeader() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex items-center gap-2 rounded-full py-1.5 pl-1 pr-3 focus-visible:ring-0 focus-visible:ring-offset-0"
+              size="icon"
+              className="rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
               aria-label="Open account menu"
             >
               <Avatar
@@ -149,20 +149,9 @@ export function SiteHeader() {
                     : getInitialsFromEmail(user?.email)}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:inline text-sm font-medium text-slate-700 dark:text-slate-200">
-                {user?.first_name || user?.last_name
-                  ? [user?.first_name, user?.last_name].filter(Boolean).join(" ")
-                  : user?.email ?? "Account"}
-              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="z-[9999] w-48">
-            <DropdownMenuItem asChild>
-              <Link href="/profile" className="cursor-pointer">
-                <User className="mr-2 size-4" />
-                Profile
-              </Link>
-            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/settings" className="cursor-pointer">
                 <Settings className="mr-2 size-4" />

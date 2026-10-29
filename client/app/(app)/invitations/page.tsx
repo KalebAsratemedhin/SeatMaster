@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { useGetMyInvitationsQuery } from "@/lib/api/eventsApi";
@@ -20,8 +20,6 @@ export default function InvitationsPage() {
 
   const invitations = data?.items ?? [];
   const total = data?.total ?? 0;
-
-  useEffect(() => setPage(0), [pageSize]);
 
   return (
     <div className="w-full max-w-7xl mx-auto">
@@ -60,7 +58,10 @@ export default function InvitationsPage() {
                 pageSize={pageSize}
                 page={page}
                 onPageChange={setPage}
-                onPageSizeChange={setPageSize}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(0);
+                }}
               />
             </div>
           )}

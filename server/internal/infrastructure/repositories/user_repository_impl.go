@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
@@ -62,16 +63,43 @@ func (r *userRepositoryImpl) ExistsByEmail(ctx context.Context, email string) (b
 	return count > 0, nil
 }
 
+func (r *userRepositoryImpl) ExistsByID(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&entities.User{}).Where("id = ?", id).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *userRepositoryImpl) Update(ctx context.Context, user *entities.User) error {
 	result := r.db.WithContext(ctx).Model(user).Updates(map[string]interface{}{
-		"first_name":  user.FirstName,
-		"last_name":   user.LastName,
-		"phone":       user.Phone,
-		"avatar_url":  user.AvatarURL,
-		"updated_at":  user.UpdatedAt,
+		"first_name": user.FirstName,
+		"last_name":  user.LastName,
+		"phone":      user.Phone,
+		"avatar_url": user.AvatarURL,
+		"updated_at": user.UpdatedAt,
 	})
 	if result.Error != nil {
 		return result.Error
+	}
+	return nil
+}
+
+func (r *userRepositoryImpl) UpdatePassword(ctx context.Context, userID string, hashedPassword string) error {
+	return r.db.WithContext(ctx).Model(&entities.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"password":   hashedPassword,
+		"updated_at": time.Now().UTC(),
+	}).Error
+}
+
+func (r *userRepositoryImpl) Delete(ctx context.Context, id string) error {
+	res := r.db.WithContext(ctx).Where("id = ?", id).Delete(&entities.User{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 	return nil
 }

@@ -14,7 +14,6 @@ import {
   useGetEventSeatingQuery,
   useCreateEventTableMutation,
   useDeleteEventTableMutation,
-  useReorderEventTablesMutation,
   useUpdateEventTableMutation,
 } from "@/lib/api/eventsApi";
 import { useListCommentsQuery, useCreateCommentMutation, type EventCommentResponse } from "@/lib/api/commentsApi";
@@ -37,7 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, UserPlus, Users, CheckCircle, Clock, ImageIcon, Table2, Plus, Loader2, Share2, MessageSquare, Send, Reply } from "lucide-react";
+import { Pencil, Trash2, MapPin, Calendar, UserPlus, Users, CheckCircle, Clock, Table2, Plus, Loader2, Share2, MessageSquare, Send, Reply } from "lucide-react";
 import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
 import { getInitialsFromEmail, getInitialsFromName } from "@/lib/user-display";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 
 const EventLocationMapDynamic = dynamic(
@@ -84,6 +83,13 @@ export default function EventDetailPage() {
   const eventReady = Boolean(event);
   const isOwner = Boolean(user && event && event.owner_id === user.id);
 
+  // Guests / public visitors land on the invitation card first; this page is for organizers.
+  useEffect(() => {
+    if (!eventReady || !event) return;
+    if (isOwner) return;
+    router.replace(`/invite/${id}`);
+  }, [eventReady, event, isOwner, id, router]);
+
   const { data: invitesData } = useGetEventInvitesQuery(
     { eventId: id, limit: guestsPageSize, offset: guestsPage * guestsPageSize },
     { skip: !id || !isOwner || !token }
@@ -105,7 +111,6 @@ export default function EventDetailPage() {
   });
   const [createTable, { isLoading: isCreatingTable }] = useCreateEventTableMutation();
   const [deleteTable, { isLoading: isDeletingTable }] = useDeleteEventTableMutation();
-  const [reorderTables] = useReorderEventTablesMutation();
   const [updateEventTable] = useUpdateEventTableMutation();
   const [newTableCapacity, setNewTableCapacity] = useState(6);
   const [newTableShape, setNewTableShape] = useState<"round" | "rectangular" | "grid">("round");
@@ -127,14 +132,13 @@ export default function EventDetailPage() {
     { eventId: id, limit: 50, offset: 0 },
     { skip: !id }
   );
-  const comments = commentsData?.items ?? [];
   const [createComment, { isLoading: isPostingComment }] = useCreateCommentMutation();
   const [commentBody, setCommentBody] = useState("");
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
 
   type CommentNode = { comment: EventCommentResponse; replies: CommentNode[] };
   const commentTree = useMemo(() => {
-    const items = comments;
+    const items = commentsData?.items ?? [];
     const byParent = new Map<string | null, EventCommentResponse[]>();
     byParent.set(null, []);
     for (const c of items) {
@@ -147,7 +151,7 @@ export default function EventDetailPage() {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
         .map((c) => ({ comment: c, replies: build(c.id) }));
     return build(null);
-  }, [comments]);
+  }, [commentsData?.items]);
 
   // Chat (private 1:1): owner lists threads; invited guest opens their own thread only
   const { data: chatThreads = [] } = useListThreadsQuery(id, {
@@ -181,13 +185,12 @@ export default function EventDetailPage() {
     }
   }, [messagesData, chatOffset]);
 
-  const restMessages = (messagesData?.items ?? []) as EventChatMessageResponse[];
   const { messages: wsMessages, connected, sendMessage } = useChatWebSocket(
     threadIdForApi,
     token
   );
-  // Oldest → newest. Pane uses flex-col-reverse so the thread sits above the composer.
   const allMessages = useMemo(() => {
+    const restMessages = (messagesData?.items ?? []) as EventChatMessageResponse[];
     const seen = new Set(restMessages.map((m) => m.id));
     const fromWs = wsMessages.filter((m) => !seen.has(m.id));
     return [...restMessages, ...fromWs].sort((a, b) => {
@@ -196,7 +199,7 @@ export default function EventDetailPage() {
       if (ta !== tb) return ta - tb;
       return a.id.localeCompare(b.id);
     });
-  }, [restMessages, wsMessages]);
+  }, [messagesData?.items, wsMessages]);
   const [chatInput, setChatInput] = useState("");
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -277,6 +280,15 @@ export default function EventDetailPage() {
     );
   }
 
+  if (!isOwner) {
+    return (
+      <div className="container max-w-3xl mx-auto px-4 py-16 flex flex-col items-center gap-3">
+        <Loader2 className="size-6 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Opening invitation…</p>
+      </div>
+    );
+  }
+
   const confirmedCount = invites.filter((i) => i.status === "confirmed").length;
   const responseRate =
     invites.length > 0
@@ -285,26 +297,6 @@ export default function EventDetailPage() {
 
   return (
     <div className="text-slate-900 dark:text-slate-100">
-      {/* Full-width banner */}
-      {event.banner_url ? (
-        <div
-          className="w-full h-48 sm:h-56 md:h-72 lg:h-80 bg-cover bg-center"
-          style={{ backgroundImage: `url(${event.banner_url})` }}
-        />
-      ) : (
-        <div className="w-full h-48 sm:h-56 md:h-72 lg:h-80 bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center gap-3 border-b border-slate-200 dark:border-slate-700">
-          <div className="size-16 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-            <ImageIcon className="size-8 text-slate-400 dark:text-slate-500" />
-          </div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            No banner image
-          </p>
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            Add a banner in event settings for a richer preview
-          </p>
-        </div>
-      )}
-
       <div className="flex-1 w-full max-w-7xl mx-auto py-4 lg:py-6">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
           {/* Main content */}
@@ -347,14 +339,11 @@ export default function EventDetailPage() {
                   {event.message}
                 </p>
               )}
-              {event.visibility === "public" && (() => {
-                const eventDateStr = event.event_date ?? "";
-                const todayStr = new Date().toISOString().slice(0, 10);
-                const isEventPast = eventDateStr !== "" && eventDateStr < todayStr;
-                const rsvpPath = `/events/${id}/rsvp`;
+              {(() => {
+                const invitePath = `/invite/${id}`;
                 const handleShare = () => {
                   if (typeof window !== "undefined" && typeof navigator !== "undefined") {
-                    const url = `${window.location.origin}${rsvpPath}`;
+                    const url = `${window.location.origin}${invitePath}`;
                     navigator.clipboard.writeText(url);
                     setShareCopied(true);
                     setTimeout(() => setShareCopied(false), 2000);
@@ -362,11 +351,6 @@ export default function EventDetailPage() {
                 };
                 return (
                   <div className="mt-6 flex flex-wrap items-center gap-3">
-                    {!isOwner && !isEventPast && (
-                      <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl">
-                        <Link href={rsvpPath}>RSVP</Link>
-                      </Button>
-                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -374,7 +358,10 @@ export default function EventDetailPage() {
                       onClick={handleShare}
                     >
                       <Share2 className="size-4" />
-                      {shareCopied ? "Copied" : "Share"}
+                      {shareCopied ? "Copied invite link" : "Share invitation"}
+                    </Button>
+                    <Button asChild variant="ghost" size="sm" className="rounded-xl">
+                      <Link href={invitePath}>Preview card</Link>
                     </Button>
                   </div>
                 );
@@ -932,6 +919,12 @@ export default function EventDetailPage() {
               )}
               {isOwner && token && (
                 <div className="pt-4 mt-4 border-t border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2">
+                  <Button variant="outline" size="sm" asChild className="w-full rounded-xl">
+                    <Link href={`/events/${event.id}/invitation-card`}>
+                      <Share2 className="size-4 mr-2" />
+                      Invitation card
+                    </Link>
+                  </Button>
                   <Button variant="outline" size="sm" asChild className="w-full rounded-xl">
                     <Link href={`/events/${event.id}/edit`}>
                       <Pencil className="size-4 mr-2" />

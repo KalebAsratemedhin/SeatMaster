@@ -31,6 +31,8 @@ export type EventResponse = {
   location: string;
   latitude: number;
   longitude: number;
+  /** Minimized invitation-card PNG when one has been saved. */
+  invitation_preview_url?: string;
   created_at: string;
   updated_at: string;
 };
@@ -99,10 +101,51 @@ export type ListPublicEventsParams = {
   offset?: number;
 };
 
+/** Freeform canvas document (REQ-002). Opaque JSON validated lightly on the server. */
+export type InvitationCardDocument = {
+  version: 1;
+  width: number;
+  height: number;
+  background: string;
+  elements: unknown[];
+  engine?: "fabric" | "legacy";
+  fabric?: Record<string, unknown>;
+};
+
+export type InvitationCardResponse = {
+  id: string;
+  event_id: string;
+  template_id: string;
+  headline: string | null;
+  host_line: string | null;
+  body_message: string | null;
+  accent_key: string | null;
+  show_banner: boolean;
+  published: boolean;
+  document?: InvitationCardDocument | null;
+  preview_url?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UpsertInvitationCardRequest = {
+  template_id: string;
+  headline?: string | null;
+  host_line?: string | null;
+  body_message?: string | null;
+  accent_key?: string | null;
+  show_banner: boolean;
+  published: boolean;
+  /** When set, persists the canvas document (requires REQ-002). */
+  document?: InvitationCardDocument | null;
+  /** Thumbnail URL for event list cards. */
+  preview_url?: string | null;
+};
+
 export const eventsApi = createApi({
   reducerPath: "eventsApi",
   baseQuery: axiosBaseQuery(),
-  tagTypes: ["Events", "Event", "EventInvites"],
+  tagTypes: ["Events", "Event", "EventInvites", "InvitationCard"],
   endpoints: (builder) => ({
     createEvent: builder.mutation<EventResponse, CreateEventRequest>({
       query: (body) => ({ url: "/api/v1/events", method: "POST", body }),
@@ -219,6 +262,36 @@ export const eventsApi = createApi({
         `/api/v1/events/${eventId}/invites?limit=${limit}&offset=${offset}`,
       providesTags: ["EventInvites"],
     }),
+    getInvitationCard: builder.query<InvitationCardResponse, string>({
+      query: (eventId) => `/api/v1/events/${eventId}/invitation-card`,
+      providesTags: (_result, _err, eventId) => [{ type: "InvitationCard", id: eventId }],
+    }),
+    upsertInvitationCard: builder.mutation<
+      InvitationCardResponse,
+      { eventId: string; body: UpsertInvitationCardRequest }
+    >({
+      query: ({ eventId, body }) => ({
+        url: `/api/v1/events/${eventId}/invitation-card`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: (_result, _err, { eventId }) => [
+        { type: "InvitationCard", id: eventId },
+        { type: "Event", id: eventId },
+        "Events",
+      ],
+    }),
+    deleteInvitationCard: builder.mutation<void, string>({
+      query: (eventId) => ({
+        url: `/api/v1/events/${eventId}/invitation-card`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _err, eventId) => [
+        { type: "InvitationCard", id: eventId },
+        { type: "Event", id: eventId },
+        "Events",
+      ],
+    }),
   }),
 });
 
@@ -239,4 +312,7 @@ export const {
   useUpdateEventTableMutation,
   useDeleteEventTableMutation,
   useReorderEventTablesMutation,
+  useGetInvitationCardQuery,
+  useUpsertInvitationCardMutation,
+  useDeleteInvitationCardMutation,
 } = eventsApi;

@@ -15,7 +15,7 @@ import {
 import type { EventResponse } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
 import { getInitialsFromEmail } from "@/lib/user-display";
-import { BannerUpload } from "@/components/events/banner-upload";
+import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,13 +29,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Lightbulb,
-  Lock,
   UserPlus,
   X,
-  CheckCircle2,
   Loader2,
 } from "lucide-react";
 
@@ -56,14 +54,14 @@ const EVENT_TYPES = [
 ] as const;
 
 const VISIBILITY_OPTIONS = [
-  { value: "public", label: "Public" },
-  { value: "private", label: "Private" },
+  { value: "public", label: "Public — listed for everyone" },
+  { value: "private", label: "Private — invite only" },
 ] as const;
 
 export const WIZARD_STEPS = [
   { id: "details", label: "Details" },
-  { id: "guest_list", label: "Guest List" },
-  { id: "invitations", label: "Invitations" },
+  { id: "guest_list", label: "Guests" },
+  { id: "invitations", label: "Invite" },
   { id: "review", label: "Review" },
 ] as const;
 
@@ -96,6 +94,9 @@ const EMPTY_FORM: EventFormState = {
   latitude: 9.03,
   longitude: 38.74,
 };
+
+const fieldClass =
+  "rounded-xl border-border bg-card shadow-none text-foreground";
 
 function isWizardStep(value: string | null): value is WizardStepId {
   return WIZARD_STEPS.some((s) => s.id === value);
@@ -151,55 +152,85 @@ function WizardProgress({
   onSelect: (step: WizardStepId) => void;
 }) {
   const index = stepIndex(current);
-  const pct = Math.round(((index + 1) / WIZARD_STEPS.length) * 100);
   return (
-    <div className="mb-8">
-      <h2 className="text-lg font-semibold mb-2">
-        Step {index + 1}: {WIZARD_STEPS[index]?.label}
-      </h2>
-      <div className="flex items-center justify-between gap-4 mb-3">
-        <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary rounded-full transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <span className="text-sm font-medium text-muted-foreground shrink-0">
-          {pct}% Complete
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-2">
+    <nav aria-label="Create event steps" className="mb-10">
+      <ol className="flex items-center gap-1 sm:gap-2">
         {WIZARD_STEPS.map((step, i) => {
           const done = i < index;
           const active = i === index;
-          const reachable =
-            step.id === "details" ||
-            (Boolean(eventId) && i <= index + 1);
+          const reachable = step.id === "details" || (Boolean(eventId) && i <= index + 1);
           return (
-            <button
-              key={step.id}
-              type="button"
-              disabled={!reachable}
-              onClick={() => onSelect(step.id)}
-              className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : done
-                    ? "bg-primary/15 text-primary hover:bg-primary/25"
-                    : reachable
-                      ? "bg-slate-100 dark:bg-slate-800 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-700"
-                      : "bg-slate-100 dark:bg-slate-800 text-muted-foreground/50 cursor-not-allowed"
-              }`}
-            >
-              {done && <CheckCircle2 className="size-3.5" />}
-              {step.label}
+            <li key={step.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+              <button
+                type="button"
+                disabled={!reachable}
+                onClick={() => onSelect(step.id)}
+                className={`flex min-w-0 items-center gap-2 rounded-full px-2.5 py-2 text-left transition sm:px-3 ${
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : done
+                      ? "text-foreground hover:bg-primary/10"
+                      : reachable
+                        ? "text-muted-foreground hover:bg-primary/10"
+                        : "cursor-not-allowed text-muted-foreground/40"
+                }`}
+              >
+                <span
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ${
+                    active
+                      ? "bg-primary-foreground/20"
+                      : done
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {done ? "✓" : i + 1}
+                </span>
+                <span className="hidden truncate text-sm font-medium sm:inline">{step.label}</span>
+              </button>
               {i < WIZARD_STEPS.length - 1 && (
-                <ChevronRight className="size-3.5 opacity-70" />
+                <div
+                  className={`hidden h-px flex-1 sm:block ${
+                    done ? "bg-primary/40" : "bg-border"
+                  }`}
+                />
               )}
-            </button>
+            </li>
           );
         })}
+      </ol>
+    </nav>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  hint,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <Label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
+          {label}
+        </Label>
+        {hint ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
       </div>
+      {children}
+    </div>
+  );
+}
+
+function FooterActions({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-t border-border pt-6">
+      {children}
     </div>
   );
 }
@@ -225,7 +256,9 @@ export function EventCreateWizard() {
   const [guestError, setGuestError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [inviteSendError, setInviteSendError] = useState<string | null>(null);
-  const [sendResults, setSendResults] = useState<{ email: string; ok: boolean; message?: string }[]>([]);
+  const [sendResults, setSendResults] = useState<{ email: string; ok: boolean; message?: string }[]>(
+    []
+  );
   const [isSendingInvites, setIsSendingInvites] = useState(false);
 
   const [createEvent, { isLoading: isCreating }] = useCreateEventMutation();
@@ -382,130 +415,154 @@ export function EventCreateWizard() {
 
   if (eventId && eventLoading && !event) {
     return (
-      <div className="w-full max-w-6xl mx-auto py-8">
-        <p className="text-muted-foreground">Loading event...</p>
+      <div className="mx-auto w-full max-w-3xl py-12">
+        <p className="text-muted-foreground">Loading event…</p>
       </div>
     );
   }
 
-  const activeStep: WizardStepId =
-    step !== "details" && !eventId ? "details" : step;
+  const activeStep: WizardStepId = step !== "details" && !eventId ? "details" : step;
   const savingDetails = isCreating || isUpdating;
   const typeLabel =
-    EVENT_TYPES.find((t) => t.value === form.event_type)?.label ||
-    form.event_type ||
-    "—";
+    EVENT_TYPES.find((t) => t.value === form.event_type)?.label || form.event_type || "—";
+  const stepMeta = WIZARD_STEPS[stepIndex(activeStep)];
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <nav className="mb-6 text-sm text-muted-foreground">
-        <Link
-          href="/events/discover?mine=1"
-          className="hover:text-foreground transition-colors"
-        >
-          Events
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-foreground font-medium">Create New Event</span>
-      </nav>
+    <div className="mx-auto w-full max-w-3xl pb-12">
+      <Link
+        href="/events/discover?mine=1"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-primary"
+      >
+        <ArrowLeft className="size-3.5" />
+        Events
+      </Link>
 
-      <h1 className="text-3xl font-bold tracking-tight mb-2">Create New Event</h1>
-      <p className="text-muted-foreground mb-8">
-        Create the event, add guests, send invitations, then review.
-      </p>
+      <header className="mb-8">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">
+          Step {stepIndex(activeStep) + 1} of {WIZARD_STEPS.length}
+        </p>
+        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground">
+          {eventId ? "Continue setup" : "Create event"}
+        </h1>
+        <p className="mt-2 text-base text-muted-foreground">
+          {activeStep === "details" && "Name it, set the time and place, then continue."}
+          {activeStep === "guest_list" && "Add guest emails now — you can invite more later."}
+          {activeStep === "invitations" && "Send invites when you’re ready, or skip for now."}
+          {activeStep === "review" && "A quick check before you open the event."}
+        </p>
+      </header>
 
-      <WizardProgress
-        current={activeStep}
-        eventId={eventId}
-        onSelect={handleStepChipClick}
-      />
+      <WizardProgress current={activeStep} eventId={eventId} onSelect={handleStepChipClick} />
 
       {activeStep === "details" && (
         <form onSubmit={handleSaveDetails} className="space-y-10">
-          <section className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-6 sm:p-8 space-y-6">
-            <div className="pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Event Details
-              </h2>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Event Name *</Label>
+          <section className="space-y-5">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Basics
+            </h2>
+            <Field label="Event name *" htmlFor="name">
               <Input
                 id="name"
                 required
-                placeholder="e.g. Annual Tech Conference 2024"
+                placeholder="Summer garden party"
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+                className={fieldClass}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event_type">Event Type</Label>
-              <Select
-                value={form.event_type || undefined}
-                onValueChange={(v) => setForm((prev) => ({ ...prev, event_type: v }))}
-              >
-                <SelectTrigger
-                  id="event_type"
-                  className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+            </Field>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Field label="Type" htmlFor="event_type">
+                <Select
+                  value={form.event_type || undefined}
+                  onValueChange={(v) => setForm((prev) => ({ ...prev, event_type: v }))}
                 >
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {EVENT_TYPES.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger id="event_type" className={fieldClass}>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EVENT_TYPES.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Visibility" htmlFor="visibility">
+                <Select
+                  value={form.visibility}
+                  onValueChange={(visibility) => setForm((prev) => ({ ...prev, visibility }))}
+                >
+                  <SelectTrigger id="visibility" className={fieldClass}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VISIBILITY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="location">Venue Name</Label>
-              <Input
-                id="location"
-                placeholder="e.g. Grand Plaza Hotel"
-                value={form.location}
-                onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
-                className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
+            <Field label="Description" htmlFor="message" hint="Optional">
+              <textarea
+                id="message"
+                className={`flex min-h-[96px] w-full border px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 ${fieldClass}`}
+                placeholder="A short note for your guests"
+                value={form.message}
+                onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
               />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="event_date">Date *</Label>
-                <DatePicker
-                  value={form.event_date}
-                  onChange={(event_date) => setForm((prev) => ({ ...prev, event_date }))}
-                  placeholder="Pick event date"
-                  className="rounded-xl border-slate-200 dark:border-slate-600"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="start_time">Start Time</Label>
+            </Field>
+          </section>
+
+          <section className="space-y-5 border-t border-border pt-10">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              When
+            </h2>
+            <Field label="Date *" htmlFor="event_date">
+              <DatePicker
+                value={form.event_date}
+                onChange={(event_date) => setForm((prev) => ({ ...prev, event_date }))}
+                placeholder="Pick a date"
+                className={fieldClass}
+              />
+            </Field>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Field label="Starts" htmlFor="start_time">
                 <TimePicker
                   value={form.start_time}
                   onChange={(start_time) => setForm((prev) => ({ ...prev, start_time }))}
                   placeholder="Start time"
-                  className="rounded-xl border-slate-200 dark:border-slate-600"
+                  className={fieldClass}
                 />
-              </div>
+              </Field>
+              <Field label="Ends" htmlFor="end_time">
+                <TimePicker
+                  value={form.end_time}
+                  onChange={(end_time) => setForm((prev) => ({ ...prev, end_time }))}
+                  placeholder="End time"
+                  className={fieldClass}
+                />
+              </Field>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="end_time">End Time</Label>
-              <TimePicker
-                value={form.end_time}
-                onChange={(end_time) => setForm((prev) => ({ ...prev, end_time }))}
-                placeholder="End time"
-                className="rounded-xl border-slate-200 dark:border-slate-600"
+          </section>
+
+          <section className="space-y-5 border-t border-border pt-10">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Where
+            </h2>
+            <Field label="Venue" htmlFor="location" hint="Optional">
+              <Input
+                id="location"
+                placeholder="Venue or neighborhood"
+                value={form.location}
+                onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
+                className={fieldClass}
               />
-            </div>
-            <BannerUpload
-              value={form.banner_url}
-              onChange={(url) => setForm((prev) => ({ ...prev, banner_url: url }))}
-              disabled={savingDetails}
-            />
-            <div className="space-y-2 pt-6 border-t border-slate-200/80 dark:border-slate-700/80">
-              <Label>Choose location on map</Label>
+            </Field>
+            <div className="overflow-hidden rounded-2xl ring-1 ring-border">
               <LocationPickerMapDynamic
                 latitude={form.latitude}
                 longitude={form.longitude}
@@ -522,145 +579,81 @@ export function EventCreateWizard() {
                 height="240px"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="message">Message / Description</Label>
-              <textarea
-                id="message"
-                className="flex min-h-[80px] w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0"
-                placeholder="Optional description"
-                value={form.message}
-                onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="visibility">Visibility</Label>
-                <Select
-                  value={form.visibility}
-                  onValueChange={(visibility) =>
-                    setForm((prev) => ({ ...prev, visibility }))
-                  }
-                >
-                  <SelectTrigger
-                    id="visibility"
-                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Tap the map to set the pin. You can refine the invitation card later.
+            </p>
           </section>
 
-          {detailsError && (
-            <p className="text-destructive text-sm">{detailsError}</p>
-          )}
+          {detailsError && <p className="text-sm text-destructive">{detailsError}</p>}
 
-          <div className="flex flex-wrap gap-4">
-            <Button type="button" variant="outline" asChild className="rounded-xl">
+          <FooterActions>
+            <Button type="button" variant="ghost" asChild className="rounded-xl">
               <Link href="/events/discover?mine=1">Cancel</Link>
             </Button>
+            <div className="flex-1" />
             <Button
               type="submit"
               disabled={savingDetails}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl"
+              className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
             >
               {savingDetails ? (
                 <>
-                  <Loader2 className="size-4 animate-spin mr-1" />
-                  Saving...
+                  <Loader2 className="mr-1 size-4 animate-spin" />
+                  Saving…
                 </>
               ) : (
                 <>
-                  {eventId ? "Save & Continue" : "Create & Continue"}
-                  <ChevronRight className="size-4 ml-1" />
+                  Continue
+                  <ChevronRight className="ml-1 size-4" />
                 </>
               )}
             </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/30 p-4 flex gap-3 items-start">
-              <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Lightbulb className="size-4 text-primary" />
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-snug">
-                A strong banner helps guests recognize your event at a glance.
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/30 p-4 flex gap-3 items-start">
-              <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-700/80 flex items-center justify-center shrink-0">
-                <Lock className="size-4 text-slate-500" />
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400 leading-snug">
-                Private events stay off the public Events list until you invite people.
-              </p>
-            </div>
-          </div>
+          </FooterActions>
         </form>
       )}
 
       {activeStep === "guest_list" && eventId && (
         <div className="space-y-8">
-          <section className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/40 p-6 sm:p-8 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Build your guest list</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Add emails now. You will send invitations on the next step.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="guest-email">Guest email</Label>
-                <Input
-                  id="guest-email"
-                  type="email"
-                  placeholder="guest@example.com"
-                  value={guestDraft}
-                  onChange={(e) => {
-                    setGuestDraft(e.target.value);
-                    setGuestError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addPendingEmail();
-                    }
-                  }}
-                  className="rounded-xl"
-                />
+          <section className="space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <Field label="Guest email" htmlFor="guest-email">
+                  <Input
+                    id="guest-email"
+                    type="email"
+                    placeholder="guest@example.com"
+                    value={guestDraft}
+                    onChange={(e) => {
+                      setGuestDraft(e.target.value);
+                      setGuestError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addPendingEmail();
+                      }
+                    }}
+                    className={fieldClass}
+                  />
+                </Field>
               </div>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  onClick={addPendingEmail}
-                  className="rounded-xl h-10 px-5"
-                >
-                  <UserPlus className="size-4 mr-2" />
-                  Add
-                </Button>
-              </div>
+              <Button type="button" onClick={addPendingEmail} className="h-10 rounded-xl px-5">
+                <UserPlus className="mr-2 size-4" />
+                Add
+              </Button>
             </div>
-            {guestError && <p className="text-destructive text-sm">{guestError}</p>}
+            {guestError && <p className="text-sm text-destructive">{guestError}</p>}
 
             {pendingEmails.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Ready to invite ({pendingEmails.length})</p>
-                <ul className="divide-y divide-slate-200 dark:divide-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div>
+                <p className="mb-3 text-sm font-medium text-foreground">
+                  Ready to invite · {pendingEmails.length}
+                </p>
+                <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card ring-1 ring-border">
                   {pendingEmails.map((email) => (
-                    <li
-                      key={email}
-                      className="flex items-center justify-between gap-3 px-4 py-3 bg-white/80 dark:bg-slate-900/30"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="size-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                    <li key={email} className="flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
                           {getInitialsFromEmail(email)}
                         </div>
                         <span className="truncate text-sm">{email}</span>
@@ -682,9 +675,11 @@ export function EventCreateWizard() {
             )}
 
             {invites.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Already invited ({invites.length})</p>
-                <ul className="text-sm text-muted-foreground space-y-1">
+              <div>
+                <p className="mb-2 text-sm font-medium text-foreground">
+                  Already invited · {invites.length}
+                </p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
                   {invites.map((inv) => (
                     <li key={inv.id}>{inv.email}</li>
                   ))}
@@ -693,16 +688,17 @@ export function EventCreateWizard() {
             )}
           </section>
 
-          <div className="flex flex-wrap gap-3">
+          <FooterActions>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               className="rounded-xl"
               onClick={() => goToStep("details")}
             >
-              <ChevronLeft className="size-4 mr-1" />
+              <ChevronLeft className="mr-1 size-4" />
               Back
             </Button>
+            <div className="flex-1" />
             <Button
               type="button"
               variant="outline"
@@ -713,65 +709,55 @@ export function EventCreateWizard() {
             </Button>
             <Button
               type="button"
-              className="rounded-xl bg-primary text-primary-foreground"
+              className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
               onClick={() => goToStep("invitations")}
             >
               Continue
-              <ChevronRight className="size-4 ml-1" />
+              <ChevronRight className="ml-1 size-4" />
             </Button>
-          </div>
+          </FooterActions>
         </div>
       )}
 
       {activeStep === "invitations" && eventId && (
         <div className="space-y-8">
-          <section className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/40 p-6 sm:p-8 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Send invitations</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                This notifies each pending guest. You can skip if you prefer to invite later from the event page.
-              </p>
-            </div>
-
+          <section className="space-y-5">
             {pendingEmails.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No pending emails.{" "}
+              <div className="rounded-2xl bg-card px-5 py-8 text-sm text-muted-foreground ring-1 ring-border">
                 {invites.length > 0
-                  ? `${invites.length} guest${invites.length === 1 ? "" : "s"} already invited.`
-                  : "Add guests on the previous step, or continue to review."}
-              </p>
+                  ? `${invites.length} guest${invites.length === 1 ? "" : "s"} already invited. You can continue.`
+                  : "No emails queued. Add guests on the previous step, or continue and invite later."}
+              </div>
             ) : (
-              <ul className="divide-y divide-slate-200 dark:divide-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card ring-1 ring-border">
                 {pendingEmails.map((email) => {
                   const result = sendResults.find((r) => r.email === email);
                   return (
-                    <li key={email} className="px-4 py-3 flex items-center justify-between gap-3 text-sm">
+                    <li key={email} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                       <span>{email}</span>
                       {result && !result.ok && (
-                        <span className="text-destructive text-xs">{result.message}</span>
+                        <span className="text-xs text-destructive">{result.message}</span>
                       )}
                     </li>
                   );
                 })}
               </ul>
             )}
-
-            {inviteSendError && (
-              <p className="text-destructive text-sm">{inviteSendError}</p>
-            )}
+            {inviteSendError && <p className="text-sm text-destructive">{inviteSendError}</p>}
           </section>
 
-          <div className="flex flex-wrap gap-3">
+          <FooterActions>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               className="rounded-xl"
               onClick={() => goToStep("guest_list")}
               disabled={isSendingInvites}
             >
-              <ChevronLeft className="size-4 mr-1" />
+              <ChevronLeft className="mr-1 size-4" />
               Back
             </Button>
+            <div className="flex-1" />
             <Button
               type="button"
               variant="outline"
@@ -783,122 +769,134 @@ export function EventCreateWizard() {
             </Button>
             <Button
               type="button"
-              className="rounded-xl bg-primary text-primary-foreground"
+              className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
               onClick={handleSendInvitations}
               disabled={isSendingInvites}
             >
               {isSendingInvites ? (
                 <>
-                  <Loader2 className="size-4 animate-spin mr-1" />
-                  Sending...
+                  <Loader2 className="mr-1 size-4 animate-spin" />
+                  Sending…
                 </>
               ) : pendingEmails.length > 0 ? (
                 <>
-                  Send {pendingEmails.length} invitation
-                  {pendingEmails.length === 1 ? "" : "s"}
-                  <ChevronRight className="size-4 ml-1" />
+                  Send {pendingEmails.length}
+                  <ChevronRight className="ml-1 size-4" />
                 </>
               ) : (
                 <>
                   Continue
-                  <ChevronRight className="size-4 ml-1" />
+                  <ChevronRight className="ml-1 size-4" />
                 </>
               )}
             </Button>
-          </div>
+          </FooterActions>
         </div>
       )}
 
       {activeStep === "review" && eventId && (
         <div className="space-y-8">
-          <section className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/40 p-6 sm:p-8 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Review</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Confirm everything looks right, then open your event.
-              </p>
-            </div>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Name</dt>
-                <dd className="font-medium mt-0.5">{form.name || event?.name}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Type</dt>
-                <dd className="font-medium mt-0.5">{typeLabel}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Date</dt>
-                <dd className="font-medium mt-0.5">{form.event_date || "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Time</dt>
-                <dd className="font-medium mt-0.5">
-                  {(form.start_time || "").slice(0, 5)} – {(form.end_time || "").slice(0, 5)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Venue</dt>
-                <dd className="font-medium mt-0.5">{form.location || "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Visibility</dt>
-                <dd className="font-medium mt-0.5 capitalize">{form.visibility}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-muted-foreground">Guests invited</dt>
-                <dd className="font-medium mt-0.5">
-                  {invites.length}
-                  {pendingEmails.length > 0 && (
-                    <span className="text-muted-foreground font-normal">
-                      {" "}
-                      ({pendingEmails.length} still pending send)
-                    </span>
-                  )}
-                </dd>
-              </div>
-              {form.message ? (
-                <div className="sm:col-span-2">
-                  <dt className="text-muted-foreground">Description</dt>
-                  <dd className="font-medium mt-0.5 whitespace-pre-wrap">{form.message}</dd>
-                </div>
-              ) : null}
-            </dl>
-            {invites.length > 0 && (
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-                <p className="text-sm font-medium mb-2">Guest emails</p>
-                <ul className="text-sm text-muted-foreground columns-1 sm:columns-2 gap-4">
-                  {invites.map((inv) => (
-                    <li key={inv.id} className="break-inside-avoid py-0.5">
-                      {inv.email} · {inv.status}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+          <section className="overflow-hidden rounded-3xl bg-primary px-6 py-8 text-primary-foreground sm:px-8">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary-foreground/60">
+              Your event
+            </p>
+            <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              {form.name || event?.name || "Untitled event"}
+            </h2>
+            <p className="mt-3 text-sm text-primary-foreground/75">
+              {formatEventDate(form.event_date)} ·{" "}
+              {formatEventTimeRange(form.start_time, form.end_time)}
+            </p>
+            {form.location ? (
+              <p className="mt-1 text-sm text-primary-foreground/75">{form.location}</p>
+            ) : null}
           </section>
 
-          <div className="flex flex-wrap gap-3">
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Type
+              </dt>
+              <dd className="mt-1 text-sm font-medium text-foreground">{typeLabel}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Visibility
+              </dt>
+              <dd className="mt-1 text-sm font-medium capitalize text-foreground">
+                {form.visibility}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Guests
+              </dt>
+              <dd className="mt-1 text-sm font-medium text-foreground">
+                {invites.length} invited
+                {pendingEmails.length > 0 ? (
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    · {pendingEmails.length} not sent yet
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+            {form.message ? (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Description
+                </dt>
+                <dd className="mt-1 whitespace-pre-wrap text-sm text-foreground/80">
+                  {form.message}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+
+          {invites.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Guest list
+              </p>
+              <ul className="columns-1 gap-x-8 text-sm text-muted-foreground sm:columns-2">
+                {invites.map((inv) => (
+                  <li key={inv.id} className="break-inside-avoid py-0.5">
+                    {inv.email}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            Next, design an invitation card from the event page — that&apos;s what guests see first.
+          </p>
+
+          <FooterActions>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               className="rounded-xl"
               onClick={() => goToStep("invitations")}
             >
-              <ChevronLeft className="size-4 mr-1" />
+              <ChevronLeft className="mr-1 size-4" />
               Back
             </Button>
+            <div className="flex-1" />
             <Button
               type="button"
-              className="rounded-xl bg-primary text-primary-foreground"
+              className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
               onClick={() => router.push(`/events/${eventId}`)}
             >
-              Finish & open event
-              <ChevronRight className="size-4 ml-1" />
+              Open event
+              <ChevronRight className="ml-1 size-4" />
             </Button>
-          </div>
+          </FooterActions>
         </div>
       )}
+
+      {/* Keep step label available for a11y/context even if unused visually beyond header */}
+      <span className="sr-only">{stepMeta?.label}</span>
     </div>
   );
 }

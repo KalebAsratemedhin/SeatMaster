@@ -95,7 +95,7 @@ export default function GuestDashboardPage() {
               <div className="flex flex-wrap gap-3">
                 {pending.slice(0, 3).map((inv) => (
                   <Button key={inv.invite.id} size="sm" asChild>
-                    <Link href={`/events/${inv.event.id}/rsvp`}>
+                    <Link href={`/invite/${inv.event.id}`}>
                       RSVP – {inv.event.name}
                       <ChevronRight className="size-4 ml-1" />
                     </Link>

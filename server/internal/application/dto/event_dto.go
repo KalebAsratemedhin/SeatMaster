@@ -29,21 +29,22 @@ type UpdateEventRequest struct {
 }
 
 type EventResponse struct {
-	ID        string `json:"id"`
-	OwnerID   string `json:"owner_id"`
-	Name  string `json:"name"`
-	BannerURL  string `json:"banner_url"`
-	Visibility  string `json:"visibility"`
-	EventType  string `json:"event_type"`
-	Message  string `json:"message"`
-	EventDate  string `json:"event_date"`
-	StartTime  string `json:"start_time"`
-	EndTime  string `json:"end_time"`
-	Location  string `json:"location"`
-	Latitude  float64 `json:"latitude"`
-	Longitude  float64 `json:"longitude"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID                     string `json:"id"`
+	OwnerID                string `json:"owner_id"`
+	Name                   string `json:"name"`
+	BannerURL              string `json:"banner_url"`
+	Visibility             string `json:"visibility"`
+	EventType              string `json:"event_type"`
+	Message                string `json:"message"`
+	EventDate              string `json:"event_date"`
+	StartTime              string `json:"start_time"`
+	EndTime                string `json:"end_time"`
+	Location               string `json:"location"`
+	Latitude               float64 `json:"latitude"`
+	Longitude              float64 `json:"longitude"`
+	InvitationPreviewURL   string `json:"invitation_preview_url,omitempty"`
+	CreatedAt              string `json:"created_at"`
+	UpdatedAt              string `json:"updated_at"`
 }
 
 // InviteEventRequest is the body for inviting a user to an event by email.

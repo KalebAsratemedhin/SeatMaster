@@ -12,16 +12,20 @@ import (
 type ContextKey string
 
 const (
-	UserIDKey   ContextKey = "user_id"
+	UserIDKey    ContextKey = "user_id"
 	UserEmailKey ContextKey = "user_email"
 )
 
+// UserExistsFunc returns whether a user id still exists (used after account deletion).
+type UserExistsFunc func(ctx context.Context, userID string) (bool, error)
+
 type AuthMiddleware struct {
-	jwt *security.JWTManager
+	jwt        *security.JWTManager
+	userExists UserExistsFunc
 }
 
-func NewAuthMiddleware(jwt *security.JWTManager) *AuthMiddleware {
-	return &AuthMiddleware{jwt: jwt}
+func NewAuthMiddleware(jwt *security.JWTManager, userExists UserExistsFunc) *AuthMiddleware {
+	return &AuthMiddleware{jwt: jwt, userExists: userExists}
 }
 
 func (m *AuthMiddleware) Middleware(next http.Handler) http.Handler {
@@ -44,6 +48,14 @@ func (m *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
+		if m.userExists != nil {
+			ok, err := m.userExists(r.Context(), claims.UserID)
+			if err != nil || !ok {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+		}
+
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, UserIDKey, claims.UserID)
 		ctx = context.WithValue(ctx, UserEmailKey, claims.Email)
@@ -52,10 +64,8 @@ func (m *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// OptionalAuth runs after Middleware. It does not require a token: if a valid Bearer token
-// is present, it sets the user ID and email in context; otherwise the request continues with
-// no user in context (GetUserID returns "", false). Use for routes that work for both
-// authenticated and unauthenticated callers (e.g. GET single event).
+// OptionalAuth does not require a token: if a valid Bearer token for an existing user
+// is present, it sets the user in context; otherwise the request continues unauthenticated.
 func (m *AuthMiddleware) OptionalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -72,6 +82,13 @@ func (m *AuthMiddleware) OptionalAuth(next http.Handler) http.Handler {
 		if err != nil {
 			next.ServeHTTP(w, r)
 			return
+		}
+		if m.userExists != nil {
+			ok, err := m.userExists(r.Context(), claims.UserID)
+			if err != nil || !ok {
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, UserIDKey, claims.UserID)

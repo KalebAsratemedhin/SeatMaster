@@ -25,23 +25,16 @@ export function useChatWebSocket(threadId: string | null, token: string | null) 
   const [messages, setMessages] = useState<ChatMessageWS[]>([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const tokenRef = useRef(token);
-  tokenRef.current = token;
+  const active = Boolean(threadId && token);
 
-  const sendMessage = useCallback(
-    (body: string) => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !body.trim()) return;
-      wsRef.current.send(JSON.stringify({ type: "message", body: body.trim() }));
-    },
-    []
-  );
+  const sendMessage = useCallback((body: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !body.trim()) return;
+    wsRef.current.send(JSON.stringify({ type: "message", body: body.trim() }));
+  }, []);
 
   useEffect(() => {
-    if (!threadId || !token) {
-      setMessages([]);
-      setConnected(false);
-      return;
-    }
+    if (!threadId || !token) return;
+
     const wsBase = getWsBaseUrl();
     const url = `${wsBase}/api/v1/ws/chat/threads/${threadId}?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
@@ -58,17 +51,20 @@ export function useChatWebSocket(threadId: string | null, token: string | null) 
           setMessages((prev) => [...prev, data]);
         }
       } catch {
-        // ignore non-JSON or invalid
+        /* ignore */
       }
     };
 
     return () => {
       ws.close();
       wsRef.current = null;
-      setConnected(false);
-      setMessages([]);
     };
   }, [threadId, token]);
 
-  return { messages, connected, sendMessage, appendMessage: setMessages };
+  return {
+    messages: active ? messages : [],
+    connected: active ? connected : false,
+    sendMessage,
+    appendMessage: setMessages,
+  };
 }
