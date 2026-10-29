@@ -19,6 +19,7 @@ type EventUseCase struct {
 	eventInviteRepo repositories.EventInviteRepository
 	eventTableRepo  repositories.EventTableRepository
 	eventSeatRepo   repositories.EventSeatRepository
+	invitationCardRepo repositories.EventInvitationCardRepository
 	userRepo        repositories.UserRepository
 	mailer          services.Mailer
 }
@@ -28,6 +29,7 @@ func NewEventUseCase(
 	eventInviteRepo repositories.EventInviteRepository,
 	eventTableRepo repositories.EventTableRepository,
 	eventSeatRepo repositories.EventSeatRepository,
+	invitationCardRepo repositories.EventInvitationCardRepository,
 	userRepo repositories.UserRepository,
 	mailer services.Mailer,
 ) *EventUseCase {
@@ -35,12 +37,13 @@ func NewEventUseCase(
 		mailer = noOpMailer{}
 	}
 	return &EventUseCase{
-		eventRepo:       eventRepo,
-		eventInviteRepo: eventInviteRepo,
-		eventTableRepo:  eventTableRepo,
-		eventSeatRepo:   eventSeatRepo,
-		userRepo:        userRepo,
-		mailer:          mailer,
+		eventRepo:          eventRepo,
+		eventInviteRepo:    eventInviteRepo,
+		eventTableRepo:     eventTableRepo,
+		eventSeatRepo:      eventSeatRepo,
+		invitationCardRepo: invitationCardRepo,
+		userRepo:           userRepo,
+		mailer:             mailer,
 	}
 }
 
@@ -70,6 +73,33 @@ func (uc *EventUseCase) toEventResponse(event *entities.Event) *dto.EventRespons
 		Longitude:  event.Longitude,
 		CreatedAt:  event.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:  event.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func (uc *EventUseCase) attachInvitationPreviews(ctx context.Context, events ...*dto.EventResponse) {
+	if uc.invitationCardRepo == nil || len(events) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(events))
+	for _, e := range events {
+		if e != nil && e.ID != "" {
+			ids = append(ids, e.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	urls, err := uc.invitationCardRepo.PreviewURLsByEventIDs(ctx, ids)
+	if err != nil || len(urls) == 0 {
+		return
+	}
+	for _, e := range events {
+		if e == nil {
+			continue
+		}
+		if u, ok := urls[e.ID]; ok {
+			e.InvitationPreviewURL = u
+		}
 	}
 }
 
@@ -118,7 +148,9 @@ func (uc *EventUseCase) CreateEvent(ctx context.Context, ownerID string, req dto
 		return nil, err
 	}
 
-	return uc.toEventResponse(event), nil
+	resp := uc.toEventResponse(event)
+	uc.attachInvitationPreviews(ctx, resp)
+	return resp, nil
 }
 
 func (uc *EventUseCase) UpdateEvent(ctx context.Context, ownerID string, req dto.UpdateEventRequest) (*dto.EventResponse, error) {
@@ -162,7 +194,9 @@ func (uc *EventUseCase) UpdateEvent(ctx context.Context, ownerID string, req dto
 		return nil, err
 	}
 
-	return uc.toEventResponse(event), nil
+	resp := uc.toEventResponse(event)
+	uc.attachInvitationPreviews(ctx, resp)
+	return resp, nil
 }
 
 func (uc *EventUseCase) DeleteEvent(ctx context.Context, id string, ownerID string) error {
@@ -192,7 +226,9 @@ func (uc *EventUseCase) GetEvent(ctx context.Context, id string, callerID string
 			}
 		}
 	}
-	return uc.toEventResponse(event), nil
+	resp := uc.toEventResponse(event)
+	uc.attachInvitationPreviews(ctx, resp)
+	return resp, nil
 }
 
 func (uc *EventUseCase) GetEvents(ctx context.Context, ownerID string) ([]*dto.EventResponse, error) {
@@ -204,6 +240,7 @@ func (uc *EventUseCase) GetEvents(ctx context.Context, ownerID string) ([]*dto.E
 	for i := range events {
 		out[i] = uc.toEventResponse(events[i])
 	}
+	uc.attachInvitationPreviews(ctx, out...)
 	return out, nil
 }
 
@@ -222,6 +259,7 @@ func (uc *EventUseCase) GetEventsPaginated(ctx context.Context, ownerID string, 
 	for i := range events {
 		out[i] = uc.toEventResponse(events[i])
 	}
+	uc.attachInvitationPreviews(ctx, out...)
 	return &dto.PaginatedEventsResponse{Items: out, Total: total}, nil
 }
 
@@ -234,6 +272,7 @@ func (uc *EventUseCase) GetInvitationEvents(ctx context.Context, userID string) 
 	for i := range events {
 		out[i] = uc.toEventResponse(events[i])
 	}
+	uc.attachInvitationPreviews(ctx, out...)
 	return out, nil
 }
 
@@ -272,15 +311,24 @@ func (uc *EventUseCase) GetMyInvitationsPaginated(ctx context.Context, userID st
 
 func (uc *EventUseCase) invitesToInvitationResponses(ctx context.Context, invites []*entities.EventInvite) []*dto.InvitationWithEventResponse {
 	out := make([]*dto.InvitationWithEventResponse, 0, len(invites))
+	eventResps := make([]*dto.EventResponse, 0, len(invites))
 	for _, inv := range invites {
 		event, err := uc.eventRepo.FindByID(ctx, inv.EventID)
 		if err != nil {
 			continue
 		}
+		er := uc.toEventResponse(event)
+		eventResps = append(eventResps, er)
 		out = append(out, &dto.InvitationWithEventResponse{
-			Event:  *uc.toEventResponse(event),
+			Event:  *er,
 			Invite: *uc.toEventInviteResponse(inv),
 		})
+	}
+	uc.attachInvitationPreviews(ctx, eventResps...)
+	for i := range out {
+		if i < len(eventResps) && eventResps[i] != nil {
+			out[i].Event = *eventResps[i]
+		}
 	}
 	return out
 }
@@ -467,6 +515,7 @@ func (uc *EventUseCase) ListPublicEvents(ctx context.Context, search string, lim
 	for i := range events {
 		out[i] = uc.toEventResponse(events[i])
 	}
+	uc.attachInvitationPreviews(ctx, out...)
 	return out, nil
 }
 

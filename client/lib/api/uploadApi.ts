@@ -44,6 +44,12 @@ export async function uploadBanner(file: File): Promise<string> {
   return data.url;
 }
 
+/** Uploads an invitation-card thumbnail (reuses the image upload endpoint). */
+export async function uploadInvitationPreview(blob: Blob): Promise<string> {
+  const file = new File([blob], "invitation-preview.png", { type: "image/png" });
+  return uploadBanner(file);
+}
+
 const MAX_AVATAR_MB = 5;
 const MAX_AVATAR_BYTES = MAX_AVATAR_MB * 1024 * 1024;
 

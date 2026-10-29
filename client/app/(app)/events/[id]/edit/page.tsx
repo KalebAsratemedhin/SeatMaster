@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -13,8 +13,6 @@ import type { RootState } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BannerUpload } from "@/components/events/banner-upload";
-import { ArrowLeft } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -102,15 +100,15 @@ export default function EditEventPage() {
   const { data: event, isLoading } = useGetEventQuery(id, {
     skip: !id || !token,
   });
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   useEffect(() => {
     if (!token) router.replace("/auth?mode=signin");
   }, [token, router]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const isOwner = user && event && event.owner_id === user.id;
 
@@ -323,13 +321,6 @@ function EditEventFormContent({
                   />
                 </div>
               </div>
-              <BannerUpload
-                value={form.banner_url}
-                onChange={(url) =>
-                  setForm((prev) => ({ ...prev, banner_url: url }))
-                }
-                disabled={isSaving}
-              />
               <div className="space-y-2">
                 <Label htmlFor="message">Message / Description</Label>
                 <textarea

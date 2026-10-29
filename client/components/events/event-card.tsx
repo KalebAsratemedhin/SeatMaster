@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useSelector } from "react-redux";
 import type { EventResponse } from "@/lib/api/eventsApi";
-import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
-import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
+import type { RootState } from "@/lib/store";
+import { formatEventDate } from "@/lib/eventDateTime";
+import { InvitationCardThumb } from "@/components/events/invitation-card-thumb";
+import { ArrowUpRight } from "lucide-react";
 
 export type EventInviteTag = "invited" | "accepted" | "declined";
 
@@ -20,12 +22,6 @@ const INVITE_TAG_LABEL: Record<EventInviteTag, string> = {
   declined: "Declined",
 };
 
-const INVITE_TAG_CLASS: Record<EventInviteTag, string> = {
-  invited: "bg-amber-500/90 text-white",
-  accepted: "bg-emerald-600/90 text-white",
-  declined: "bg-slate-500/90 text-white",
-};
-
 export function inviteTagFromStatus(status: string | null | undefined): EventInviteTag | null {
   if (!status) return null;
   const s = status.toLowerCase();
@@ -34,76 +30,62 @@ export function inviteTagFromStatus(status: string | null | undefined): EventInv
   return "invited";
 }
 
+function dateParts(isoDate: string | null | undefined) {
+  if (!isoDate) return { day: "—", month: "—" };
+  const d = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return { day: "—", month: "—" };
+  return {
+    day: d.toLocaleDateString(undefined, { day: "2-digit" }),
+    month: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase(),
+  };
+}
+
+function MiniFallback({ day, month }: { day: string; month: string }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-900">
+      <span className="text-[8px] font-semibold tracking-[0.12em] opacity-70">{month}</span>
+      <span className="text-base font-semibold leading-none tabular-nums">{day}</span>
+    </div>
+  );
+}
+
 export function EventCard({ event, showActions = true, inviteTag = null }: EventCardProps) {
-  const href = `/events/${event.id}`;
+  const userId = useSelector((s: RootState) => s.auth.user?.id);
+  const href =
+    userId && event.owner_id === userId ? `/events/${event.id}` : `/invite/${event.id}`;
+  const { day, month } = dateParts(event.event_date);
+
   return (
     <Link
       href={href}
-      className="group block rounded-xl border border-slate-200/80 dark:border-slate-600/50 bg-white dark:bg-slate-800/50 overflow-hidden shadow-sm hover:shadow-md hover:border-[var(--brand-amber)]/30 dark:hover:border-[var(--brand-amber)]/40 transition-all duration-200"
+      className="group flex items-center gap-3.5 rounded-2xl bg-[#fbfaf7] p-3.5 ring-1 ring-black/[0.06] transition duration-200 hover:-translate-y-0.5 hover:ring-black/15 dark:bg-slate-900/70 dark:ring-white/10 dark:hover:ring-white/20"
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
-        {event.banner_url ? (
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-            style={{ backgroundImage: `url(${event.banner_url})` }}
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
-            <span className="font-display text-4xl text-slate-400 dark:text-slate-500">
-              {event.name.charAt(0)}
-            </span>
-          </div>
-        )}
-        <div
-          className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-          aria-hidden
+      <div className="relative h-[136px] w-[96px] shrink-0 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/10 dark:bg-slate-800 dark:ring-white/10">
+        <InvitationCardThumb
+          event={event}
+          fallback={<MiniFallback day={day} month={month} />}
         />
-        <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-wrap items-center gap-2">
-          <span
-            className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${
-              event.visibility === "private"
-                ? "bg-primary/80 text-primary-foreground"
-                : "bg-primary text-primary-foreground"
-            }`}
-          >
-            {event.visibility}
-          </span>
-          {inviteTag && (
-            <span
-              className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${INVITE_TAG_CLASS[inviteTag]}`}
-            >
-              {INVITE_TAG_LABEL[inviteTag]}
-            </span>
-          )}
-        </div>
       </div>
-      <div className="p-4">
-        <h3 className="font-display font-semibold text-lg leading-tight text-slate-900 dark:text-white group-hover:text-[var(--brand-amber)] dark:group-hover:text-[var(--brand-amber)] transition-colors">
+
+      <div className="min-w-0 flex-1">
+        {inviteTag && (
+          <span className="mb-1 inline-flex rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white dark:bg-white dark:text-slate-900">
+            {INVITE_TAG_LABEL[inviteTag]}
+          </span>
+        )}
+        <h3 className="font-display truncate text-base font-semibold tracking-tight text-slate-900 dark:text-white">
           {event.name}
         </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          {event.event_type} · {formatEventDate(event.event_date)} · {formatEventTimeRange(event.start_time, event.end_time)}
+        <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
+          {formatEventDate(event.event_date)}
         </p>
-        {event.location && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-            {event.location}
-          </p>
-        )}
-        {showActions && (
-          <div className="mt-3 flex justify-end">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-[var(--brand-amber)] hover:bg-[var(--brand-amber)]/10 dark:hover:bg-[var(--brand-amber)]/20 gap-1 font-semibold"
-              asChild
-            >
-              <span>
-                More <ChevronRight className="size-4" />
-              </span>
-            </Button>
-          </div>
-        )}
       </div>
+
+      {showActions && (
+        <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white transition group-hover:bg-[var(--brand-amber)] group-hover:text-slate-900 dark:bg-white dark:text-slate-900">
+          <ArrowUpRight className="size-4" />
+        </span>
+      )}
     </Link>
   );
 }

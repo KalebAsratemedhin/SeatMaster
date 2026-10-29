@@ -48,14 +48,16 @@ func main() {
 	eventCommentRepo := repositories.NewEventCommentRepository(db.GetDB())
 	eventChatThreadRepo := repositories.NewEventChatThreadRepository(db.GetDB())
 	eventChatMessageRepo := repositories.NewEventChatMessageRepository(db.GetDB())
+	invitationCardRepo := repositories.NewEventInvitationCardRepository(db.GetDB())
 
 	authUseCase := usecases.NewAuthUseCase(userRepo, jwtManager, passwordManager)
 	mailer := mail.NewSMTPMailer()
-	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, userRepo, mailer)
+	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, invitationCardRepo, userRepo, mailer)
 	dashboardUseCase := usecases.NewDashboardUseCase(eventRepo, eventInviteRepo, userRepo)
-	profileUseCase := usecases.NewProfileUseCase(userRepo, authUseCase)
+	profileUseCase := usecases.NewProfileUseCase(userRepo, eventRepo, authUseCase, passwordManager)
 	commentUseCase := usecases.NewCommentUseCase(eventRepo, eventInviteRepo, eventCommentRepo, userRepo)
 	chatUseCase := usecases.NewChatUseCase(eventRepo, eventInviteRepo, eventChatThreadRepo, eventChatMessageRepo, userRepo)
+	invitationCardUseCase := usecases.NewInvitationCardUseCase(eventRepo, invitationCardRepo)
 
 	authHandler := handlers.NewAuthHandler(authUseCase)
 	eventHandler := handlers.NewEventHandler(eventUseCase)
@@ -63,6 +65,7 @@ func main() {
 	profileHandler := handlers.NewProfileHandler(profileUseCase)
 	commentHandler := handlers.NewCommentHandler(commentUseCase)
 	chatHandler := handlers.NewChatHandler(chatUseCase)
+	invitationCardHandler := handlers.NewInvitationCardHandler(invitationCardUseCase)
 	chatHub := ws.NewHub()
 	chatWSHandler := handlers.NewChatWSHandler(chatUseCase, jwtManager, chatHub)
 
@@ -76,9 +79,9 @@ func main() {
 	}
 	uploadHandler := handlers.NewUploadHandler(uploadDir, baseURL)
 
-	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
+	authMiddleware := middleware.NewAuthMiddleware(jwtManager, userRepo.ExistsByID)
 
-	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, commentHandler, chatHandler, chatWSHandler, dashboardHandler, authMiddleware)
+	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, commentHandler, chatHandler, chatWSHandler, dashboardHandler, invitationCardHandler, authMiddleware)
 	muxRouter := router.SetupRoutes(uploadDir)
 	handler := middleware.CORS(muxRouter)
 

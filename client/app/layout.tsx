@@ -4,6 +4,7 @@ import "./globals.css";
 import { StoreProvider } from "@/components/providers/store-provider";
 import { AuthHydrator } from "@/components/auth/auth-hydrator";
 import { SessionValidator } from "@/components/auth/session-validator";
+import { Toaster } from "sonner";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -36,6 +37,7 @@ export default function RootLayout({
           <AuthHydrator />
           <SessionValidator />
           {children}
+          <Toaster richColors position="top-center" closeButton />
         </StoreProvider>
       </body>
     </html>

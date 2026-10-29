@@ -6,6 +6,7 @@ const PUBLIC_APP_PATHS: RegExp[] = [
   /^\/events\/discover\/?$/,
   /^\/events\/[^/]+\/?$/, // event detail
   /^\/events\/[^/]+\/rsvp\/?$/,
+  /^\/invite\/[^/]+\/?$/, // guest invitation experience
 ];
 
 export function isPublicAppPath(pathname: string | null | undefined): boolean {

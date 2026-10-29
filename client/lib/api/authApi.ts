@@ -25,6 +25,16 @@ export type UpdateProfileRequest = {
   avatar_url: string;
 };
 
+export type ChangePasswordRequest = {
+  current_password: string;
+  new_password: string;
+};
+
+export type DeleteAccountRequest = {
+  password: string;
+  confirmation: string;
+};
+
 export const authApi = createApi({
   reducerPath: "authApi",
   baseQuery: axiosBaseQuery(),
@@ -48,6 +58,21 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["Profile"],
     }),
+    changePassword: builder.mutation<{ ok: true }, ChangePasswordRequest>({
+      query: (body) => ({
+        url: "/api/v1/users/me/password",
+        method: "PUT",
+        body,
+      }),
+    }),
+    deleteAccount: builder.mutation<void, DeleteAccountRequest>({
+      query: (body) => ({
+        url: "/api/v1/users/me",
+        method: "DELETE",
+        body,
+      }),
+      invalidatesTags: ["Profile"],
+    }),
   }),
 });
 
@@ -56,4 +81,6 @@ export const {
   useLoginMutation,
   useGetProfileQuery,
   useUpdateProfileMutation,
+  useChangePasswordMutation,
+  useDeleteAccountMutation,
 } = authApi;

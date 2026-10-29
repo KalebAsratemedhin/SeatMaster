@@ -61,7 +61,7 @@ export default function EventTicketPage() {
           Ticket not available. Confirm your RSVP first or check your invitation.
         </p>
         <Button variant="outline" asChild className="mt-6 mx-auto block">
-          <Link href={`/events/${id}`}>Back to Event</Link>
+          <Link href={`/invite/${id}`}>Back to Event</Link>
         </Button>
       </div>
     );
@@ -74,7 +74,7 @@ export default function EventTicketPage() {
           Events
         </Link>
         <span>/</span>
-        <Link href={`/events/${id}`} className="hover:text-primary">
+        <Link href={`/invite/${id}`} className="hover:text-primary">
           {ticket.event_name}
         </Link>
         <span>/</span>
@@ -173,7 +173,7 @@ export default function EventTicketPage() {
             {downloading ? "Preparing…" : "Download Ticket"}
           </Button>
           <Button variant="outline" asChild className="rounded-lg">
-            <Link href={`/events/${id}`}>Back to Event</Link>
+            <Link href={`/invite/${id}`}>Back to Event</Link>
           </Button>
         </div>
 

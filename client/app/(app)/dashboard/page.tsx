@@ -5,14 +5,27 @@ import { useSelector } from "react-redux";
 import { useGetDashboardQuery } from "@/lib/api/dashboardApi";
 import type { RootState } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import {
-  Calendar,
-  Download,
-  Plus,
-  UserPlus,
-  CalendarDays,
-} from "lucide-react";
+import { formatEventDate } from "@/lib/eventDateTime";
+import { ArrowUpRight, CalendarDays, Plus } from "lucide-react";
 import { getInitialsFromName } from "@/lib/user-display";
+
+function statusTone(status: string) {
+  const s = status.toLowerCase();
+  if (s === "confirmed" || s === "accepted") {
+    return "text-emerald-700 dark:text-emerald-300";
+  }
+  if (s === "declined") {
+    return "text-slate-500 dark:text-slate-400";
+  }
+  return "text-amber-800 dark:text-amber-300";
+}
+
+function statusLabel(status: string) {
+  const s = status.toLowerCase();
+  if (s === "confirmed" || s === "accepted") return "Accepted";
+  if (s === "declined") return "Declined";
+  return "Pending";
+}
 
 export default function DashboardPage() {
   const token = useSelector((state: RootState) => state.auth.token);
@@ -22,339 +35,279 @@ export default function DashboardPage() {
   });
 
   const firstName = user?.first_name ?? user?.email?.split("@")[0] ?? "there";
-  const responseRate =
-    dashboard && dashboard.total_invited > 0
-      ? Math.round((dashboard.confirmed / dashboard.total_invited) * 100)
-      : 0;
-  const donutConfirmed =
-    dashboard && dashboard.total_invited > 0
-      ? (dashboard.confirmed / dashboard.total_invited) * 502
-      : 0;
-  const donutPending =
-    dashboard && dashboard.total_invited > 0
-      ? (dashboard.pending / dashboard.total_invited) * 502
-      : 0;
-  const donutDeclined =
-    dashboard && dashboard.total_invited > 0
-      ? (dashboard.declined / dashboard.total_invited) * 502
-      : 502;
-
   const guestStats = dashboard?.guest_stats ?? null;
-  const guestTotal = guestStats?.total ?? 0;
-  const gConfirmed = guestStats?.confirmed ?? 0;
-  const gPending = guestStats?.pending ?? 0;
-  const gDeclined = guestStats?.declined ?? 0;
-  const donutGuestConfirmed = guestTotal > 0 ? (gConfirmed / guestTotal) * 502 : 0;
-  const donutGuestPending = guestTotal > 0 ? (gPending / guestTotal) * 502 : 0;
-  const donutGuestDeclined = guestTotal > 0 ? (gDeclined / guestTotal) * 502 : 502;
   const myRecentRSVPs = dashboard?.my_recent_rsvps ?? [];
+  const recentRsvps = dashboard?.recent_rsvps ?? [];
+  const upcoming = dashboard?.upcoming_event ?? null;
+
+  const invited = dashboard?.total_invited ?? 0;
+  const confirmed = dashboard?.confirmed ?? 0;
+  const pending = dashboard?.pending ?? 0;
+  const declined = dashboard?.declined ?? 0;
+  const acceptRate = invited > 0 ? Math.round((confirmed / invited) * 100) : null;
 
   return (
-    <div className="w-full max-w-7xl mx-auto flex flex-col gap-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-12 pb-10">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl lg:text-3xl font-semibold text-[var(--brand-navy)] dark:text-white">
-            Dashboard Overview
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Dashboard
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-[var(--brand-navy)] dark:text-white sm:text-4xl">
+            Hello, {firstName}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-base mt-0.5">
-            Welcome back, {firstName}. Here&apos;s what&apos;s happening today.
+          <p className="mt-2 max-w-md text-base text-slate-500 dark:text-slate-400">
+            Your events, responses, and invitations — at a glance.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" size="sm" className="rounded-lg gap-2" asChild>
-            <Link href="/events/discover?mine=1">
-              <Download className="size-4 text-[var(--brand-amber)]" />
-              Export
-            </Link>
-          </Button>
-          <Button className="rounded-lg gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold" asChild>
-            <Link href="/events/new">
-              <Plus className="size-4" />
-              New Event
-            </Link>
-          </Button>
-        </div>
-      </div>
+        <Button
+          asChild
+          className="shrink-0 gap-2 rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Link href="/events/new">
+            <Plus className="size-4" />
+            New event
+          </Link>
+        </Button>
+      </header>
 
       {isLoading ? (
-        <p className="text-slate-500 py-8">Loading dashboard...</p>
-      ) : dashboard ? (
+        <p className="py-12 text-slate-500">Loading…</p>
+      ) : !dashboard ? null : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-primary/15 text-primary rounded-lg">
-                  <CalendarDays className="size-5" />
+          {upcoming ? (
+            <section className="relative overflow-hidden rounded-3xl bg-[var(--brand-navy)] px-6 py-8 text-white sm:px-10 sm:py-10">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,165,116,0.28),transparent_55%)]" />
+              <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                    Next up
+                  </p>
+                  <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+                    {upcoming.name}
+                  </h2>
+                  <p className="mt-3 inline-flex items-center gap-2 text-sm text-white/70">
+                    <CalendarDays className="size-4 opacity-80" />
+                    {formatEventDate(upcoming.event_date)}
+                  </p>
                 </div>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">
-                  Active
-                </span>
-              </div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Active Events</p>
-              <p className="text-2xl font-bold">{dashboard.active_events}</p>
-            </div>
-            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 rounded-lg">
-                  <UserPlus className="size-5" />
-                </div>
-              </div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Total Invited</p>
-              <p className="text-2xl font-bold">{dashboard.total_invited}</p>
-            </div>
-            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                  <span className="size-5 rounded-full bg-primary block" />
-                </div>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">
-                  {responseRate}% rate
-                </span>
-              </div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Confirmed</p>
-              <p className="text-2xl font-bold">{dashboard.confirmed}</p>
-            </div>
-            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                  <span className="size-5 rounded-full bg-primary/80 block" />
-                </div>
-                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">
-                  Action req.
-                </span>
-              </div>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Pending RSVP</p>
-              <p className="text-2xl font-bold">{dashboard.pending}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm">
-              <h3 className="font-display text-lg font-semibold mb-6">Event stats as organizer</h3>
-              <div className="flex flex-col md:flex-row items-center justify-around gap-8">
-                <div className="relative w-48 h-48 flex items-center justify-center">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 192 192">
-                    <circle cx="96" cy="96" r="80" fill="none" stroke="currentColor" strokeWidth="12" strokeDasharray={`${donutConfirmed} 502`} strokeDashoffset={0} className="text-primary" />
-                    <circle cx="96" cy="96" r="80" fill="none" stroke="currentColor" strokeWidth="12" strokeDasharray={`${donutPending} 502`} strokeDashoffset={-donutConfirmed} className="text-primary/70" />
-                    <circle cx="96" cy="96" r="80" fill="none" stroke="currentColor" strokeWidth="12" strokeDasharray={`${donutDeclined} 502`} strokeDashoffset={-donutConfirmed - donutPending} className="text-muted" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-extrabold">{dashboard?.total_invited ?? 0}</span>
-                    <span className="text-xs text-slate-500 font-medium">Total Guests</span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-4 w-full max-w-[200px]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 rounded-full bg-primary" />
-                      <span className="text-sm font-medium text-slate-500">Confirmed</span>
-                    </div>
-                    <span className="text-sm font-bold">{dashboard?.confirmed ?? 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 rounded-full bg-primary/70" />
-                      <span className="text-sm font-medium text-slate-500">Pending</span>
-                    </div>
-                    <span className="text-sm font-bold">{dashboard?.pending ?? 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 rounded-full bg-muted" />
-                      <span className="text-sm font-medium text-slate-500">Declined</span>
-                    </div>
-                    <span className="text-sm font-bold">{dashboard?.declined ?? 0}</span>
-                  </div>
-                  <Link href="/events/discover?mine=1" className="text-[var(--brand-amber)] text-xs font-bold hover:underline text-left mt-2">
-                    View events
+                <Button
+                  asChild
+                  variant="secondary"
+                  className="shrink-0 rounded-xl bg-white text-[var(--brand-navy)] hover:bg-white/90"
+                >
+                  <Link href={`/events/${upcoming.id}`} className="gap-2">
+                    Open event
+                    <ArrowUpRight className="size-4" />
                   </Link>
+                </Button>
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-3xl border border-dashed border-slate-300/80 bg-[#fbfaf7] px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/40">
+              <h2 className="font-display text-xl font-semibold text-slate-900 dark:text-white">
+                No upcoming events yet
+              </h2>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
+                Create an event and design an invitation card — guests will see that first.
+              </p>
+              <Button asChild className="mt-5 rounded-xl" size="sm">
+                <Link href="/events/new">Create your first event</Link>
+              </Button>
+            </section>
+          )}
+
+          <section>
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-white">
+                Hosting
+              </h2>
+              <Link
+                href="/events/discover?mine=1"
+                className="text-sm font-medium text-[var(--brand-amber)] hover:underline"
+              >
+                All my events
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: "Active events", value: dashboard.active_events },
+                { label: "Invited", value: invited },
+                { label: "Accepted", value: confirmed },
+                { label: "Waiting", value: pending },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-2xl bg-[#fbfaf7] px-4 py-5 ring-1 ring-black/[0.05] dark:bg-slate-900/50 dark:ring-white/10"
+                >
+                  <p className="text-2xl font-semibold tabular-nums tracking-tight text-slate-900 dark:text-white">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-400">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {invited > 0 && (
+              <div className="mt-4">
+                <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>Guest responses</span>
+                  {acceptRate != null && <span>{acceptRate}% accepted</span>}
+                </div>
+                <div className="flex h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-800">
+                  {confirmed > 0 && (
+                    <div
+                      className="bg-emerald-600"
+                      style={{ width: `${(confirmed / invited) * 100}%` }}
+                    />
+                  )}
+                  {pending > 0 && (
+                    <div
+                      className="bg-amber-400"
+                      style={{ width: `${(pending / invited) * 100}%` }}
+                    />
+                  )}
+                  {declined > 0 && (
+                    <div
+                      className="bg-slate-400"
+                      style={{ width: `${(declined / invited) * 100}%` }}
+                    />
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-1.5 rounded-full bg-emerald-600" /> Accepted {confirmed}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-1.5 rounded-full bg-amber-400" /> Waiting {pending}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-1.5 rounded-full bg-slate-400" /> Declined {declined}
+                  </span>
                 </div>
               </div>
-            </div>
+            )}
+          </section>
 
-            <div className="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm">
-              <h3 className="font-display text-lg font-semibold mb-6">Event stats as guest</h3>
-              <div className="flex flex-col md:flex-row items-center justify-around gap-8">
-                <div className="relative w-48 h-48 flex items-center justify-center">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 192 192">
-                    <circle cx="96" cy="96" r="80" fill="none" stroke="currentColor" strokeWidth="12" strokeDasharray={`${donutGuestConfirmed} 502`} strokeDashoffset={0} className="text-primary" />
-                    <circle cx="96" cy="96" r="80" fill="none" stroke="currentColor" strokeWidth="12" strokeDasharray={`${donutGuestPending} 502`} strokeDashoffset={-donutGuestConfirmed} className="text-primary/70" />
-                    <circle cx="96" cy="96" r="80" fill="none" stroke="currentColor" strokeWidth="12" strokeDasharray={`${donutGuestDeclined} 502`} strokeDashoffset={-donutGuestConfirmed - donutGuestPending} className="text-muted" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-extrabold">{guestTotal}</span>
-                    <span className="text-xs text-slate-500 font-medium">My Invitations</span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-4 w-full max-w-[200px]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 rounded-full bg-primary" />
-                      <span className="text-sm font-medium text-slate-500">Confirmed</span>
-                    </div>
-                    <span className="text-sm font-bold">{gConfirmed}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 rounded-full bg-primary/70" />
-                      <span className="text-sm font-medium text-slate-500">Pending</span>
-                    </div>
-                    <span className="text-sm font-bold">{gPending}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 rounded-full bg-muted" />
-                      <span className="text-sm font-medium text-slate-500">Declined</span>
-                    </div>
-                    <span className="text-sm font-bold">{gDeclined}</span>
-                  </div>
-                  <Link href="/invitations" className="text-[var(--brand-amber)] text-xs font-bold hover:underline text-left mt-2">
-                    View invitations
-                  </Link>
-                </div>
+          <section className="grid gap-10 lg:grid-cols-2">
+            <div>
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-white">
+                  Recent responses
+                </h2>
+                <Link
+                  href="/events/discover?mine=1"
+                  className="text-sm font-medium text-[var(--brand-amber)] hover:underline"
+                >
+                  View events
+                </Link>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-6 lg:col-span-2">
-              {dashboard.upcoming_event && (
-                <div className="bg-primary rounded-xl p-6 text-primary-foreground shadow-lg overflow-hidden relative">
-                  <div className="relative z-10">
-                    <p className="text-xs font-bold uppercase tracking-wider opacity-80 mb-2">Upcoming Event</p>
-                    <h4 className="text-xl font-bold mb-4">{dashboard.upcoming_event.name}</h4>
-                    <div className="flex items-center gap-2 text-sm mb-4">
-                      <Calendar className="size-5" />
-                      <span>{dashboard.upcoming_event.event_date}</span>
-                    </div>
-                    <Button asChild className="w-full py-2 bg-primary-foreground text-primary rounded-lg text-sm font-bold hover:bg-primary-foreground/90">
-                      <Link href={`/events/${dashboard.upcoming_event.id}`}>Manage Event</Link>
-                    </Button>
-                  </div>
-                  <div className="absolute -bottom-10 -right-10 size-40 bg-white/10 rounded-full" />
-                </div>
+              {recentRsvps.length === 0 ? (
+                <p className="rounded-2xl bg-[#fbfaf7] px-5 py-8 text-sm text-slate-500 ring-1 ring-black/[0.05] dark:bg-slate-900/50 dark:ring-white/10">
+                  No guest responses yet. Share an invitation to get started.
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-200/70 dark:divide-slate-800">
+                  {recentRsvps.slice(0, 6).map((row) => (
+                    <li key={`${row.event_id}-${row.guest_name}-${row.response_time}`}>
+                      <Link
+                        href={`/events/${row.event_id}`}
+                        className="flex items-center gap-3 py-3.5 transition hover:opacity-80"
+                      >
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-semibold text-white dark:bg-white dark:text-slate-900">
+                          {getInitialsFromName(row.guest_name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                            {row.guest_name}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">{row.event_name}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className={`text-xs font-semibold ${statusTone(row.status)}`}>
+                            {statusLabel(row.status)}
+                          </p>
+                          <p className="text-[11px] text-slate-400">{row.response_time}</p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
-          </div>
 
-          <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <h3 className="font-display text-lg font-semibold">Recent RSVPs</h3>
-              <Link href="/events/discover?mine=1" className="text-sm font-bold text-[var(--brand-amber)] hover:underline transition-colors">
-                View All Activity
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800/50">
-                  <tr>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Guest Name</th>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Event</th>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Plus One</th>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Response Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {dashboard.recent_rsvps.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
-                        No recent RSVPs yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    dashboard.recent_rsvps.map((row) => (
-                      <tr key={row.event_id + row.guest_name + row.response_time}>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-                              {getInitialsFromName(row.guest_name)}
-                            </div>
-                            <span className="text-sm font-medium">{row.guest_name}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <Link href={`/events/${row.event_id}`} className="hover:text-[var(--brand-amber)]">
-                            {row.event_name}
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2 py-1 text-xs font-bold rounded ${
-                              row.status === "confirmed"
-                                ? "bg-primary text-primary-foreground"
-                                : row.status === "declined"
-                                  ? "bg-muted text-muted-foreground"
-                                  : "bg-primary/80 text-primary-foreground"
-                            }`}
-                          >
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm">{row.plus_one}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{row.response_time}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+            <div>
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-white">
+                  Your invitations
+                </h2>
+                <Link
+                  href="/invitations"
+                  className="text-sm font-medium text-[var(--brand-amber)] hover:underline"
+                >
+                  All invitations
+                </Link>
+              </div>
 
-          <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <h3 className="font-display text-lg font-semibold">Events you recently RSVP&apos;d to</h3>
-              <Link href="/invitations" className="text-sm font-bold text-[var(--brand-amber)] hover:underline transition-colors">
-                View all invitations
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 dark:bg-slate-800/50">
-                  <tr>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Event</th>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Date</th>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Response time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {myRecentRSVPs.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-slate-500 text-sm">
-                        You haven&apos;t RSVP&apos;d to any events yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    myRecentRSVPs.map((row) => (
-                      <tr key={row.event_id + row.response_time}>
-                        <td className="px-6 py-4">
-                          <Link href={`/events/${row.event_id}`} className="text-sm font-medium hover:text-[var(--brand-amber)]">
-                            {row.event_name}
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{row.event_date}</td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2 py-1 text-xs font-bold rounded ${
-                              row.status === "confirmed"
-                                ? "bg-primary text-primary-foreground"
-                                : row.status === "declined"
-                                  ? "bg-muted text-muted-foreground"
-                                  : "bg-primary/80 text-primary-foreground"
-                            }`}
-                          >
-                            {row.status}
+              {guestStats && guestStats.total > 0 && (
+                <p className="mb-4 text-sm text-slate-500">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {guestStats.pending}
+                  </span>{" "}
+                  waiting for a reply ·{" "}
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {guestStats.confirmed}
+                  </span>{" "}
+                  accepted
+                </p>
+              )}
+
+              {myRecentRSVPs.length === 0 ? (
+                <p className="rounded-2xl bg-[#fbfaf7] px-5 py-8 text-sm text-slate-500 ring-1 ring-black/[0.05] dark:bg-slate-900/50 dark:ring-white/10">
+                  You haven&apos;t responded to any invitations yet.{" "}
+                  <Link href="/events/discover" className="font-medium text-[var(--brand-amber)] hover:underline">
+                    Browse events
+                  </Link>
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-200/70 dark:divide-slate-800">
+                  {myRecentRSVPs.slice(0, 6).map((row) => (
+                    <li key={`${row.event_id}-${row.response_time}`}>
+                      <Link
+                        href={`/invite/${row.event_id}`}
+                        className="flex items-center gap-3 py-3.5 transition hover:opacity-80"
+                      >
+                        <div className="flex size-9 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-900">
+                          <span className="text-[8px] font-semibold uppercase tracking-wider opacity-70">
+                            {new Date(`${row.event_date}T12:00:00`).toLocaleDateString(undefined, {
+                              month: "short",
+                            })}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{row.response_time}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                          <span className="text-sm font-semibold leading-none tabular-nums">
+                            {new Date(`${row.event_date}T12:00:00`).getDate()}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                            {row.event_name}
+                          </p>
+                          <p className="truncate text-xs text-slate-500">
+                            {formatEventDate(row.event_date)}
+                          </p>
+                        </div>
+                        <p className={`shrink-0 text-xs font-semibold ${statusTone(row.status)}`}>
+                          {statusLabel(row.status)}
+                        </p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          </div>
+          </section>
         </>
-      ) : null}
+      )}
     </div>
   );
 }

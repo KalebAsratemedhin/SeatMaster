@@ -5,8 +5,8 @@ import { EventCreateWizard } from "@/components/events/event-create-wizard";
 
 function WizardFallback() {
   return (
-    <div className="w-full max-w-6xl mx-auto py-8">
-      <p className="text-muted-foreground">Loading...</p>
+    <div className="mx-auto w-full max-w-3xl py-12">
+      <p className="text-muted-foreground">Loading…</p>
     </div>
   );
 }
