@@ -124,7 +124,7 @@ export default function EventRsvpPage() {
 
   if (isLoading || (!event && !eventError && !isPrivateEventRequiresAuth)) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-8">
+      <div className="w-full max-w-6xl mx-auto py-8">
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
@@ -132,7 +132,7 @@ export default function EventRsvpPage() {
 
   if (isPrivateEventRequiresAuth) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-8">
+      <div className="w-full max-w-6xl mx-auto py-8">
         <p className="text-muted-foreground">
           This event is private. Sign in with the account that received the invitation to view and respond.
         </p>
@@ -147,10 +147,10 @@ export default function EventRsvpPage() {
 
   if (notFound) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-8">
+      <div className="w-full max-w-6xl mx-auto py-8">
         <p className="text-destructive">Event not found.</p>
         <Button variant="outline" asChild className="mt-4">
-          <Link href="/events">Back to Events</Link>
+          <Link href="/events/discover">Back to Events</Link>
         </Button>
       </div>
     );
@@ -158,7 +158,7 @@ export default function EventRsvpPage() {
 
   if (isForbidden) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-8">
+      <div className="w-full max-w-6xl mx-auto py-8">
         <p className="text-destructive">You don&apos;t have an invitation to this event.</p>
         <Button variant="outline" asChild className="mt-4">
           <Link href="/invitations">View your invitations</Link>
@@ -169,7 +169,7 @@ export default function EventRsvpPage() {
 
   if (event && isEventPast) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-8 md:py-12">
+      <div className="w-full max-w-6xl mx-auto py-8 md:py-12">
           <nav className="mb-6 text-sm text-muted-foreground">
             <Link href="/invitations" className="hover:text-foreground transition-colors flex items-center gap-1">
               <ArrowLeft className="size-3.5" /> Invitations
@@ -201,7 +201,7 @@ export default function EventRsvpPage() {
             backgroundImage: `linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 60%), url(${event!.banner_url})`,
           }}
         >
-          <div className="container max-w-3xl mx-auto px-4 pb-5">
+          <div className="w-full max-w-6xl mx-auto pb-5">
             <h1 className="text-white text-2xl md:text-3xl font-semibold drop-shadow-md">
               {event!.name}
             </h1>
@@ -212,7 +212,7 @@ export default function EventRsvpPage() {
         </div>
       ) : (
         <div className="w-full border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50">
-          <div className="container max-w-3xl mx-auto px-4 py-6 flex items-center gap-4">
+          <div className="w-full max-w-6xl mx-auto py-6 flex items-center gap-4">
             <div className="size-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
               <ImageIcon className="size-6 text-primary" />
             </div>
@@ -230,21 +230,38 @@ export default function EventRsvpPage() {
         </div>
       )}
 
-      <div className="container max-w-3xl mx-auto px-4 py-6 md:py-8">
+      <div className="w-full max-w-6xl mx-auto py-6 md:py-8">
         <nav className="mb-6 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
           <Link
-            href="/invitations"
+            href={token ? "/invitations" : "/discover"}
             className="hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1"
           >
-            <ArrowLeft className="size-3.5" /> Invitations
+            <ArrowLeft className="size-3.5" /> {token ? "Invitations" : "Events"}
           </Link>
           <span aria-hidden>/</span>
-          <span className="text-slate-700 dark:text-slate-300 truncate max-w-[120px] md:max-w-none">
+          <Link
+            href={`/events/${id}`}
+            className="text-slate-700 dark:text-slate-300 truncate max-w-[120px] md:max-w-none hover:text-slate-900 dark:hover:text-white"
+          >
             {event!.name}
-          </span>
+          </Link>
           <span aria-hidden>/</span>
           <span className="text-slate-900 dark:text-white font-medium">RSVP</span>
         </nav>
+
+        {!token && (
+          <div className="mb-6 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p>
+              You can view this event.{" "}
+              <span className="font-medium">Sign in to submit your RSVP.</span>
+            </p>
+            <Button asChild size="sm" className="shrink-0">
+              <Link href={`/auth?mode=signin&redirect=${encodeURIComponent(`/events/${id}/rsvp`)}`}>
+                Sign in to RSVP
+              </Link>
+            </Button>
+          </div>
+        )}
 
         {invite?.status === "confirmed" && (
           <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/30 flex flex-wrap items-center justify-between gap-3">

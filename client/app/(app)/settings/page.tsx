@@ -22,11 +22,11 @@ export default function SettingsPage() {
   if (!token) return null;
 
   return (
-    <div className="container max-w-2xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto">
       <div className="mb-6">
         <Button variant="ghost" size="sm" asChild>
           <Link
-            href="/events"
+            href="/events/discover"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />

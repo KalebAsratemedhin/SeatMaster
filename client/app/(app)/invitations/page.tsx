@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useGetMyInvitationsQuery } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
@@ -10,7 +9,6 @@ import { InvitationCard } from "@/components/events/invitation-card";
 import { Pagination } from "@/components/ui/pagination";
 
 export default function InvitationsPage() {
-  const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -25,18 +23,8 @@ export default function InvitationsPage() {
 
   useEffect(() => setPage(0), [pageSize]);
 
-  useEffect(() => {
-    if (typeof token === "string" && !token) {
-      router.replace("/auth?mode=signin");
-    }
-  }, [token, router]);
-
-  if (typeof window !== "undefined" && !token) {
-    return null;
-  }
-
   return (
-    <div className="container max-w-6xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Invitations</h1>
         <p className="text-muted-foreground mt-1">
@@ -52,7 +40,7 @@ export default function InvitationsPage() {
             You have no event invitations.
           </p>
           <Link
-            href="/events"
+            href="/events/discover"
             className="mt-4 inline-block text-primary hover:underline font-medium"
           >
             Back to Events
@@ -66,7 +54,7 @@ export default function InvitationsPage() {
             ))}
           </div>
           {total > 0 && (
-            <div className="mt-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-6 py-4">
+            <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700">
               <Pagination
                 total={total}
                 pageSize={pageSize}

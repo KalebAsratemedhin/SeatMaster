@@ -6,12 +6,35 @@ import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 
+export type EventInviteTag = "invited" | "accepted" | "declined";
+
 type EventCardProps = {
   event: EventResponse;
   showActions?: boolean;
+  inviteTag?: EventInviteTag | null;
 };
 
-export function EventCard({ event, showActions = true }: EventCardProps) {
+const INVITE_TAG_LABEL: Record<EventInviteTag, string> = {
+  invited: "Invited",
+  accepted: "Accepted",
+  declined: "Declined",
+};
+
+const INVITE_TAG_CLASS: Record<EventInviteTag, string> = {
+  invited: "bg-amber-500/90 text-white",
+  accepted: "bg-emerald-600/90 text-white",
+  declined: "bg-slate-500/90 text-white",
+};
+
+export function inviteTagFromStatus(status: string | null | undefined): EventInviteTag | null {
+  if (!status) return null;
+  const s = status.toLowerCase();
+  if (s === "confirmed" || s === "accepted") return "accepted";
+  if (s === "declined") return "declined";
+  return "invited";
+}
+
+export function EventCard({ event, showActions = true, inviteTag = null }: EventCardProps) {
   const href = `/events/${event.id}`;
   return (
     <Link
@@ -31,12 +54,11 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
             </span>
           </div>
         )}
-        {/* Dark gradient at bottom of banner for depth; stronger on hover */}
         <div
           className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
           aria-hidden
         />
-        <div className="absolute bottom-0 left-0 right-0 p-3">
+        <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-wrap items-center gap-2">
           <span
             className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${
               event.visibility === "private"
@@ -46,6 +68,13 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
           >
             {event.visibility}
           </span>
+          {inviteTag && (
+            <span
+              className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${INVITE_TAG_CLASS[inviteTag]}`}
+            >
+              {INVITE_TAG_LABEL[inviteTag]}
+            </span>
+          )}
         </div>
       </div>
       <div className="p-4">

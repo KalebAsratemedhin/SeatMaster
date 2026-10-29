@@ -23,12 +23,12 @@ import {
   Settings,
   Menu,
   LayoutDashboard,
-  Calendar,
   Mail,
-  Compass,
+  Calendar,
   Search,
   X,
 } from "lucide-react";
+import { eventsBrowsePath } from "@/lib/eventsBrowsePath";
 
 export function HeaderSearch({
   placeholder = "Search events...",
@@ -40,12 +40,12 @@ export function HeaderSearch({
   const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
   const [query, setQuery] = useState("");
-  const discoverPath = token ? "/events/discover" : "/discover";
+  const browsePath = eventsBrowsePath(token);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();
-    router.push(q ? `${discoverPath}?q=${encodeURIComponent(q)}` : discoverPath);
+    router.push(q ? `${browsePath}?q=${encodeURIComponent(q)}` : browsePath);
   };
 
   return (
@@ -86,9 +86,8 @@ export function SiteHeader() {
 
   const appNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/events", label: "Events", icon: Calendar },
     { href: "/invitations", label: "Invitations", icon: Mail },
-    { href: "/events/discover", label: "Discover", icon: Compass },
+    { href: "/events/discover", label: "Events", icon: Calendar },
     { href: "/profile", label: "Profile", icon: User },
   ] as const;
 
@@ -107,14 +106,22 @@ export function SiteHeader() {
           Home
         </Link>
       )}
-      {isLanding && isLoggedIn && (
-        <nav className="hidden md:flex items-center gap-8" aria-label="Main">
+      {isLanding && (
+        <nav className="hidden md:flex items-center gap-6" aria-label="Main">
           <Link
-            href="/dashboard"
+            href={eventsBrowsePath(token)}
             className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[var(--brand-navy)] dark:hover:text-[var(--brand-amber)] transition-colors"
           >
-            Dashboard
+            Events
           </Link>
+          {isLoggedIn && (
+            <Link
+              href="/dashboard"
+              className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[var(--brand-navy)] dark:hover:text-[var(--brand-amber)] transition-colors"
+            >
+              Dashboard
+            </Link>
+          )}
         </nav>
       )}
       {isLoggedIn ? (

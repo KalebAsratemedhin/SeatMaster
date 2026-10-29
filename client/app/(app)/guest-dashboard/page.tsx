@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useGetMyInvitationsQuery } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
@@ -12,23 +10,12 @@ import { Calendar, Ticket, ChevronRight } from "lucide-react";
 import { formatEventDate } from "@/lib/eventDateTime";
 
 export default function GuestDashboardPage() {
-  const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
   const user = useSelector((state: RootState) => state.auth.user);
   const { data, isLoading } = useGetMyInvitationsQuery(
     { limit: 20, offset: 0 },
     { skip: !token }
   );
-
-  useEffect(() => {
-    if (typeof token === "string" && !token) {
-      router.replace("/auth?mode=signin");
-    }
-  }, [token, router]);
-
-  if (typeof window !== "undefined" && !token) {
-    return null;
-  }
 
   const invitations = data?.items ?? [];
   const firstName = user?.first_name ?? user?.email?.split("@")[0] ?? "there";
@@ -43,7 +30,7 @@ export default function GuestDashboardPage() {
     .slice(0, 3);
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-[#111418] dark:text-white">
@@ -54,7 +41,7 @@ export default function GuestDashboardPage() {
           </p>
         </div>
         <Button variant="outline" size="sm" className="rounded-lg gap-2" asChild>
-          <Link href="/events/discover">Discover events</Link>
+          <Link href="/events/discover">Browse events</Link>
         </Button>
       </div>
 
@@ -132,7 +119,7 @@ export default function GuestDashboardPage() {
               <div className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
                 <p className="mb-4">You don&apos;t have any invitations yet.</p>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/events/discover">Discover events</Link>
+                  <Link href="/events/discover">Browse events</Link>
                 </Button>
               </div>
             ) : (

@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
+import { eventsBrowsePath } from "@/lib/eventsBrowsePath";
+import type { RootState } from "@/lib/store";
 
 const AVATARS = [
   "https://api.dicebear.com/7.x/avataaars/svg?seed=a",
@@ -12,6 +17,10 @@ const HERO_IMAGE =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCvpfVxYmx08newmrLR94ViWDC4he3tVq9IpAxotuorxxuH-H4yUVhp9ORqvIdbrpG8FjYKijdAhfwKnLkHU5ohomk_KYc-0TMNYouFyWqbuSoRtpcPl8NLMw0ubo2-DM_Otds2TFUMPw6HF-EdHGy3E6mmxzNfI7vT4xezsPda7N3lCYHkc0h4247ZSCJYL0_sA76B35TTu55e92g1r1Ueb-0tcZgAtU8tZCdUgSQmesIHNR_92XyByytBdxR-tNjYw_-iXppOAdbw";
 
 export function HeroSection() {
+  const token = useSelector((state: RootState) => state.auth.token);
+  const browseHref = eventsBrowsePath(token);
+  const createHref = token ? "/events/new" : "/auth?mode=signup";
+
   return (
     <section className="px-6 md:px-20 py-16 md:py-24">
       <div className="flex flex-col gap-12 md:flex-row md:items-center">
@@ -32,7 +41,7 @@ export function HeroSection() {
               size="lg"
               className="min-w-[180px] h-12 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-lg transition-all"
             >
-              <Link href="/discover">Start Your Event</Link>
+              <Link href={browseHref}>{token ? "Browse events" : "Browse public events"}</Link>
             </Button>
             <Button
               asChild
@@ -40,7 +49,7 @@ export function HeroSection() {
               variant="outline"
               className="min-w-[180px] h-12 rounded-lg border-2 border-slate-300 dark:border-slate-600 bg-transparent hover:bg-slate-100 dark:hover:bg-white/5"
             >
-              <Link href="/discover">Watch Demo</Link>
+              <Link href={createHref}>Create an event</Link>
             </Button>
           </div>
           <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">

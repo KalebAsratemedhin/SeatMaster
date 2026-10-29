@@ -11,6 +11,7 @@ import { useGetMyEventsQuery } from "@/lib/api/eventsApi";
  */
 export function SessionValidator() {
   const token = useSelector((state: RootState) => state.auth.token);
-  useGetMyEventsQuery(undefined, { skip: !token });
+  const hasHydrated = useSelector((state: RootState) => state.auth.hasHydrated);
+  useGetMyEventsQuery(undefined, { skip: !hasHydrated || !token });
   return null;
 }

@@ -134,7 +134,7 @@ export default function EditEventPage() {
 
 function LoadingShell() {
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-8">
+    <div className="w-full max-w-6xl mx-auto py-4">
       <p className="text-muted-foreground">Loading...</p>
     </div>
   );
@@ -176,9 +176,9 @@ function EditEventFormContent({
   };
 
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-8 text-slate-900 dark:text-slate-100">
+    <div className="w-full max-w-6xl mx-auto py-4 text-slate-900 dark:text-slate-100">
       <nav className="mb-6 text-sm text-muted-foreground">
-          <Link href="/events" className="hover:text-foreground transition-colors">
+          <Link href="/events/discover?mine=1" className="hover:text-foreground transition-colors">
             Events
           </Link>
           <span className="mx-2">/</span>
@@ -272,17 +272,17 @@ function EditEventFormContent({
               </div>
               <div className="space-y-2">
                 <Label>Choose location on map</Label>
-                <p className="text-sm text-muted-foreground">
-                  Click on the map to set the event coordinates.
-                </p>
                 <LocationPickerMapDynamic
                   latitude={form.latitude}
                   longitude={form.longitude}
-                  onLocationChange={(lat, lng) =>
+                  onLocationChange={(lat, lng, label) =>
                     setForm((prev) => ({
                       ...prev,
                       latitude: lat,
                       longitude: lng,
+                      ...(label && !prev.location.trim()
+                        ? { location: label.split(",")[0]?.trim() || label }
+                        : {}),
                     }))
                   }
                   height="280px"

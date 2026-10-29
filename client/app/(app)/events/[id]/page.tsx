@@ -4,11 +4,12 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSelector } from "react-redux";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useGetEventQuery,
   useDeleteEventMutation,
   useGetEventInvitesQuery,
+  useGetMyInvitationsQuery,
   useInviteToEventMutation,
   useGetEventSeatingQuery,
   useCreateEventTableMutation,
@@ -80,11 +81,19 @@ export default function EventDetailPage() {
   type TabId = "comments" | "chats" | "seating" | "invites";
   const [activeTab, setActiveTab] = useState<TabId>("comments");
 
-  const isOwner = user && event && event.owner_id === user.id;
+  const eventReady = Boolean(event);
+  const isOwner = Boolean(user && event && event.owner_id === user.id);
 
   const { data: invitesData } = useGetEventInvitesQuery(
     { eventId: id, limit: guestsPageSize, offset: guestsPage * guestsPageSize },
     { skip: !id || !isOwner || !token }
+  );
+  const { data: myInvitationsData } = useGetMyInvitationsQuery(
+    { limit: 100, offset: 0 },
+    { skip: !token || !eventReady || isOwner }
+  );
+  const isInvitedGuest = Boolean(
+    myInvitationsData?.items?.some((inv) => inv.event.id === id)
   );
   const invites = invitesData?.items ?? [];
   const invitesTotal = invitesData?.total ?? 0;
@@ -140,38 +149,72 @@ export default function EventDetailPage() {
     return build(null);
   }, [comments]);
 
-  // Chat (private 1:1): owner sees threads, guest sees single thread
+  // Chat (private 1:1): owner lists threads; invited guest opens their own thread only
   const { data: chatThreads = [] } = useListThreadsQuery(id, {
-    skip: !id || !token,
+    skip: !id || !token || !eventReady || !isOwner,
   });
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [getOrCreateThread, { data: currentThread }] = useLazyGetOrCreateThreadQuery();
   const threadIdForApi = currentThread?.id ?? selectedThreadId;
+  const CHAT_PAGE_SIZE = 100;
+  const [chatOffset, setChatOffset] = useState(0);
   const { data: messagesData } = useListMessagesQuery(
-    { eventId: id, threadId: threadIdForApi ?? "", limit: 100, offset: 0 },
+    {
+      eventId: id,
+      threadId: threadIdForApi ?? "",
+      limit: CHAT_PAGE_SIZE,
+      offset: chatOffset,
+    },
     { skip: !id || !threadIdForApi || !token }
   );
+
+  // Reset / jump to the latest window when switching threads
+  useEffect(() => {
+    setChatOffset(0);
+  }, [threadIdForApi]);
+
+  useEffect(() => {
+    if (!messagesData || chatOffset !== 0) return;
+    const total = messagesData.total ?? 0;
+    if (total > CHAT_PAGE_SIZE) {
+      setChatOffset(total - CHAT_PAGE_SIZE);
+    }
+  }, [messagesData, chatOffset]);
+
   const restMessages = (messagesData?.items ?? []) as EventChatMessageResponse[];
   const { messages: wsMessages, connected, sendMessage } = useChatWebSocket(
     threadIdForApi,
     token
   );
+  // Oldest → newest. Pane uses flex-col-reverse so the thread sits above the composer.
   const allMessages = useMemo(() => {
     const seen = new Set(restMessages.map((m) => m.id));
     const fromWs = wsMessages.filter((m) => !seen.has(m.id));
-    const combined = [...restMessages, ...fromWs];
-    return combined.sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
+    return [...restMessages, ...fromWs].sort((a, b) => {
+      const ta = Date.parse(a.created_at) || 0;
+      const tb = Date.parse(b.created_at) || 0;
+      if (ta !== tb) return ta - tb;
+      return a.id.localeCompare(b.id);
+    });
   }, [restMessages, wsMessages]);
   const [chatInput, setChatInput] = useState("");
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Guest: open their single thread with the organizer when they have access
+  // Guest: open thread only after event role is known and invite is confirmed
   useEffect(() => {
-    if (!id || !token || isOwner) return;
+    if (!id || !token || !eventReady || isOwner || !isInvitedGuest) return;
     getOrCreateThread({ eventId: id });
-  }, [id, token, isOwner, getOrCreateThread]);
+  }, [id, token, eventReady, isOwner, isInvitedGuest, getOrCreateThread]);
+
+  // Owner: select first guest thread when list loads
+  useEffect(() => {
+    if (!isOwner || selectedThreadId || chatThreads.length === 0) return;
+    setSelectedThreadId(chatThreads[0].id);
+  }, [isOwner, selectedThreadId, chatThreads]);
+
+  const activeChatPeerName = isOwner
+    ? (chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"
+    : "Organizer";
 
   const handlePostComment = (e: React.FormEvent, parentId?: string | null) => {
     e.preventDefault();
@@ -206,7 +249,7 @@ export default function EventDetailPage() {
       .unwrap()
       .then(() => {
         setDeleteDialogOpen(false);
-        router.push("/events");
+        router.push("/events/discover?mine=1");
       })
       .catch(() => {});
   };
@@ -226,7 +269,9 @@ export default function EventDetailPage() {
           Event not found or you don&apos;t have access.
         </p>
         <Button variant="outline" asChild className="mt-4">
-          <Link href="/events">Back to Events</Link>
+          <Link href={token ? "/events/discover" : "/discover"}>
+            Back to Events
+          </Link>
         </Button>
       </div>
     );
@@ -260,13 +305,16 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      <div className="flex-1 container max-w-6xl mx-auto px-4 py-8">
+      <div className="flex-1 w-full max-w-7xl mx-auto py-4 lg:py-6">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
           {/* Main content */}
           <div className="flex-1 min-w-0">
             {/* Breadcrumbs */}
             <nav className="mb-6 text-sm text-muted-foreground">
-              <Link href="/events" className="hover:text-foreground transition-colors">
+              <Link
+                href={token ? "/events/discover" : "/discover"}
+                className="hover:text-foreground transition-colors"
+              >
                 Events
               </Link>
               <span className="mx-2">/</span>
@@ -490,39 +538,32 @@ export default function EventDetailPage() {
             </section>
                 )}
                 {activeTab === "chats" && token && (isOwner || currentThread) && (
-                  <section className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
-                    <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
-                      <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                        <MessageSquare className="size-5 text-[var(--primary)]" />
-                        Private chat
-                      </h2>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        One-to-one with the organizer. Only you and the organizer see these messages.
-                      </p>
-                    </div>
-                    <div className="p-6 flex flex-col gap-4">
-                      {isOwner && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                            Guest conversations
-                          </p>
+                  <section className="flex h-[min(520px,70vh)] min-h-[360px]">
+                    {/* Conversation list (owner) */}
+                    {isOwner && (
+                      <aside className="w-[220px] sm:w-[260px] shrink-0 border-r border-slate-200/80 dark:border-slate-700/80 flex flex-col bg-slate-50/80 dark:bg-slate-900/40">
+                        <div className="px-4 py-3 border-b border-slate-200/80 dark:border-slate-700/80">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">Guests</p>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
                           {chatThreads.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-2">No guest chats yet.</p>
+                            <p className="px-4 py-6 text-sm text-muted-foreground">No conversations yet.</p>
                           ) : (
-                            <div className="flex flex-col gap-1 max-h-[180px] overflow-y-auto rounded-xl border border-slate-200/60 dark:border-slate-700/60 divide-y divide-slate-200/60 dark:divide-slate-700/60">
-                              {chatThreads.map((t) => (
+                            chatThreads.map((t) => {
+                              const active = selectedThreadId === t.id;
+                              return (
                                 <button
                                   key={t.id}
                                   type="button"
                                   onClick={() => setSelectedThreadId(t.id)}
-                                  className={`flex items-center gap-3 w-full px-4 py-3 text-left rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/50 ${
-                                    selectedThreadId === t.id
-                                      ? "bg-[var(--primary)]/10 dark:bg-[var(--primary)]/20 border border-[var(--primary)]/30"
-                                      : ""
+                                  className={`flex w-full items-center gap-3 px-3 py-3 text-left transition-colors border-l-2 ${
+                                    active
+                                      ? "border-primary bg-primary/10 dark:bg-primary/15"
+                                      : "border-transparent hover:bg-slate-100/80 dark:hover:bg-slate-800/50"
                                   }`}
                                 >
-                                  <Avatar className="size-9 shrink-0 border border-slate-200/60 dark:border-slate-600">
-                                    <AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
+                                  <Avatar className="size-10 shrink-0 border border-slate-200/70 dark:border-slate-600">
+                                    <AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold">
                                       {getInitialsFromName(t.guest_name)}
                                     </AvatarFallback>
                                   </Avatar>
@@ -530,93 +571,115 @@ export default function EventDetailPage() {
                                     {t.guest_name}
                                   </span>
                                 </button>
-                              ))}
-                            </div>
+                              );
+                            })
                           )}
                         </div>
-                      )}
-                      {threadIdForApi && (
+                      </aside>
+                    )}
+
+                    {/* Message pane */}
+                    <div className="flex-1 min-w-0 flex flex-col bg-white/60 dark:bg-slate-900/20">
+                      {threadIdForApi ? (
                         <>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            {connected && <span className="size-2 rounded-full bg-primary" title="Connected" />}
-                            {!connected && threadIdForApi && <span className="size-2 rounded-full bg-primary/70" title="Connecting..." />}
-                            {isOwner && selectedThreadId && (
-                              <span>Chat with {(chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"}</span>
-                            )}
-                            {!isOwner && currentThread && (
-                              <span>Chat with organizer</span>
-                            )}
-                          </div>
-                          <div className="min-h-[200px] max-h-[320px] overflow-y-auto rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/30 dark:bg-slate-900/30 p-4 space-y-3">
-                            {allMessages.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No messages yet. Say hello!</p>
-                            ) : (
-                              allMessages.map((m) => {
-                                const isMe = m.sender_id === user?.id;
-                                const otherName = isOwner
-                                  ? (chatThreads.find((t) => t.id === selectedThreadId) ?? currentThread)?.guest_name ?? "Guest"
-                                  : "Organizer";
-                                return (
-                                  <div
-                                    key={m.id}
-                                    className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                                  >
-                                    <Avatar className="size-8 shrink-0 border border-slate-200/60 dark:border-slate-600">
-                                      {isMe && user?.avatar_url ? (
-                                        <AvatarImage src={user.avatar_url} alt="" className="object-cover" />
-                                      ) : null}
-                                      <AvatarFallback
-                                        className={`text-xs font-medium ${
-                                          isMe
-                                            ? "bg-[var(--primary)]/20 text-[var(--primary)]"
-                                            : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400"
-                                        }`}
-                                      >
-                                        {isMe
-                                          ? (user?.first_name && user?.last_name
-                                              ? getInitialsFromName(`${user.first_name} ${user.last_name}`)
-                                              : getInitialsFromEmail(user?.email))
-                                          : getInitialsFromName(otherName)}
-                                      </AvatarFallback>
-                                    </Avatar>
+                          <header className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/80 dark:border-slate-700/80 shrink-0">
+                            <Avatar className="size-9 shrink-0 border border-slate-200/70 dark:border-slate-600">
+                              <AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-xs font-semibold">
+                                {getInitialsFromName(activeChatPeerName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                {activeChatPeerName}
+                              </p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <span
+                                  className={`size-1.5 rounded-full ${connected ? "bg-emerald-500" : "bg-amber-500"}`}
+                                />
+                                {connected ? "Online" : "Connecting…"}
+                              </p>
+                            </div>
+                          </header>
+
+                          <div
+                            ref={chatScrollRef}
+                            className="flex-1 overflow-y-auto px-4 py-4 flex flex-col-reverse"
+                          >
+                            {/* col-reverse anchors the thread to the composer; list stays oldest→newest */}
+                            <div className="flex flex-col gap-3">
+                              {allMessages.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-10">
+                                  No messages yet.
+                                </p>
+                              ) : (
+                                allMessages.map((m) => {
+                                  const isMe = m.sender_id === user?.id;
+                                  return (
                                     <div
-                                      className={`flex flex-col max-w-[80%] ${isMe ? "items-end" : "items-start"}`}
+                                      key={m.id}
+                                      className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
                                     >
+                                      {!isMe && (
+                                        <Avatar className="size-8 shrink-0 border border-slate-200/60 dark:border-slate-600 self-end">
+                                          <AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-semibold">
+                                            {getInitialsFromName(activeChatPeerName)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      )}
                                       <div
-                                        className={`rounded-2xl px-4 py-2 text-sm ${
-                                          isMe
-                                            ? "bg-primary text-primary-foreground"
-                                            : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
-                                        }`}
+                                        className={`flex flex-col max-w-[75%] ${isMe ? "items-end" : "items-start"}`}
                                       >
-                                        <p className="whitespace-pre-wrap">{m.body}</p>
-                                        <p className={`text-xs mt-1 ${isMe ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                                          {new Date(m.created_at).toLocaleTimeString()}
-                                        </p>
+                                        <div
+                                          className={`rounded-2xl px-3.5 py-2 text-sm ${
+                                            isMe
+                                              ? "bg-primary text-primary-foreground rounded-br-md"
+                                              : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-md"
+                                          }`}
+                                        >
+                                          <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground mt-1 px-1">
+                                          {new Date(m.created_at).toLocaleTimeString([], {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          })}
+                                        </span>
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })
-                            )}
+                                  );
+                                })
+                              )}
+                            </div>
                           </div>
-                          <form onSubmit={handleSendChat} className="flex gap-2">
+
+                          <form
+                            onSubmit={handleSendChat}
+                            className="shrink-0 flex items-center gap-2 px-3 py-3 border-t border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/50"
+                          >
                             <Input
-                              placeholder="Type a message..."
+                              placeholder="Message…"
                               value={chatInput}
                               onChange={(e) => setChatInput(e.target.value)}
-                              className="flex-1 rounded-xl"
+                              className="flex-1 rounded-full h-10"
                               maxLength={2000}
                             />
                             <Button
                               type="submit"
-                              disabled={!chatInput.trim()}
-                              className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white rounded-xl shrink-0"
+                              size="icon"
+                              disabled={!chatInput.trim() || !connected}
+                              className="rounded-full size-10 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+                              aria-label="Send"
                             >
                               <Send className="size-4" />
                             </Button>
                           </form>
                         </>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center px-6">
+                          <p className="text-sm text-muted-foreground text-center">
+                            {isOwner ? "Select a guest to open the chat." : "Opening chat…"}
+                          </p>
+                        </div>
                       )}
                     </div>
                   </section>

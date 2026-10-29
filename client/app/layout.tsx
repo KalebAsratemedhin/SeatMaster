@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/components/providers/store-provider";
+import { AuthHydrator } from "@/components/auth/auth-hydrator";
 import { SessionValidator } from "@/components/auth/session-validator";
 
 const fraunces = Fraunces({
@@ -32,6 +33,7 @@ export default function RootLayout({
         className={`${fraunces.variable} ${dmSans.variable} font-sans antialiased`}
       >
         <StoreProvider>
+          <AuthHydrator />
           <SessionValidator />
           {children}
         </StoreProvider>

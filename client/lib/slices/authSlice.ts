@@ -1,27 +1,37 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { UserResponse } from "@/lib/api/authApi";
 
 type AuthState = {
   token: string | null;
   user: UserResponse | null;
+  /** False until client reads localStorage — keeps SSR and first client paint aligned. */
+  hasHydrated: boolean;
 };
 
 const initialState: AuthState = {
-  token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
-  user: (() => {
-    if (typeof window === "undefined") return null;
-    const raw = localStorage.getItem("user");
-    return raw ? (JSON.parse(raw) as UserResponse) : null;
-  })(),
+  token: null,
+  user: null,
+  hasHydrated: false,
 };
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    rehydrateFromStorage: (
+      state,
+      action: PayloadAction<{ token: string; user: UserResponse } | null>
+    ) => {
+      if (action.payload) {
+        state.token = action.payload.token;
+        state.user = action.payload.user;
+      }
+      state.hasHydrated = true;
+    },
     setCredentials: (state, action: { payload: { token: string; user: UserResponse } }) => {
       state.token = action.payload.token;
       state.user = action.payload.user;
+      state.hasHydrated = true;
       if (typeof window !== "undefined") {
         localStorage.setItem("token", action.payload.token);
         localStorage.setItem("user", JSON.stringify(action.payload.user));
@@ -38,5 +48,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, logout, rehydrateFromStorage } = authSlice.actions;
 export default authSlice.reducer;

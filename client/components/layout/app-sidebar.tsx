@@ -5,9 +5,8 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/logo";
 import {
   LayoutDashboard,
-  Calendar,
   Mail,
-  Compass,
+  Calendar,
   User,
 } from "lucide-react";
 
@@ -20,9 +19,8 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, match: "exact" },
-  { href: "/events", label: "Events", icon: Calendar, match: "prefix" },
   { href: "/invitations", label: "Invitations", icon: Mail, match: "exact" },
-  { href: "/events/discover", label: "Discover", icon: Compass, match: "exact" },
+  { href: "/events/discover", label: "Events", icon: Calendar, match: "exact" },
   { href: "/profile", label: "Profile", icon: User, match: "exact" },
 ];
 

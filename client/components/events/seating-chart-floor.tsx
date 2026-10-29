@@ -1,49 +1,62 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EventTableResponse } from "@/lib/api/eventsApi";
-
-/** Seat centers on the round table dotted border (circle). % is of container. Order: N, S, E, W, NE, NW, SE, SW. */
-const ROUND_POSITIONS = [
-  { className: "top-0 left-1/2 -translate-x-1/2 -translate-y-1/2" },
-  { className: "bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2" },
-  { className: "left-0 top-1/2 -translate-x-1/2 -translate-y-1/2" },
-  { className: "right-0 top-1/2 translate-x-1/2 -translate-y-1/2" },
-  { className: "left-[85.36%] top-[14.64%] -translate-x-1/2 -translate-y-1/2" },
-  { className: "left-[14.64%] top-[14.64%] -translate-x-1/2 -translate-y-1/2" },
-  { className: "left-[85.36%] top-[85.36%] -translate-x-1/2 -translate-y-1/2" },
-  { className: "left-[14.64%] top-[85.36%] -translate-x-1/2 -translate-y-1/2" },
-];
-
-/** Seat centers on the rectangular table dotted border. Order: top L, top C, top R, bottom L, bottom C, bottom R, left, right. */
-const RECT_POSITIONS = [
-  { className: "top-0 left-[12.5%] -translate-x-1/2 -translate-y-1/2" },
-  { className: "top-0 left-1/2 -translate-x-1/2 -translate-y-1/2" },
-  { className: "top-0 left-[87.5%] -translate-x-1/2 -translate-y-1/2" },
-  { className: "bottom-0 left-[12.5%] -translate-x-1/2 translate-y-1/2" },
-  { className: "bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2" },
-  { className: "bottom-0 left-[87.5%] -translate-x-1/2 translate-y-1/2" },
-  { className: "left-0 top-1/2 -translate-x-1/2 -translate-y-1/2" },
-  { className: "right-0 top-1/2 translate-x-1/2 -translate-y-1/2" },
-];
+import {
+  estimateTableFootprintPct,
+  footprintsOverlap,
+  rectSeatPositions,
+  roundSeatPositions,
+  type TableFootprint,
+} from "@/lib/seatingLayout";
 
 type SeatingChartFloorProps = {
   tables: EventTableResponse[];
-  /** For RSVP: when set, seats are clickable */
   selectable?: boolean;
-  /** For RSVP: seat ids currently selected (e.g. primary + guest when plus one) */
   selectedSeatIds?: string[];
   onSeatSelect?: (seatId: string) => void;
-  /** When selectable, seats assigned to this invite id are still clickable (current user's seat) */
   currentInviteId?: string | null;
-  /** When true, show delete on tables (event detail owner view) */
   showDelete?: boolean;
   onDeleteTable?: (tableId: string) => void;
-  /** When set, tables/sitting areas can be dragged to reorder. Called with new ordered table ids. */
   onReorder?: (orderedTableIds: string[]) => void;
-  /** When set, tables/sitting areas can be dragged to place anywhere. Called with table id and position (0-100%). */
   onPositionChange?: (tableId: string, x: number, y: number) => void;
 };
+
+type DragState = {
+  tableId: string;
+  x: number;
+  y: number;
+  originX: number;
+  originY: number;
+  valid: boolean;
+};
+
+function sortedSeats(t: EventTableResponse) {
+  return [...t.seats].sort((a, b) => a.display_order - b.display_order);
+}
+
+function tableVisualSize(t: EventTableResponse) {
+  const shape = (t.shape ?? "").toLowerCase();
+  const n = Math.max(t.capacity, t.seats.length, 1);
+  if (shape === "grid") {
+    const cols = Math.max(1, t.columns ?? Math.ceil(Math.sqrt(n)));
+    const rows = Math.max(1, t.rows ?? Math.ceil(n / cols));
+    // Square-ish cells so the grid looks even
+    const cell = 26;
+    return {
+      width: Math.max(88, cols * cell + 20),
+      height: Math.max(72, rows * cell + 28),
+    };
+  }
+  if (shape === "rectangular") {
+    // Keep ~2:1 aspect; grow with capacity so perimeter seats have room
+    const width = Math.min(300, Math.max(160, 120 + n * 12));
+    const height = Math.round(width / 2);
+    return { width, height };
+  }
+  const size = Math.min(200, Math.max(96, 56 + n * 8));
+  return { width: size, height: size };
+}
 
 export function SeatingChartFloor({
   tables,
@@ -56,170 +69,357 @@ export function SeatingChartFloor({
   onReorder,
   onPositionChange,
 }: SeatingChartFloorProps) {
-  const [draggedId, setDraggedId] = useState<string | null>(null);
   const floorRef = useRef<HTMLDivElement>(null);
+  const [floorSize, setFloorSize] = useState({ w: 800, h: 500 });
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [positionOverrides, setPositionOverrides] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
   const canMove = showDelete && !!onPositionChange;
   const canReorder = showDelete && !!onReorder && !onPositionChange;
 
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, tableId: string) => {
-      if (!canMove && !canReorder) return;
-      e.dataTransfer.setData("application/json", JSON.stringify({ tableId }));
-      e.dataTransfer.effectAllowed = "move";
-      setDraggedId(tableId);
-    },
-    [canMove, canReorder]
-  );
+  const dragActiveRef = useRef(false);
+  const restingFootprintsRef = useRef<Map<string, TableFootprint>>(new Map());
+  const dragRef = useRef<DragState | null>(null);
 
-  const handleFloorDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+  useEffect(() => {
+    dragActiveRef.current = drag != null;
+    dragRef.current = drag;
+  }, [drag]);
+
+  useEffect(() => {
+    const el = floorRef.current;
+    if (!el) return;
+    const update = () => {
+      // Resizing mid-drag changes % math and makes large (grid) tables flicker.
+      if (dragActiveRef.current) return;
+      const r = el.getBoundingClientRect();
+      setFloorSize((prev) => {
+        if (Math.abs(prev.w - r.width) < 2 && Math.abs(prev.h - r.height) < 2) {
+          return prev;
+        }
+        return { w: r.width, h: r.height };
+      });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  const handleFloorDrop = useCallback(
-    (e: React.DragEvent) => {
+  // Drop optimistic overrides once server positions catch up (queue to avoid sync setState-in-effect lint)
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setPositionOverrides((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const t of tables) {
+          const o = next[t.id];
+          if (!o) continue;
+          if (
+            t.position_x != null &&
+            t.position_y != null &&
+            Math.abs(t.position_x - o.x) < 0.05 &&
+            Math.abs(t.position_y - o.y) < 0.05
+          ) {
+            delete next[t.id];
+            changed = true;
+          }
+        }
+        const ids = new Set(tables.map((t) => t.id));
+        for (const id of Object.keys(next)) {
+          if (!ids.has(id)) {
+            delete next[id];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tables]);
+
+  const baseItems = useMemo(() => {
+    return [...tables]
+      .sort((a, b) => a.display_order - b.display_order)
+      .map((t, index) => {
+        const override = positionOverrides[t.id];
+        const hasPosition =
+          t.position_x != null &&
+          t.position_y != null &&
+          (t.position_x !== 0 || t.position_y !== 0);
+        const x = override?.x ?? (hasPosition ? t.position_x! : 20 + (index % 4) * 22);
+        const y = override?.y ?? (hasPosition ? t.position_y! : 25 + Math.floor(index / 4) * 25);
+        return { t, index, x, y };
+      });
+  }, [tables, positionOverrides]);
+
+  const items = useMemo(() => {
+    if (!drag) return baseItems;
+    return baseItems.map((item) =>
+      item.t.id === drag.tableId ? { ...item, x: drag.x, y: drag.y } : item
+    );
+  }, [baseItems, drag]);
+
+  /** Footprints at resting positions (ignore live drag) for stable collision checks. */
+  const restingFootprints = useMemo(() => {
+    const map = new Map<string, TableFootprint>();
+    for (const { t, x, y } of baseItems) {
+      const size = estimateTableFootprintPct(
+        t.shape,
+        t.capacity,
+        t.rows,
+        t.columns,
+        floorSize.w,
+        floorSize.h
+      );
+      map.set(t.id, { x, y, w: size.w, h: size.h });
+    }
+    return map;
+  }, [baseItems, floorSize]);
+
+  useEffect(() => {
+    restingFootprintsRef.current = restingFootprints;
+  }, [restingFootprints]);
+
+  const clientToFloorPct = useCallback((clientX: number, clientY: number) => {
+    const el = floorRef.current;
+    if (!el) return { x: 50, y: 50 };
+    const rect = el.getBoundingClientRect();
+    const x = ((clientX - rect.left) / Math.max(rect.width, 1)) * 100;
+    const y = ((clientY - rect.top) / Math.max(rect.height, 1)) * 100;
+    return {
+      x: Math.max(4, Math.min(96, x)),
+      y: Math.max(6, Math.min(94, y)),
+    };
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent, tableId: string, x: number, y: number) => {
+      if (!canMove) return;
+      if ((e.target as HTMLElement).closest("button")) return;
       e.preventDefault();
-      setDraggedId(null);
-      if (!onPositionChange) return;
-      const payload = e.dataTransfer.getData("application/json");
-      if (!payload) return;
-      let tableId: string;
-      try {
-        const { tableId: id } = JSON.parse(payload) as { tableId: string };
-        tableId = id;
-      } catch {
+      setDrag({
+        tableId,
+        x,
+        y,
+        originX: x,
+        originY: y,
+        valid: true,
+      });
+    },
+    [canMove]
+  );
+
+  const dragTableId = drag?.tableId ?? null;
+
+  useEffect(() => {
+    if (!dragTableId || !canMove) return;
+
+    const overlaps = (tableId: string, x: number, y: number) => {
+      const map = restingFootprintsRef.current;
+      const moving = map.get(tableId);
+      if (!moving) return false;
+      const candidate: TableFootprint = { ...moving, x, y };
+      for (const [id, other] of map) {
+        if (id === tableId) continue;
+        if (footprintsOverlap(candidate, other)) return true;
+      }
+      return false;
+    };
+
+    const onMove = (e: PointerEvent) => {
+      const current = dragRef.current;
+      if (!current) return;
+      const { x, y } = clientToFloorPct(e.clientX, e.clientY);
+      const valid = !overlaps(current.tableId, x, y);
+      setDrag((prev) => (prev ? { ...prev, x, y, valid } : null));
+    };
+
+    const onUp = () => {
+      const current = dragRef.current;
+      setDrag(null);
+      if (!current) return;
+      if (!current.valid) return;
+      if (
+        Math.abs(current.x - current.originX) < 0.2 &&
+        Math.abs(current.y - current.originY) < 0.2
+      ) {
         return;
       }
-      const el = floorRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      const clampedX = Math.max(0, Math.min(100, x));
-      const clampedY = Math.max(0, Math.min(100, y));
-      onPositionChange(tableId, clampedX, clampedY);
-    },
-    [onPositionChange]
-  );
+      setPositionOverrides((prev) => ({
+        ...prev,
+        [current.tableId]: { x: current.x, y: current.y },
+      }));
+      onPositionChange?.(current.tableId, current.x, current.y);
+    };
 
-  const handleDragEnd = useCallback(() => {
-    setDraggedId(null);
-  }, []);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [dragTableId, canMove, clientToFloorPct, onPositionChange]);
 
-  const isGridShape = (t: EventTableResponse) =>
-    (t.shape ?? "").toLowerCase() === "grid";
+  // Size floor from resting positions only — live drag must not grow/shrink the floor.
+  const maxX =
+    baseItems.length > 0 ? Math.max(...baseItems.map((i) => i.x), 60) : 60;
+  const maxY =
+    baseItems.length > 0 ? Math.max(...baseItems.map((i) => i.y), 50) : 50;
+  const floorMinHeight = Math.max(420, (maxY / 100) * 1000 + 80);
+  const floorMinWidth = Math.max(480, (maxX / 100) * 800 + 80);
 
-  // All items for free placement, sorted by display_order; position from API or default grid
-  const items = [...tables].sort((a, b) => a.display_order - b.display_order).map((t, index) => {
-    const hasPosition = (t.position_x != null && t.position_y != null) && (t.position_x !== 0 || t.position_y !== 0);
-    const px = hasPosition ? t.position_x! : 20 + (index % 4) * 22;
-    const py = hasPosition ? t.position_y! : 25 + Math.floor(index / 4) * 25;
-    return { t, index, x: px, y: py };
-  });
-
-  // Grow floor so the grey area always contains all tables (and has room for more)
-  const maxX = items.length > 0 ? Math.max(...items.map((i) => i.x), 60) : 60;
-  const maxY = items.length > 0 ? Math.max(...items.map((i) => i.y), 50) : 50;
-  const floorMinHeight = Math.max(380, (maxY / 100) * 1000);
-  const floorMinWidth = Math.max(400, (maxX / 100) * 800);
-
-  const renderTableCard = (t: EventTableResponse) => {
-    const assigned = t.seats.filter((s) => s.invite_id != null).length;
+  const renderTableCard = (t: EventTableResponse, isDragging: boolean, dragValid: boolean) => {
+    const seats = sortedSeats(t);
+    const assigned = seats.filter((s) => s.invite_id != null).length;
     const isFull = assigned >= t.capacity;
     const shape = (t.shape ?? "").toLowerCase();
     const isRect = shape === "rectangular";
     const isGrid = shape === "grid";
     const isRound = !isRect && !isGrid;
-    const positions = isRound ? ROUND_POSITIONS : RECT_POSITIONS;
+    const visual = tableVisualSize(t);
+    const aspectW = visual.width;
+    const aspectH = visual.height;
+    const seatPositions = isRound
+      ? roundSeatPositions(seats.length, 50)
+      : isRect
+        ? rectSeatPositions(seats.length, aspectW, aspectH)
+        : [];
+
+    const cols = Math.max(
+      1,
+      t.columns ?? Math.ceil(Math.sqrt(Math.max(seats.length, 1)))
+    );
+    const rows = Math.max(
+      1,
+      t.rows ?? Math.ceil(Math.max(seats.length, 1) / cols)
+    );
+
+    // Keep seat dots readable but not piled when capacity is high
+    const borderSeatPx = Math.max(
+      12,
+      Math.min(22, Math.floor((isRound ? visual.width : Math.min(visual.width, visual.height)) / (Math.max(seats.length, 1) * 0.45 + 4)))
+    );
+    const gridSeatPx = Math.max(
+      12,
+      Math.min(20, Math.floor(Math.min(visual.width / cols, visual.height / rows) * 0.55))
+    );
+
     const tableLabel = (
-      <>
-        <span className={`text-xs font-bold ${isFull ? "text-primary" : "text-[#111418] dark:text-white group-hover:text-primary"}`}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-[1] px-2">
+        <span
+          className={`text-[10px] sm:text-xs font-bold text-center leading-tight ${
+            isFull ? "text-primary" : "text-[#111418] dark:text-white group-hover:text-primary"
+          }`}
+        >
           {t.name.toUpperCase()}
         </span>
-        <span className="text-[10px] text-[#617589]">
-          Capacity: {assigned}/{t.capacity}
+        <span className="text-[9px] sm:text-[10px] text-[#617589] text-center">
+          {assigned}/{t.capacity}
         </span>
-      </>
+      </div>
     );
+
+    const seatClass = (s: (typeof seats)[0]) => {
+      const isMySeat = currentInviteId != null && s.invite_id === currentInviteId;
+      const assignedSeat = s.invite_id != null && !isMySeat;
+      const isSelected = selectable && selectedSeatIds.includes(s.id);
+      const canSelect = selectable && (!assignedSeat || isMySeat);
+      return {
+        canSelect,
+        className: `rounded-full border-2 border-slate-400 dark:border-slate-500 shrink-0 shadow-sm
+          ${assignedSeat ? "bg-primary" : isSelected ? "bg-primary ring-2 ring-primary" : canSelect ? "bg-gray-200 dark:bg-gray-700 cursor-pointer hover:ring-2 hover:ring-primary/50" : "bg-gray-100 dark:bg-gray-700"}`,
+      };
+    };
 
     return (
       <div
-        key={t.id}
-        className={`flex flex-col items-center gap-2 transition-all ${draggedId === t.id ? "opacity-60" : ""}`}
-        draggable={canMove || canReorder}
-        onDragStart={(e) => handleDragStart(e, t.id)}
-        onDragEnd={handleDragEnd}
+        className={`flex flex-col items-center gap-2 select-none ${
+          isDragging ? "opacity-90" : ""
+        }`}
       >
         <div
-          className={`relative flex flex-col items-center justify-center group transition-all ${canMove || canReorder ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
-            ${isRound ? "size-24 sm:size-32 rounded-full" : isGrid ? "rounded-lg p-2 min-w-[80px] min-h-[60px]" : "w-36 sm:w-48 h-16 sm:h-24 rounded-lg"}
-            ${isFull ? "bg-primary/10 border-2 border-primary ring-4 ring-primary/10 shadow-lg" : "bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 group-hover:border-primary"}
+          className={`relative group transition-shadow
+            ${canMove || canReorder ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
+            ${isRound ? "rounded-full" : "rounded-lg"}
+            ${
+              isDragging && !dragValid
+                ? "bg-red-500/10 border-2 border-red-500 ring-4 ring-red-500/20"
+                : isFull
+                  ? "bg-primary/10 border-2 border-primary ring-4 ring-primary/10 shadow-lg"
+                  : "bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700 group-hover:border-primary"
+            }
           `}
-          style={
-            isGrid
-              ? {
-                  width: "auto",
-                  minWidth: `${Math.max(2, t.columns ?? 2) * 24 + 24}px`,
-                  minHeight: `${Math.max(2, t.rows ?? 2) * 24 + 32}px`,
-                }
-              : undefined
-          }
+          style={{
+            width: visual.width,
+            height: visual.height,
+          }}
         >
           {!isGrid && tableLabel}
           {isGrid ? (
             <>
-              <div className="absolute top-1 left-1 right-1 flex justify-between items-center pointer-events-none z-10">
-                <span className={`text-[10px] font-bold ${isFull ? "text-primary" : "text-[#111418] dark:text-white"}`}>
+              <div className="absolute top-1 left-1.5 right-1.5 flex justify-between items-center pointer-events-none z-10">
+                <span
+                  className={`text-[10px] font-bold truncate ${
+                    isFull ? "text-primary" : "text-[#111418] dark:text-white"
+                  }`}
+                >
                   {t.name.toUpperCase()}
                 </span>
-                <span className="text-[9px] text-[#617589]">{assigned}/{t.capacity}</span>
+                <span className="text-[9px] text-[#617589] shrink-0 ml-1">
+                  {assigned}/{t.capacity}
+                </span>
               </div>
               <div
-                className="grid gap-0.5 w-full flex-1 place-items-center mt-8"
+                className="absolute inset-0 grid pt-6 px-1.5 pb-1.5"
                 style={{
-                  gridTemplateColumns: `repeat(${t.columns ?? Math.ceil(Math.sqrt(t.capacity))}, minmax(0, 1fr))`,
-                  gridTemplateRows: `repeat(${t.rows ?? Math.ceil(t.capacity / (t.columns ?? Math.ceil(Math.sqrt(t.capacity))))}, minmax(0, 1fr))`,
+                  gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                  gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+                  gap: "3px",
                 }}
               >
-                {t.seats.map((s) => {
-                  const isMySeat = currentInviteId != null && s.invite_id === currentInviteId;
-                  const assignedSeat = s.invite_id != null && !isMySeat;
-                  const isSelected = selectable && selectedSeatIds.includes(s.id);
-                  const canSelect = selectable && (!assignedSeat || isMySeat);
+                {seats.map((s) => {
+                  const meta = seatClass(s);
                   return (
                     <button
                       key={s.id}
                       type="button"
-                      className={`size-4 sm:size-5 rounded-full border-2 border-slate-400 dark:border-slate-500 shrink-0 shadow-sm
-                                ${assignedSeat ? "bg-primary" : isSelected ? "bg-primary ring-2 ring-primary" : canSelect ? "bg-gray-200 dark:bg-gray-700 cursor-pointer hover:ring-2 hover:ring-primary/50" : "bg-gray-100 dark:bg-gray-700"}
-                              `}
-                      disabled={!canSelect}
-                      onClick={() => canSelect && onSeatSelect?.(s.id)}
-                      title={t.name + " - Seat " + s.label}
+                      className={`justify-self-center self-center ${meta.className}`}
+                      style={{ width: gridSeatPx, height: gridSeatPx }}
+                      disabled={!meta.canSelect}
+                      onClick={() => meta.canSelect && onSeatSelect?.(s.id)}
+                      title={`${t.name} - Seat ${s.label}`}
                     />
                   );
                 })}
               </div>
             </>
           ) : (
-            t.seats.slice(0, 8).map((s, idx) => {
-              const pos = positions[idx];
+            seats.map((s, idx) => {
+              const pos = seatPositions[idx];
               if (!pos) return null;
-              const isMySeat = currentInviteId != null && s.invite_id === currentInviteId;
-              const assignedSeat = s.invite_id != null && !isMySeat;
-              const isSelected = selectable && selectedSeatIds.includes(s.id);
-              const canSelect = selectable && (!assignedSeat || isMySeat);
+              const meta = seatClass(s);
               return (
                 <button
                   key={s.id}
                   type="button"
-                  className={`absolute size-5 sm:size-6 rounded-full border-2 border-slate-400 dark:border-slate-500 shrink-0 shadow-sm
-                    ${pos.className}
-                    ${assignedSeat ? "bg-primary" : isSelected ? "bg-primary ring-2 ring-primary" : canSelect ? "bg-gray-200 dark:bg-gray-700 cursor-pointer hover:ring-2 hover:ring-primary/50" : "bg-gray-100 dark:bg-gray-700"}
-                  `}
-                  disabled={!canSelect}
-                  onClick={() => canSelect && onSeatSelect?.(s.id)}
-                  title={t.name + " - Seat " + s.label}
+                  className={`absolute z-[2] -translate-x-1/2 -translate-y-1/2 ${meta.className}`}
+                  style={{
+                    left: `${pos.left}%`,
+                    top: `${pos.top}%`,
+                    width: borderSeatPx,
+                    height: borderSeatPx,
+                  }}
+                  disabled={!meta.canSelect}
+                  onClick={() => meta.canSelect && onSeatSelect?.(s.id)}
+                  title={`${t.name} - Seat ${s.label}`}
                 />
               );
             })
@@ -227,8 +427,11 @@ export function SeatingChartFloor({
           {showDelete && onDeleteTable && (
             <button
               type="button"
-              className="absolute -top-1 -right-1 size-6 rounded-full bg-red-500/90 text-white flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => { e.stopPropagation(); onDeleteTable(t.id); }}
+              className="absolute -top-1 -right-1 size-6 rounded-full bg-red-500/90 text-white flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteTable(t.id);
+              }}
               aria-label={`Delete ${t.name}`}
             >
               ×
@@ -237,10 +440,20 @@ export function SeatingChartFloor({
         </div>
         <div className="flex items-center gap-1.5">
           <span
-            className={`size-2 rounded-full shrink-0 ${isFull ? "bg-primary" : assigned > 0 ? "bg-primary/70" : "bg-gray-300 dark:bg-gray-600"}`}
+            className={`size-2 rounded-full shrink-0 ${
+              isFull
+                ? "bg-primary"
+                : assigned > 0
+                  ? "bg-primary/70"
+                  : "bg-gray-300 dark:bg-gray-600"
+            }`}
           />
           <span className="text-[11px] font-medium text-[#617589]">
-            {isFull ? "Full" : assigned > 0 ? `${t.capacity - assigned} left` : "Empty"}
+            {isFull
+              ? "Full"
+              : assigned > 0
+                ? `${t.capacity - assigned} left`
+                : "Empty"}
           </span>
         </div>
       </div>
@@ -253,7 +466,6 @@ export function SeatingChartFloor({
         className="overflow-auto flex-1 min-h-0 scrollbar-thin"
         style={{ maxHeight: "min(70vh, 600px)" }}
       >
-        {/* Wrapper grows with table positions so grey area always contains all tables */}
         <div
           className="w-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] bg-size-[20px_20px] flex flex-col"
           style={{
@@ -271,25 +483,29 @@ export function SeatingChartFloor({
           </div>
           <div
             ref={floorRef}
-            className="relative flex-1 w-full pb-8"
+            className="relative flex-1 w-full pb-8 touch-none"
             style={{ minHeight: floorMinHeight }}
-            onDragOver={handleFloorDragOver}
-            onDrop={handleFloorDrop}
           >
-            {items.map(({ t, x, y }) => (
-              <div
-                key={t.id}
-                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
-                style={{ left: `${x}%`, top: `${y}%` }}
-              >
-                {renderTableCard(t)}
-              </div>
-            ))}
+            {items.map(({ t, x, y }) => {
+              const isDragging = drag?.tableId === t.id;
+              const dragValid = drag?.valid ?? true;
+              return (
+                <div
+                  key={t.id}
+                  className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 ${
+                    isDragging ? "z-30" : ""
+                  } ${isDragging ? "" : "transition-[left,top] duration-150 ease-out"}`}
+                  style={{ left: `${x}%`, top: `${y}%` }}
+                  onPointerDown={(e) => handlePointerDown(e, t.id, x, y)}
+                >
+                  {renderTableCard(t, isDragging, dragValid)}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Legend */}
       <div className="flex flex-wrap justify-between items-center gap-4 px-4 sm:px-6 py-3 border-t border-gray-200 dark:border-gray-800 text-[#617589] text-xs">
         <div className="flex flex-wrap gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
@@ -310,8 +526,13 @@ export function SeatingChartFloor({
         )}
         {(canMove || canReorder) && (
           <p className="text-[#617589] text-xs">
-            {canMove ? "Drag tables or sitting areas to move them anywhere on the floor." : "Drag tables or sitting areas to reorder."}
+            {canMove
+              ? "Drag tables to place them. Overlapping positions are blocked."
+              : "Drag tables or sitting areas to reorder."}
           </p>
+        )}
+        {drag && !drag.valid && (
+          <p className="text-red-600 text-xs font-medium">Too close to another table</p>
         )}
       </div>
     </div>

@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { useGetDashboardQuery } from "@/lib/api/dashboardApi";
 import type { RootState } from "@/lib/store";
@@ -17,22 +15,11 @@ import {
 import { getInitialsFromName } from "@/lib/user-display";
 
 export default function DashboardPage() {
-  const router = useRouter();
   const token = useSelector((state: RootState) => state.auth.token);
   const user = useSelector((state: RootState) => state.auth.user);
   const { data: dashboard, isLoading } = useGetDashboardQuery(undefined, {
     skip: !token,
   });
-
-  useEffect(() => {
-    if (typeof token === "string" && !token) {
-      router.replace("/auth?mode=signin");
-    }
-  }, [token, router]);
-
-  if (typeof window !== "undefined" && !token) {
-    return null;
-  }
 
   const firstName = user?.first_name ?? user?.email?.split("@")[0] ?? "there";
   const responseRate =
@@ -63,7 +50,7 @@ export default function DashboardPage() {
   const myRecentRSVPs = dashboard?.my_recent_rsvps ?? [];
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="font-display text-2xl lg:text-3xl font-semibold text-[var(--brand-navy)] dark:text-white">
@@ -75,7 +62,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm" className="rounded-lg gap-2" asChild>
-            <Link href="/events">
+            <Link href="/events/discover?mine=1">
               <Download className="size-4 text-[var(--brand-amber)]" />
               Export
             </Link>
@@ -178,7 +165,7 @@ export default function DashboardPage() {
                     </div>
                     <span className="text-sm font-bold">{dashboard?.declined ?? 0}</span>
                   </div>
-                  <Link href="/events" className="text-[var(--brand-amber)] text-xs font-bold hover:underline text-left mt-2">
+                  <Link href="/events/discover?mine=1" className="text-[var(--brand-amber)] text-xs font-bold hover:underline text-left mt-2">
                     View events
                   </Link>
                 </div>
@@ -251,7 +238,7 @@ export default function DashboardPage() {
           <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-600/50 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <h3 className="font-display text-lg font-semibold">Recent RSVPs</h3>
-              <Link href="/events" className="text-sm font-bold text-[var(--brand-amber)] hover:underline transition-colors">
+              <Link href="/events/discover?mine=1" className="text-sm font-bold text-[var(--brand-amber)] hover:underline transition-colors">
                 View All Activity
               </Link>
             </div>

@@ -1,10 +1,18 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { useGetPublicEventsQuery } from "@/lib/api/eventsApi";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSelector } from "react-redux";
+import {
+  useGetPublicEventsQuery,
+  useGetMyEventsQuery,
+  useGetMyInvitationsQuery,
+} from "@/lib/api/eventsApi";
 import type { EventResponse } from "@/lib/api/eventsApi";
-import { EventCard } from "@/components/events/event-card";
+import type { RootState } from "@/lib/store";
+import { EventCard, inviteTagFromStatus } from "@/components/events/event-card";
+import type { EventInviteTag } from "@/components/events/event-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,9 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Calendar, Tag, MapPin } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
+import { Calendar, Tag, MapPin, PlusCircle, User } from "lucide-react";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE_DEFAULT = 12;
 const FETCH_LIMIT = 200;
 
 const DATE_FILTERS = [
@@ -26,6 +35,8 @@ const DATE_FILTERS = [
   { value: "month", label: "This month" },
   { value: "quarter", label: "Next 3 months" },
 ] as const;
+
+type ScopeFilter = "all" | "mine";
 
 function parseEventDate(d: string): Date {
   return new Date(d + "T00:00:00");
@@ -70,18 +81,55 @@ function filterEvents(
 }
 
 export function DiscoverContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const qFromUrl = searchParams.get("q") ?? "";
+  const token = useSelector((state: RootState) => state.auth.token);
+  const isLoggedIn = !!token;
+  const showMine = isLoggedIn && searchParams.get("mine") === "1";
+  const scope: ScopeFilter = showMine ? "mine" : "all";
 
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState("");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
 
-  const { data: events = [], isLoading } = useGetPublicEventsQuery(
+  useEffect(() => {
+    if (isLoggedIn || searchParams.get("mine") !== "1") return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("mine");
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [isLoggedIn, pathname, router, searchParams]);
+
+  const { data: publicEvents = [], isLoading: publicLoading } = useGetPublicEventsQuery(
     { search: qFromUrl, limit: FETCH_LIMIT, offset: 0 },
-    { skip: false }
+    { skip: showMine }
   );
+
+  const { data: myEventsData, isLoading: myLoading } = useGetMyEventsQuery(
+    { limit: FETCH_LIMIT, offset: 0 },
+    { skip: !showMine }
+  );
+
+  const { data: myInvitationsData } = useGetMyInvitationsQuery(
+    { limit: FETCH_LIMIT, offset: 0 },
+    { skip: !isLoggedIn }
+  );
+
+  const inviteTagByEventId = useMemo(() => {
+    const map = new Map<string, EventInviteTag>();
+    for (const item of myInvitationsData?.items ?? []) {
+      const tag = inviteTagFromStatus(item.invite.status);
+      if (tag) map.set(item.event.id, tag);
+    }
+    return map;
+  }, [myInvitationsData]);
+
+  const events = showMine ? (myEventsData?.items ?? []) : publicEvents;
+  const isLoading = showMine ? myLoading : publicLoading;
 
   const eventTypes = useMemo(() => {
     const set = new Set(events.map((e) => e.event_type).filter(Boolean));
@@ -94,31 +142,64 @@ export function DiscoverContent() {
   );
 
   const paginatedEvents = useMemo(() => {
-    const start = page * PAGE_SIZE;
-    return filteredEvents.slice(start, start + PAGE_SIZE);
-  }, [filteredEvents, page]);
+    const start = page * pageSize;
+    return filteredEvents.slice(start, start + pageSize);
+  }, [filteredEvents, page, pageSize]);
 
-  useEffect(() => setPage(0), [dateFilter, tagFilter, locationFilter]);
+  useEffect(() => setPage(0), [dateFilter, tagFilter, locationFilter, scope, pageSize, qFromUrl]);
 
-  const hasMore = (page + 1) * PAGE_SIZE < filteredEvents.length;
-  const hasPrev = page > 0;
-  const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE);
+  const handleScopeChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "mine") params.set("mine", "1");
+    else params.delete("mine");
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  };
 
   return (
-    <div className="max-w-6xl mx-auto w-full">
+    <div className="w-full max-w-7xl mx-auto">
       <div className="flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl lg:text-3xl font-semibold text-[var(--brand-navy)] dark:text-white">
-              Discover Events
+              Events
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-base mt-1">
-              Browse public events. Sign in to create or manage your own.
+              {showMine
+                ? "Events you have created."
+                : isLoggedIn
+                  ? "Browse public events or filter to yours."
+                  : "Browse public events. Sign in to create or manage your own."}
             </p>
           </div>
+          {isLoggedIn && (
+            <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0">
+              <Link href="/events/new" className="flex items-center gap-2">
+                <PlusCircle className="size-4" />
+                Create Event
+              </Link>
+            </Button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 p-4">
+          {isLoggedIn && (
+            <div className="flex flex-col gap-1.5 min-w-[140px]">
+              <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <User className="size-3.5" />
+                Owner
+              </Label>
+              <Select value={scope} onValueChange={handleScopeChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All events" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All public</SelectItem>
+                  <SelectItem value="mine">My events</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5 min-w-[140px]">
             <Label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <Calendar className="size-3.5" />
@@ -173,7 +254,16 @@ export function DiscoverContent() {
           <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-600 p-12 text-center">
             <p className="text-slate-500 dark:text-slate-400">
               {events.length === 0
-                ? "No public events yet. Create one when you're signed in!"
+                ? showMine
+                  ? (
+                    <>
+                      You haven&apos;t created any events yet.{" "}
+                      <Link href="/events/new" className="text-primary hover:underline">
+                        Create one
+                      </Link>
+                    </>
+                  )
+                  : "No public events yet. Create one when you're signed in!"
                 : "No events match your filters. Try adjusting date, type, or location."}
             </p>
           </div>
@@ -184,34 +274,22 @@ export function DiscoverContent() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paginatedEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  inviteTag={inviteTagByEventId.get(event.id) ?? null}
+                />
               ))}
             </div>
-            {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-6 py-4">
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Page {page + 1} of {totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={!hasPrev}
-                  >
-                    <ChevronLeft className="size-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setPage((p) => p + 1)}
-                    disabled={!hasMore}
-                  >
-                    <ChevronRight className="size-4" />
-                  </Button>
-                </div>
+            {filteredEvents.length > 0 && (
+              <div className="mt-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <Pagination
+                  total={filteredEvents.length}
+                  pageSize={pageSize}
+                  page={page}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                />
               </div>
             )}
           </>
@@ -223,11 +301,11 @@ export function DiscoverContent() {
 
 export function DiscoverFallback() {
   return (
-    <div className="max-w-6xl mx-auto w-full">
+    <div className="w-full max-w-7xl mx-auto">
       <div className="flex flex-col gap-8">
         <div>
           <h1 className="font-display text-2xl lg:text-3xl font-semibold text-[var(--brand-navy)] dark:text-white">
-            Discover Events
+            Events
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-base mt-1">
             Loading...
