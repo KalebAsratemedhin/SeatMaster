@@ -14,9 +14,13 @@ const C = {
   primarySoft: "#fff7ed",
 } as const;
 
-export type TicketPngInput = TicketResponse & {
+export type TicketPngInput = Omit<TicketResponse, "seat_label" | "guest_seat_label"> & {
   /** Prefer event display name when it differs from ticket.event_name */
   display_event_name?: string;
+  /** Seat assignment line(s), resolved client-side until ticket API includes seats (REQ-005). */
+  seat_label?: string | null;
+  guest_seat_label?: string | null;
+  seats_display?: string | null;
 };
 
 async function renderQrCanvas(value: string, size: number): Promise<HTMLCanvasElement> {
@@ -183,7 +187,7 @@ export async function renderTicketPng(ticket: TicketPngInput): Promise<Blob> {
       : ticket.guest_name;
   ctx.fillText(guest, 36, 200);
 
-  // Date / time
+  // Date / time / seat
   drawLabel(ctx, "Date", 36, 250);
   ctx.fillStyle = C.ink;
   ctx.font = "700 16px system-ui, -apple-system, Segoe UI, sans-serif";
@@ -193,6 +197,17 @@ export async function renderTicketPng(ticket: TicketPngInput): Promise<Blob> {
   ctx.fillStyle = C.ink;
   ctx.font = "700 16px system-ui, -apple-system, Segoe UI, sans-serif";
   ctx.fillText(`${ticket.start_time} - ${ticket.end_time}`, 220, 274);
+
+  const seatsLine =
+    ticket.seats_display?.trim() ||
+    [ticket.seat_label, ticket.guest_seat_label].filter(Boolean).join(" · ");
+  if (seatsLine) {
+    drawLabel(ctx, "Seat", 420, 250);
+    ctx.fillStyle = C.ink;
+    ctx.font = "700 16px system-ui, -apple-system, Segoe UI, sans-serif";
+    const seatText = seatsLine.length > 28 ? `${seatsLine.slice(0, 26)}…` : seatsLine;
+    ctx.fillText(seatText, 420, 274);
+  }
 
   if (ticket.location) {
     drawLabel(ctx, "Location", 36, 320);

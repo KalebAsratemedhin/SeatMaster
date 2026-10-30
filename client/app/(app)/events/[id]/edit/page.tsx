@@ -1,93 +1,18 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
-import dynamic from "next/dynamic";
-import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
+import { Suspense, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
-import {
-  useGetEventQuery,
-  useUpdateEventMutation,
-} from "@/lib/api/eventsApi";
+import { useGetEventQuery } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TimePicker } from "@/components/ui/time-picker";
+import { EventCreateWizard } from "@/components/events/event-create-wizard";
 
-const LocationPickerMapDynamic = dynamic(
-  () =>
-    import("@/components/map/location-picker-map").then((m) => ({
-      default: m.LocationPickerMap,
-    })),
-  { ssr: false }
-);
-
-const EVENT_TYPES = [
-  { value: "wedding", label: "Wedding" },
-  { value: "corporate", label: "Corporate" },
-  { value: "party", label: "Birthday Party" },
-  { value: "workshop", label: "Workshop/Seminar" },
-  { value: "other", label: "Other" },
-];
-
-const VISIBILITY_OPTIONS = [
-  { value: "public", label: "Public" },
-  { value: "private", label: "Private" },
-];
-
-type EventForForm = {
-  id: string;
-  name: string;
-  banner_url?: string | null;
-  visibility: string;
-  event_type: string;
-  message?: string | null;
-  event_date: string;
-  start_time?: string | null;
-  end_time?: string | null;
-  location?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-};
-
-function eventTypeToFormValue(eventType: string): string {
-  const raw = typeof eventType === "string" ? eventType.trim() : "";
-  if (!raw) return "other";
-  const byValue = EVENT_TYPES.find((o) => o.value === raw);
-  const byValueIgnoreCase = EVENT_TYPES.find(
-    (o) => o.value.toLowerCase() === raw.toLowerCase()
+function WizardFallback() {
+  return (
+    <div className="mx-auto w-full max-w-6xl py-12">
+      <p className="text-muted-foreground">Loading…</p>
+    </div>
   );
-  const byLabel = EVENT_TYPES.find(
-    (o) => o.label.toLowerCase() === raw.toLowerCase()
-  );
-  return (byValue ?? byValueIgnoreCase ?? byLabel)?.value ?? "other";
-}
-
-function formFromEvent(event: EventForForm) {
-  const eventType =
-    event.event_type ?? (event as { eventType?: string }).eventType ?? "";
-  return {
-    name: event.name,
-    banner_url: event.banner_url || "",
-    visibility: event.visibility,
-    event_type: eventTypeToFormValue(eventType),
-    message: event.message || "",
-    event_date: event.event_date,
-    start_time: event.start_time || "09:00:00",
-    end_time: event.end_time || "17:00:00",
-    location: event.location || "",
-    latitude: event.latitude ?? 0,
-    longitude: event.longitude ?? 0,
-  };
 }
 
 export default function EditEventPage() {
@@ -100,263 +25,23 @@ export default function EditEventPage() {
   const { data: event, isLoading } = useGetEventQuery(id, {
     skip: !id || !token,
   });
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
 
   useEffect(() => {
     if (!token) router.replace("/auth?mode=signin");
   }, [token, router]);
 
-  const isOwner = user && event && event.owner_id === user.id;
-
-  if (!mounted) return <LoadingShell />;
-  if (!token) return null;
-  if (isLoading || !event) return <LoadingShell />;
-  if (!isOwner) {
-    router.replace(`/events/${id}`);
-    return null;
-  }
-
-  return (
-    <EditEventFormContent
-      key={event.id}
-      event={event}
-      id={id}
-      onSuccess={() => router.push(`/events/${id}`)}
-    />
-  );
-}
-
-function LoadingShell() {
-  return (
-    <div className="w-full max-w-6xl mx-auto py-4">
-      <p className="text-muted-foreground">Loading...</p>
-    </div>
-  );
-}
-
-function EditEventFormContent({
-  event,
-  id,
-  onSuccess,
-}: {
-  event: EventForForm;
-  id: string;
-  onSuccess: () => void;
-}) {
-  const [form, setForm] = useState(() => formFromEvent(event));
-  const [updateEvent, { isLoading: isSaving, isSuccess, error }] =
-    useUpdateEventMutation();
-
   useEffect(() => {
-    if (isSuccess) onSuccess();
-  }, [isSuccess, onSuccess]);
+    if (!event || !user) return;
+    if (event.owner_id !== user.id) router.replace(`/events/${id}`);
+  }, [event, user, id, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateEvent({
-      id: event.id,
-      name: form.name,
-      banner_url: form.banner_url || "",
-      visibility: form.visibility,
-      event_type: form.event_type,
-      message: form.message || "",
-      event_date: form.event_date,
-      start_time: form.start_time,
-      end_time: form.end_time,
-      location: form.location || "",
-      latitude: form.latitude,
-      longitude: form.longitude,
-    });
-  };
+  if (!token) return null;
+  if (isLoading || !event) return <WizardFallback />;
+  if (user && event.owner_id !== user.id) return null;
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-4 text-slate-900 dark:text-slate-100">
-      <nav className="mb-6 text-sm text-muted-foreground">
-          <Link href="/events/discover?mine=1" className="hover:text-foreground transition-colors">
-            Events
-          </Link>
-          <span className="mx-2">/</span>
-          <Link href={`/events/${id}`} className="hover:text-foreground transition-colors truncate max-w-[180px] inline-block align-bottom">
-            {event.name}
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-foreground font-medium">Edit</span>
-        </nav>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Edit Event</h1>
-        <p className="text-muted-foreground mb-8">Update the details for {event.name}.</p>
-
-        <form onSubmit={handleSubmit} className="space-y-10">
-          <section className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-6 sm:p-8 space-y-6">
-            <div className="pb-3 border-b border-slate-200/80 dark:border-slate-700/80">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Event Details
-              </h2>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Event Name *</Label>
-              <Input
-                id="name"
-                required
-                value={form.name}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="event_type">Event Type</Label>
-                <Select
-                  value={form.event_type || "other"}
-                  onValueChange={(v) =>
-                    setForm((prev) => ({ ...prev, event_type: v }))
-                  }
-                >
-                  <SelectTrigger
-                    id="event_type"
-                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
-                  >
-                    <SelectValue placeholder="Select event type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EVENT_TYPES.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="visibility">Visibility</Label>
-                <Select
-                  value={form.visibility}
-                  onValueChange={(v) =>
-                    setForm((prev) => ({ ...prev, visibility: v }))
-                  }
-                >
-                  <SelectTrigger
-                    id="visibility"
-                    className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Venue Name</Label>
-                <Input
-                  id="location"
-                  placeholder="e.g. Grand Plaza Hotel"
-                  value={form.location}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, location: e.target.value }))
-                  }
-                  className="rounded-xl border-slate-200 dark:border-slate-600 shadow-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Choose location on map</Label>
-                <LocationPickerMapDynamic
-                  latitude={form.latitude}
-                  longitude={form.longitude}
-                  onLocationChange={(lat, lng, label) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      latitude: lat,
-                      longitude: lng,
-                      ...(label && !prev.location.trim()
-                        ? { location: label.split(",")[0]?.trim() || label }
-                        : {}),
-                    }))
-                  }
-                  height="280px"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="event_date">Date *</Label>
-                <DatePicker
-                  value={form.event_date}
-                  onChange={(event_date) =>
-                    setForm((prev) => ({ ...prev, event_date }))
-                  }
-                  placeholder="Pick event date"
-                  className="rounded-xl border-slate-200 dark:border-slate-600"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="start_time">Start Time</Label>
-                  <TimePicker
-                    value={form.start_time}
-                    onChange={(start_time) =>
-                      setForm((prev) => ({ ...prev, start_time }))
-                    }
-                    placeholder="Start time"
-                    className="rounded-xl border-slate-200 dark:border-slate-600"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end_time">End Time</Label>
-                  <TimePicker
-                    value={form.end_time}
-                    onChange={(end_time) =>
-                      setForm((prev) => ({ ...prev, end_time }))
-                    }
-                    placeholder="End time"
-                    className="rounded-xl border-slate-200 dark:border-slate-600"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="message">Message / Description</Label>
-                <textarea
-                  id="message"
-                  className="flex min-h-[80px] w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0"
-                  value={form.message}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, message: e.target.value }))
-                  }
-                />
-              </div>
-          </section>
-
-          {error && (
-            <p className="text-destructive text-sm mb-4">
-              {"data" in error &&
-              typeof (error as { data?: { error?: string } }).data?.error ===
-                "string"
-                ? (error as { data: { error: string } }).data.error
-                : "Failed to update event"}
-            </p>
-          )}
-
-          <div className="flex gap-4">
-            <Button
-              type="submit"
-              disabled={isSaving}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl"
-            >
-              {isSaving ? "Saving..." : "Save Changes"}
-            </Button>
-            <Button type="button" variant="outline" asChild className="rounded-xl">
-              <Link href={`/events/${id}`}>Cancel</Link>
-            </Button>
-          </div>
-        </form>
-    </div>
+    <Suspense fallback={<WizardFallback />}>
+      <EventCreateWizard mode="edit" eventId={id} />
+    </Suspense>
   );
 }

@@ -10,7 +10,6 @@ import {
   useDeleteEventMutation,
   useGetEventInvitesQuery,
   useGetMyInvitationsQuery,
-  useInviteToEventMutation,
   useGetEventSeatingQuery,
   useCreateEventTableMutation,
   useDeleteEventTableMutation,
@@ -36,8 +35,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, MapPin, Calendar, UserPlus, Users, CheckCircle, Clock, Table2, Plus, Loader2, Share2, MessageSquare, Send, Reply } from "lucide-react";
+import { Pencil, Trash2, MapPin, Calendar, Users, Clock, Table2, Plus, Loader2, Share2, MessageSquare, Send, Reply, MoreHorizontal, ImageIcon } from "lucide-react";
 import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
+import { EventInvitesPanel } from "@/components/events/event-invites-panel";
+import { EventOrganizerAnalytics } from "@/components/events/event-organizer-analytics";
+import { InviteDeliveryIssues } from "@/components/events/invite-delivery-issues";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,8 +49,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pagination } from "@/components/ui/pagination";
-import { getInitialsFromEmail, getInitialsFromName } from "@/lib/user-display";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getInitialsFromName } from "@/lib/user-display";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 
@@ -74,11 +82,9 @@ export default function EventDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTableDialogOpen, setDeleteTableDialogOpen] = useState(false);
   const [tableToDeleteId, setTableToDeleteId] = useState<string | null>(null);
-  const [guestsPage, setGuestsPage] = useState(0);
-  const [guestsPageSize, setGuestsPageSize] = useState(10);
   const [shareCopied, setShareCopied] = useState(false);
   type TabId = "comments" | "chats" | "seating" | "invites";
-  const [activeTab, setActiveTab] = useState<TabId>("comments");
+  const [activeTab, setActiveTab] = useState<TabId>("invites");
 
   const eventReady = Boolean(event);
   const isOwner = Boolean(user && event && event.owner_id === user.id);
@@ -91,7 +97,7 @@ export default function EventDetailPage() {
   }, [eventReady, event, isOwner, id, router]);
 
   const { data: invitesData } = useGetEventInvitesQuery(
-    { eventId: id, limit: guestsPageSize, offset: guestsPage * guestsPageSize },
+    { eventId: id, limit: 500, offset: 0 },
     { skip: !id || !isOwner || !token }
   );
   const { data: myInvitationsData } = useGetMyInvitationsQuery(
@@ -102,10 +108,7 @@ export default function EventDetailPage() {
     myInvitationsData?.items?.some((inv) => inv.event.id === id)
   );
   const invites = invitesData?.items ?? [];
-  const invitesTotal = invitesData?.total ?? 0;
-  const [inviteToEvent, { isLoading: isInviting, error: inviteError }] =
-    useInviteToEventMutation();
-  const [inviteEmail, setInviteEmail] = useState("");
+  const invitesTotal = invitesData?.total ?? invites.length;
   const { data: seating = [] } = useGetEventSeatingQuery(id, {
     skip: !id || !token,
   });
@@ -238,15 +241,6 @@ export default function EventDetailPage() {
     setChatInput("");
   };
 
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail.trim()) return;
-    inviteToEvent({ eventId: id, email: inviteEmail.trim() })
-      .unwrap()
-      .then(() => setInviteEmail(""))
-      .catch(() => {});
-  };
-
   const handleConfirmDelete = () => {
     deleteEvent(id)
       .unwrap()
@@ -291,54 +285,106 @@ export default function EventDetailPage() {
 
   const confirmedCount = invites.filter((i) => i.status === "confirmed").length;
   const responseRate =
-    invites.length > 0
-      ? Math.round((confirmedCount / invites.length) * 100)
-      : 0;
+    invites.length > 0 ? Math.round((confirmedCount / invites.length) * 100) : 0;
+
+  const tabBtn = (id: TabId, label: string) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => setActiveTab(id)}
+      className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+        activeTab === id
+          ? "border-primary text-primary bg-primary/10"
+          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40"
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <div className="text-slate-900 dark:text-slate-100">
-      <div className="flex-1 w-full max-w-7xl mx-auto py-4 lg:py-6">
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
-          {/* Main content */}
-          <div className="flex-1 min-w-0">
-            {/* Breadcrumbs */}
+    <div className="text-foreground">
+      <div className="mx-auto w-full max-w-7xl flex-1 py-4 lg:py-6">
+        <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
+          <div className="min-w-0 flex-1">
             <nav className="mb-6 text-sm text-muted-foreground">
               <Link
-                href={token ? "/events/discover" : "/discover"}
-                className="hover:text-foreground transition-colors"
+                href={token ? "/events/discover?mine=1" : "/discover"}
+                className="transition-colors hover:text-foreground"
               >
                 Events
               </Link>
               <span className="mx-2">/</span>
-              <span className="text-foreground font-medium truncate">
-                {event.name}
-              </span>
+              <span className="truncate font-medium text-foreground">{event.name}</span>
             </nav>
 
-            <section className="mb-10">
-              <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-                {event.name}
-              </h1>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400 capitalize">
-                  {event.event_type}
-                </span>
-                <span className="text-slate-300 dark:text-slate-600">·</span>
+            <section className="mb-8">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">
+                    Organizer
+                  </p>
+                  <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight md:text-4xl">
+                    {event.name}
+                  </h1>
+                </div>
+                {isOwner && token && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="mt-1 size-9 shrink-0 rounded-xl"
+                        aria-label="Event actions"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-[9999] w-48">
+                      <DropdownMenuItem asChild>
+                        <Link href={`/events/${event.id}/edit`}>
+                          <Pencil className="size-4" />
+                          Edit event
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/events/${event.id}/invitation-card`}>
+                          <ImageIcon className="size-4" />
+                          Invitation card
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        disabled={isDeleting}
+                        onSelect={() => setDeleteDialogOpen(true)}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete event
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span className="capitalize">{event.event_type}</span>
+                <span aria-hidden>·</span>
                 <span
-                  className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${
+                  className={`rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${
                     event.visibility === "private"
                       ? "bg-primary/10 text-primary"
-                      : "bg-primary text-primary-foreground"
+                      : "bg-foreground text-background"
                   }`}
                 >
                   {event.visibility}
                 </span>
               </div>
-              {event.message && (
-                <p className="mt-6 text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed max-w-2xl">
+              {event.message ? (
+                <p className="mt-5 max-w-2xl whitespace-pre-wrap text-muted-foreground leading-relaxed">
                   {event.message}
                 </p>
-              )}
+              ) : null}
               {(() => {
                 const invitePath = `/invite/${id}`;
                 const handleShare = () => {
@@ -354,7 +400,7 @@ export default function EventDetailPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-xl gap-2"
+                      className="gap-2 rounded-xl"
                       onClick={handleShare}
                     >
                       <Share2 className="size-4" />
@@ -366,71 +412,26 @@ export default function EventDetailPage() {
                   </div>
                 );
               })()}
-              {(event.latitude !== 0 || event.longitude !== 0) && (
-                <div className="mt-6 rounded-2xl overflow-hidden border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30 relative z-0">
-                  <EventLocationMapDynamic
-                    latitude={event.latitude}
-                    longitude={event.longitude}
-                    location={event.location || undefined}
-                    height="280px"
-                  />
-                </div>
-              )}
             </section>
 
-            {/* Tabbed sections below the map */}
-            <div className="mt-8 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm">
-              <div className="flex border-b border-slate-200/80 dark:border-slate-700/80 overflow-x-auto">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("comments")}
-                  className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    activeTab === "comments"
-                      ? "border-primary text-primary bg-primary/10"
-                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  }`}
-                >
-                  Comments
-                </button>
-                {token && (isOwner || currentThread) && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("chats")}
-                    className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                      activeTab === "chats"
-                        ? "border-primary text-primary bg-primary/10"
-                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    }`}
-                  >
-                    Chat
-                  </button>
-                )}
-                {token && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("seating")}
-                    className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                      activeTab === "seating"
-                        ? "border-primary text-primary bg-primary/10"
-                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    }`}
-                  >
-                    Seating arrangement
-                  </button>
-                )}
-                {isOwner && token && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("invites")}
-                    className={`px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                      activeTab === "invites"
-                        ? "border-primary text-primary bg-primary/10"
-                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    }`}
-                  >
-                    Invitation list
-                  </button>
-                )}
+            {isOwner && token && (
+              <div className="mb-8 space-y-4">
+                <InviteDeliveryIssues eventId={id} />
+                <EventOrganizerAnalytics
+                  invites={invites}
+                  invitesTotal={invitesTotal}
+                  seating={seating}
+                  onOpenInvites={() => setActiveTab("invites")}
+                />
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-2xl bg-card/80 ring-1 ring-border backdrop-blur-sm">
+              <div className="flex overflow-x-auto border-b border-border">
+                {isOwner && token && tabBtn("invites", "Invites")}
+                {token && tabBtn("seating", "Seating")}
+                {tabBtn("comments", "Comments")}
+                {token && (isOwner || currentThread) && tabBtn("chats", "Chat")}
               </div>
               <div className="p-0">
                 {activeTab === "comments" && (
@@ -803,6 +804,35 @@ export default function EventDetailPage() {
                           body: { position_x: x, position_y: y },
                         }).catch(() => {});
                       }}
+                      onDuplicateTable={(source) => {
+                        const shape = (source.shape || "round").toLowerCase() as
+                          | "round"
+                          | "rectangular"
+                          | "grid";
+                        const body =
+                          shape === "grid"
+                            ? {
+                                shape: "grid" as const,
+                                rows: source.rows || 2,
+                                columns: source.columns || 3,
+                              }
+                            : {
+                                shape,
+                                capacity: source.capacity || 6,
+                              };
+                        const offsetX = Math.min(92, (source.position_x ?? 40) + 8);
+                        const offsetY = Math.min(90, (source.position_y ?? 40) + 8);
+                        createTable({ eventId: id, body })
+                          .unwrap()
+                          .then((created) =>
+                            updateEventTable({
+                              eventId: id,
+                              tableId: created.id,
+                              body: { position_x: offsetX, position_y: offsetY },
+                            }).unwrap()
+                          )
+                          .catch(() => {});
+                      }}
                     />
                   ) : (
                     <p className="text-sm text-muted-foreground py-6">No tables yet. Add one above to build your seating chart.</p>
@@ -821,167 +851,78 @@ export default function EventDetailPage() {
                   )
                 )}
                 {activeTab === "invites" && isOwner && token && (
-              <div className="rounded-none border-0 overflow-visible bg-transparent backdrop-blur-none">
-                <div className="px-6 py-5 border-b border-slate-200/80 dark:border-slate-700/80">
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
-                    Guest Invitation List
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Manage your event guest list.
-                  </p>
-                </div>
-                <div className="p-6 border-b border-slate-200/80 dark:border-slate-700/80">
-                  <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1 space-y-2">
-                      <Label htmlFor="invite-email" className="text-sm font-semibold">Email address</Label>
-                      <Input id="invite-email" type="email" placeholder="guest@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="rounded-lg h-10" />
-                    </div>
-                    <div className="flex items-end">
-                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()} className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-semibold flex items-center gap-2 h-10 px-6">
-                        <UserPlus className="size-4" /> Add Guest
-                      </Button>
-                    </div>
-                  </form>
-                  {inviteError && <p className="text-destructive text-sm mt-2">{"data" in inviteError && typeof (inviteError as { data?: { error?: string } }).data?.error === "string" ? (inviteError as { data: { error: string } }).data.error : "Failed to invite"}</p>}
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-700/80">
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Name</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Email Address</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">RSVP Status</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Seating</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Invited</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/80">
-                      {invites.length === 0 ? (
-                        <tr><td colSpan={5} className="px-6 py-10 text-center text-muted-foreground text-sm">No guests invited yet. Add a guest by email above.</td></tr>
-                      ) : invites.map((inv) => (
-                        <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold shrink-0">{getInitialsFromEmail(inv.email)}</div>
-                              <span className="font-medium text-slate-900 dark:text-slate-100">{inv.email.split("@")[0]}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.email}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-2 text-sm font-medium ${inv.status === "confirmed" ? "text-primary" : inv.status === "declined" ? "text-muted-foreground" : "text-primary/90"}`}>
-                              <span className={`size-2 rounded-full shrink-0 ${inv.status === "confirmed" ? "bg-primary" : inv.status === "declined" ? "bg-muted" : "bg-primary/70"}`} />
-                              {inv.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.seat_id != null ? seatIdToLabel[inv.seat_id] ?? `Seat #${inv.seat_id}` : "—"}</td>
-                          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{new Date(inv.created_at).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {invitesTotal > 0 && (
-                  <div className="px-6 py-3 border-t border-slate-200/80 dark:border-slate-700/80">
-                    <Pagination total={invitesTotal} pageSize={guestsPageSize} page={guestsPage} onPageChange={setGuestsPage} onPageSizeChange={(v) => { setGuestsPageSize(v); setGuestsPage(0); }} />
+                  <div className="px-4 py-6 sm:px-6">
+                    <EventInvitesPanel eventId={id} seatIdToLabel={seatIdToLabel} />
                   </div>
                 )}
-              </div>
-            )}
               </div>
             </div>
           </div>
 
-          {/* Aside - single sticky container so stat cards don't scroll */}
-          <aside className="lg:w-80 shrink-0">
+          <aside className="shrink-0 lg:w-80">
             <div className="sticky top-24 space-y-5">
-            <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/50 backdrop-blur-sm p-5 space-y-4">
-              <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-700/80 flex items-center justify-center shrink-0">
-                  <Calendar className="size-4" />
-                </div>
-                <span className="text-sm font-medium">{formatEventDate(event.event_date)}</span>
-              </div>
-              <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-700/80 flex items-center justify-center shrink-0">
-                  <Clock className="size-4" />
-                </div>
-                <span className="text-sm font-medium">
-                  {formatEventTimeRange(event.start_time, event.end_time)}
-                </span>
-              </div>
-              {event.location && (
-                <div className="flex items-start gap-3 text-slate-600 dark:text-slate-300">
-                  <div className="size-8 rounded-lg bg-slate-100 dark:bg-slate-700/80 flex items-center justify-center shrink-0 mt-0.5">
-                    <MapPin className="size-4" />
+              <div className="space-y-4 rounded-2xl bg-card/80 p-5 ring-1 ring-border backdrop-blur-sm">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <Calendar className="size-4" />
                   </div>
-                  <span className="text-sm font-medium">{event.location}</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {formatEventDate(event.event_date)}
+                  </span>
                 </div>
-              )}
-              {isOwner && token && (
-                <div className="pt-4 mt-4 border-t border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2">
-                  <Button variant="outline" size="sm" asChild className="w-full rounded-xl">
-                    <Link href={`/events/${event.id}/invitation-card`}>
-                      <Share2 className="size-4 mr-2" />
-                      Invitation card
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild className="w-full rounded-xl">
-                    <Link href={`/events/${event.id}/edit`}>
-                      <Pencil className="size-4 mr-2" />
-                      Edit Event
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setDeleteDialogOpen(true)}
-                    disabled={isDeleting}
-                    className="w-full rounded-xl"
-                  >
-                    <Trash2 className="size-4 mr-2" />
-                    Delete Event
-                  </Button>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <Clock className="size-4" />
+                  </div>
+                  <span className="text-sm font-medium text-foreground">
+                    {formatEventTimeRange(event.start_time, event.end_time)}
+                  </span>
                 </div>
-              )}
-            </div>
+                {event.location ? (
+                  <div className="flex items-start gap-3 text-muted-foreground">
+                    <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                      <MapPin className="size-4" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{event.location}</span>
+                  </div>
+                ) : null}
+              </div>
 
-            {isOwner && token && (
-              <div className="space-y-2">
-                <div className="rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-4 flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <Users className="size-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">
-                      {invites.length}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Total Guests</p>
-                  </div>
+              {(event.latitude !== 0 || event.longitude !== 0) && (
+                <div className="relative z-0 overflow-hidden rounded-2xl ring-1 ring-border">
+                  <EventLocationMapDynamic
+                    latitude={event.latitude}
+                    longitude={event.longitude}
+                    location={event.location || undefined}
+                    height="220px"
+                  />
                 </div>
-                <div className="rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-4 flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <CheckCircle className="size-4 text-primary" />
+              )}
+
+              {isOwner && token && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("invites")}
+                  className="w-full rounded-2xl bg-card p-4 text-left ring-1 ring-border transition hover:bg-muted/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <Users className="size-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-display text-lg font-semibold tabular-nums text-foreground">
+                        {invitesTotal}
+                        <span className="ml-2 text-sm font-normal text-muted-foreground">
+                          invited
+                        </span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {confirmedCount} confirmed · {responseRate}% of list
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">
-                      {confirmedCount}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{responseRate}% response rate</p>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 backdrop-blur-sm p-4 flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <Clock className="size-4 text-primary/80" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">
-                      {invites.length - confirmedCount}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Pending RSVP</p>
-                  </div>
-                </div>
-              </div>
-            )}
+                </button>
+              )}
             </div>
           </aside>
         </div>

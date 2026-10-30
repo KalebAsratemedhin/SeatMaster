@@ -139,6 +139,12 @@ export function useFabricStudio({
         if (typeof canvas.backgroundColor === "string") {
           setBgSolid(canvas.backgroundColor);
         }
+        // Avoid caret/glyph overlap while editing text under canvas zoom.
+        canvas.getObjects().forEach((o: FabricObject) => {
+          if (o.type === "textbox" || o.type === "i-text" || o.type === "text") {
+            o.set({ objectCaching: false });
+          }
+        });
       });
       resetHistoryFromCanvas();
       refreshLayers();

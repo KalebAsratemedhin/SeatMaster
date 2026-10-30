@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import {
   useGetEventQuery,
@@ -34,7 +34,9 @@ import {
   flipObject,
   getLayerItems,
   isObjectLocked,
-  loadImageFromFile,
+  loadFullBleedCardImage,
+  loadImageFromUrl,
+  persistEphemeralFabricImages,
   moveLayer,
   objectFromJson,
   rotateObjectBy,
@@ -48,8 +50,24 @@ import {
 import type { PatternItem } from "@/lib/invitationCardPatterns";
 import type { StickerItem } from "@/lib/invitationCardStickers";
 import { downloadInvitationCardPng } from "@/lib/renderInvitationCardPng";
-import { uploadInvitationPreview } from "@/lib/api/uploadApi";
+import {
+  bannerFileError,
+  isAcceptedBannerFile,
+  uploadBanner,
+  uploadInvitationAsset,
+  uploadInvitationPreview,
+} from "@/lib/api/uploadApi";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { StudioHeader } from "./StudioHeader";
@@ -64,6 +82,11 @@ import { useStudioKeyboard } from "./useStudioKeyboard";
 
 export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
+  const mode = searchParams.get("mode");
+  const photoCardInputRef = useRef<HTMLInputElement | null>(null);
+  const photoCardPromptedRef = useRef(false);
   const token = useSelector((s: RootState) => s.auth.token);
   const user = useSelector((s: RootState) => s.auth.user);
 
@@ -118,6 +141,7 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
   const [fillGradTo, setFillGradTo] = useState("#fda4af");
   const [cropInset, setCropInset] = useState(0.15);
   const [layersTick, setLayersTick] = useState(0);
+  const [pendingTemplateId, setPendingTemplateId] = useState<VirtualTemplateId | null>(null);
 
   const refreshLayers = useCallback(() => setLayersTick((n) => n + 1), []);
 
@@ -185,18 +209,24 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
 
   const handleUndo = useCallback(async () => {
     await undo();
-    setSelected(null);
-  }, [undo]);
+    const canvas = fabricRef.current;
+    refreshSelection(canvas?.getActiveObject() ?? null);
+  }, [undo, refreshSelection]);
 
   const handleRedo = useCallback(async () => {
     await redo();
-    setSelected(null);
-  }, [redo]);
+    const canvas = fabricRef.current;
+    refreshSelection(canvas?.getActiveObject() ?? null);
+  }, [redo, refreshSelection]);
 
   const addObjectAndSelect = useCallback(
     (obj: FabricObject) => {
       const canvas = fabricRef.current;
       if (!canvas) return;
+      // Fabric caret misaligns under zoom when objectCaching is on for text.
+      if (obj.type === "textbox" || obj.type === "i-text" || obj.type === "text") {
+        obj.set({ objectCaching: false });
+      }
       canvas.add(obj);
       canvas.setActiveObject(obj);
       refreshSelection(obj, { commit: true });
@@ -314,12 +344,20 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
 
   const handleUploadFile = useCallback(
     async (file: File | undefined) => {
-      if (!file || !file.type.startsWith("image/")) {
+      if (!file) return;
+      const err = bannerFileError(file);
+      if (err) {
+        toast.error(err);
+        return;
+      }
+      if (!isAcceptedBannerFile(file)) {
         toast.error("Please choose an image file");
         return;
       }
       try {
-        const img = await loadImageFromFile(file);
+        toast.message("Uploading image…");
+        const url = await uploadBanner(file);
+        const img = await loadImageFromUrl(url, file.name);
         addObjectAndSelect(img);
       } catch {
         toast.error("Could not load uploaded image");
@@ -327,6 +365,45 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
     },
     [addObjectAndSelect]
   );
+
+  const handlePhotoAsCard = useCallback(
+    async (file: File | undefined) => {
+      const canvas = fabricRef.current;
+      if (!file || !canvas) {
+        toast.error("Please choose an image file");
+        return;
+      }
+      const err = bannerFileError(file);
+      if (err) {
+        toast.error(err);
+        return;
+      }
+      try {
+        toast.message("Uploading card photo…");
+        const url = await uploadBanner(file);
+        const img = await loadFullBleedCardImage(url, boardSize, file.name);
+        canvas.clear();
+        await setCanvasBackgroundSolid(canvas, "#ffffff");
+        canvas.add(img);
+        sendToBack(canvas, img);
+        canvas.discardActiveObject();
+        canvas.requestRenderAll();
+        refreshSelection(null, { commit: true });
+        toast.success("Card photo placed — save when ready");
+      } catch {
+        toast.error("Could not place card photo");
+      }
+    },
+    [boardSize, refreshSelection]
+  );
+
+  useEffect(() => {
+    if (mode !== "photo-card" || !ready || photoCardPromptedRef.current) return;
+    photoCardPromptedRef.current = true;
+    // Defer so the studio shell is interactive
+    const t = window.setTimeout(() => photoCardInputRef.current?.click(), 200);
+    return () => window.clearTimeout(t);
+  }, [mode, ready]);
 
   const addSticker = useCallback(
     async (sticker: StickerItem) => {
@@ -392,12 +469,6 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
     async (id: VirtualTemplateId) => {
       const canvas = fabricRef.current;
       if (!canvas || !event) return;
-      if (
-        canvas.getObjects().length > 0 &&
-        !window.confirm("Replace the current design with this starter?")
-      ) {
-        return;
-      }
       await runWithoutHistory(async () => {
         await applyVirtualTemplateToCanvas(canvas, id, event);
       });
@@ -406,6 +477,19 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
       setTool("select");
     },
     [event, pushHistory, runWithoutHistory]
+  );
+
+  const requestApplyTemplate = useCallback(
+    (id: VirtualTemplateId) => {
+      const canvas = fabricRef.current;
+      if (!canvas || !event) return;
+      if (canvas.getObjects().length > 0) {
+        setPendingTemplateId(id);
+        return;
+      }
+      void applyTemplate(id);
+    },
+    [applyTemplate, event]
   );
 
   const deleteSelected = useCallback(() => {
@@ -459,17 +543,21 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
     refreshSelection(obj, { commit: true });
   }, [refreshSelection]);
 
-  const patchActive = useCallback(
-    (patch: Record<string, unknown>) => {
-      const canvas = fabricRef.current;
-      const obj = canvas?.getActiveObject();
-      if (!canvas || !obj) return;
-      obj.set(patch);
-      obj.setCoords();
-      refreshSelection(obj);
-    },
-    [refreshSelection]
-  );
+  /** Apply props without bumping inspectorRev — keeps native color/range/caret alive while dragging. */
+  const patchActive = useCallback((patch: Record<string, unknown>) => {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!canvas || !obj) return;
+    obj.set(patch);
+    obj.setCoords();
+    canvas.requestRenderAll();
+  }, []);
+
+  /** Re-read mutated Fabric props into the inspector (discrete toggles, undo, etc.). */
+  const syncInspector = useCallback(() => {
+    const canvas = fabricRef.current;
+    refreshSelection(canvas?.getActiveObject() ?? null);
+  }, [refreshSelection]);
 
   const clearSelection = useCallback(() => {
     const canvas = fabricRef.current;
@@ -492,21 +580,23 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
   }, [ready, layersTick]);
 
   const handleSave = useCallback(async () => {
-    const doc = snapshotDocument();
-    if (!doc) return;
+    const canvas = fabricRef.current;
+    if (!canvas) return;
     try {
+      // Ensure no blob:/data: image srcs are persisted (invite page cannot load them).
+      await persistEphemeralFabricImages(canvas, uploadInvitationAsset);
+      const doc = snapshotDocument();
+      if (!doc) return;
+
       let previewUrl: string | null = null;
-      const canvas = fabricRef.current;
       try {
-        if (canvas) {
-          const dataUrl = canvas.toDataURL({
-            format: "png",
-            multiplier: 0.45,
-            enableRetinaScaling: false,
-          }) as string;
-          const previewBlob = await (await fetch(dataUrl)).blob();
-          previewUrl = await uploadInvitationPreview(previewBlob);
-        }
+        const dataUrl = canvas.toDataURL({
+          format: "png",
+          multiplier: 0.45,
+          enableRetinaScaling: false,
+        }) as string;
+        const previewBlob = await (await fetch(dataUrl)).blob();
+        previewUrl = await uploadInvitationPreview(previewBlob);
       } catch {
         /* preview optional */
       }
@@ -670,8 +760,21 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
 
   return (
     <div className="flex h-dvh flex-col bg-[#e8e4dc] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <input
+        ref={photoCardInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          void handlePhotoAsCard(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+
       <StudioHeader
         eventId={eventId}
+        backHref={returnTo}
+        backLabel={returnTo ? "Wizard" : "Event"}
         zoom={zoom}
         onZoomOut={() => setZoom((z) => Math.max(0.2, +(z - 0.05).toFixed(2)))}
         onZoomIn={() => setZoom((z) => Math.min(1, +(z + 0.05).toFixed(2)))}
@@ -713,10 +816,11 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
             onBrushColor={setBrushColor}
             onBrushWidth={setBrushWidth}
             onUploadFile={handleUploadFile}
+            onPhotoAsCard={() => photoCardInputRef.current?.click()}
             onAddSticker={addSticker}
             onApplyPattern={applyPattern}
             onApplyFont={applyFont}
-            onApplyTemplate={(id) => void applyTemplate(id)}
+            onApplyTemplate={requestApplyTemplate}
           />
         )}
 
@@ -779,6 +883,7 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
           toggleLockSelected={toggleLockSelected}
           deleteSelected={deleteSelected}
           patchActive={patchActive}
+          syncInspector={syncInspector}
           fillGradFrom={fillGradFrom}
           fillGradTo={fillGradTo}
           setFillGradFrom={setFillGradFrom}
@@ -855,6 +960,35 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
           setBrushWidth={setBrushWidth}
         />
       </div>
+
+      <AlertDialog
+        open={pendingTemplateId != null}
+        onOpenChange={(open) => {
+          if (!open) setPendingTemplateId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace current design?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Applying this starter will replace everything on the artboard. This cannot be undone
+              except with Undo after apply.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const id = pendingTemplateId;
+                setPendingTemplateId(null);
+                if (id) void applyTemplate(id);
+              }}
+            >
+              Replace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

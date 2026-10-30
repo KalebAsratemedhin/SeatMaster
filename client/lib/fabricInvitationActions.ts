@@ -509,22 +509,102 @@ export function clearImageCrop(img: any) {
   img.setCoords();
 }
 
-export async function loadImageFromFile(file: File) {
+/** Place a mid-size image from a permanent URL (never blob: — those break after save). */
+export async function loadImageFromUrl(url: string, name = "upload") {
   const { FabricImage } = await import("fabric");
-  const url = URL.createObjectURL(file);
+  const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
+  img.scaleToWidth(Math.min(480, CARD_ARTBOARD.width * 0.6));
+  img.set({
+    left: CARD_ARTBOARD.width / 2,
+    top: CARD_ARTBOARD.height / 2,
+    originX: "center",
+    originY: "center",
+    name: `upload:${name}`,
+  });
+  return img;
+}
+
+/**
+ * Full-bleed invitation photo from a permanent URL (issue #12).
+ * Covers the board, sits at the back, locked so it behaves as the card itself.
+ */
+export async function loadFullBleedCardImage(
+  url: string,
+  board: { width: number; height: number } = CARD_ARTBOARD,
+  name = "card-photo"
+) {
+  const { FabricImage } = await import("fabric");
+  const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
+  const iw = Math.max(1, img.width || 1);
+  const ih = Math.max(1, img.height || 1);
+  const scale = Math.max(board.width / iw, board.height / ih);
+  img.set({
+    left: board.width / 2,
+    top: board.height / 2,
+    originX: "center",
+    originY: "center",
+    scaleX: scale,
+    scaleY: scale,
+    name: `card-photo:${name}`,
+    selectable: true,
+    evented: true,
+    lockMovementX: true,
+    lockMovementY: true,
+    lockRotation: true,
+    lockScalingX: true,
+    lockScalingY: true,
+    hasControls: false,
+  });
+  setObjectLocked(img, true);
+  return img;
+}
+
+function isEphemeralImageSrc(src: unknown): src is string {
+  return typeof src === "string" && (src.startsWith("blob:") || src.startsWith("data:"));
+}
+
+/**
+ * Upload any canvas image still using blob:/data: srcs so the saved document stays loadable
+ * on the invite page and after refresh.
+ */
+export async function persistEphemeralFabricImages(
+  canvas: any,
+  upload: (blob: Blob, fileName: string) => Promise<string>
+): Promise<number> {
+  if (!canvas) return 0;
+  const objects = (canvas.getObjects?.() ?? []) as any[];
+  let fixed = 0;
+  for (const obj of objects) {
+    if (obj?.type !== "image") continue;
+    const src = obj.getSrc?.() ?? obj.src ?? obj._element?.src;
+    if (!isEphemeralImageSrc(src)) continue;
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      const ext =
+        blob.type === "image/jpeg" ? "jpg" : blob.type === "image/webp" ? "webp" : "png";
+      const permanent = await upload(blob, `invitation-asset.${ext}`);
+      if (typeof obj.setSrc === "function") {
+        await obj.setSrc(permanent, { crossOrigin: "anonymous" });
+      } else {
+        obj.set({ src: permanent });
+      }
+      obj.setCoords?.();
+      fixed += 1;
+    } catch (err) {
+      console.error("Failed to persist fabric image", err);
+    }
+  }
+  if (fixed > 0) canvas.requestRenderAll?.();
+  return fixed;
+}
+
+/** True when a saved fabric document still points at session-only image URLs. */
+export function fabricDocumentHasEphemeralImages(fabric: unknown): boolean {
   try {
-    const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-    img.scaleToWidth(Math.min(480, CARD_ARTBOARD.width * 0.6));
-    img.set({
-      left: CARD_ARTBOARD.width / 2,
-      top: CARD_ARTBOARD.height / 2,
-      originX: "center",
-      originY: "center",
-      name: `upload:${file.name}`,
-    });
-    return img;
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return JSON.stringify(fabric ?? "").includes('"blob:') || JSON.stringify(fabric ?? "").includes('"data:image');
+  } catch {
+    return false;
   }
 }
 

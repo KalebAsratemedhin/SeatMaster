@@ -50,6 +50,13 @@ export async function uploadInvitationPreview(blob: Blob): Promise<string> {
   return uploadBanner(file);
 }
 
+/** Uploads a studio image asset so fabric JSON stores a durable URL (not blob:). */
+export async function uploadInvitationAsset(blob: Blob, fileName = "invitation-asset.png"): Promise<string> {
+  const type = blob.type || "image/png";
+  const file = new File([blob], fileName, { type });
+  return uploadBanner(file);
+}
+
 const MAX_AVATAR_MB = 5;
 const MAX_AVATAR_BYTES = MAX_AVATAR_MB * 1024 * 1024;
 

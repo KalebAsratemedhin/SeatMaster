@@ -74,6 +74,33 @@ export type PaginatedEventsResponse = { items: EventResponse[]; total: number };
 export type PaginatedInvitationsResponse = { items: InvitationWithEventResponse[]; total: number };
 export type PaginatedInvitesResponse = { items: EventInviteResponse[]; total: number };
 
+export type InviteJobQueuedResponse = {
+  job_id: string;
+  queued: number;
+  status: string;
+};
+
+export type InviteJobStatusResponse = {
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed" | string;
+  total: number;
+  sent: number;
+  failed: number;
+  errors?: { email: string; error: string }[];
+};
+
+export type AttendeeRecommendation = {
+  email: string;
+  display_name?: string;
+  last_event_name?: string;
+  last_event_date?: string;
+};
+
+export type AttendeeRecommendationsResponse = {
+  items: AttendeeRecommendation[];
+  total: number;
+};
+
 export type CreateEventTableRequest = {
   capacity?: number;
   shape: "round" | "rectangular" | "grid";
@@ -257,6 +284,36 @@ export const eventsApi = createApi({
       }),
       invalidatesTags: ["Events", "EventInvites"],
     }),
+    bulkInviteToEvent: builder.mutation<
+      InviteJobQueuedResponse,
+      { eventId: string; emails: string[] }
+    >({
+      query: ({ eventId, emails }) => ({
+        url: `/api/v1/events/${eventId}/invites/bulk`,
+        method: "POST",
+        body: { emails },
+      }),
+      invalidatesTags: ["Events", "EventInvites"],
+    }),
+    getInviteJob: builder.query<
+      InviteJobStatusResponse,
+      { eventId: string; jobId: string }
+    >({
+      query: ({ eventId, jobId }) => `/api/v1/events/${eventId}/invites/jobs/${jobId}`,
+    }),
+    getAttendeeRecommendations: builder.query<
+      AttendeeRecommendationsResponse,
+      { search?: string; limit?: number; offset?: number; exclude_event_id?: string }
+    >({
+      query: (params) => {
+        const q = new URLSearchParams();
+        if (params.search) q.set("search", params.search);
+        q.set("limit", String(params.limit ?? 20));
+        q.set("offset", String(params.offset ?? 0));
+        if (params.exclude_event_id) q.set("exclude_event_id", params.exclude_event_id);
+        return `/api/v1/events/attendees/recommendations?${q.toString()}`;
+      },
+    }),
     getEventInvites: builder.query<PaginatedInvitesResponse, { eventId: string; limit?: number; offset?: number }>({
       query: ({ eventId, limit = 50, offset = 0 }) =>
         `/api/v1/events/${eventId}/invites?limit=${limit}&offset=${offset}`,
@@ -306,6 +363,10 @@ export const {
   useRespondToInviteMutation,
   useGetPublicEventsQuery,
   useInviteToEventMutation,
+  useBulkInviteToEventMutation,
+  useGetInviteJobQuery,
+  useLazyGetInviteJobQuery,
+  useGetAttendeeRecommendationsQuery,
   useGetEventInvitesQuery,
   useGetEventSeatingQuery,
   useCreateEventTableMutation,

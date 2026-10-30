@@ -14,8 +14,8 @@ type PostgresDB struct {
 	DB *gorm.DB
 }
 
-func getDSN() string {
-	// Prefer a single connection string (e.g. from Render, Neon, etc.)
+// DSN returns the Postgres connection string from DATABASE_URL or DB_URL.
+func DSN() string {
 	if u := os.Getenv("DATABASE_URL"); u != "" {
 		// Some hosts use "postgresql://"; Go driver accepts "postgres://"
 		return strings.Replace(u, "postgresql://", "postgres://", 1)
@@ -27,13 +27,14 @@ func getDSN() string {
 }
 
 func NewPostgresDB() (*PostgresDB, error) {
-	dsn := getDSN()
+	dsn := DSN()
 	if dsn == "" {
 		return nil, fmt.Errorf("database connection required: set DATABASE_URL or DB_URL (e.g. postgres://user:pass@host:port/dbname?sslmode=require)")
 	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		// Silent: no SQL to stdout. Use Info temporarily when debugging queries.
+		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)

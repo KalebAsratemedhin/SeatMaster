@@ -86,6 +86,38 @@ export type TableFootprint = {
   h: number;
 };
 
+/**
+ * Pixel box for a table card (must stay in sync with seating-chart-floor visuals).
+ * Includes the status row under the table (~22px) so collision matches what you see.
+ */
+export function tableVisualSizePx(
+  shape: string,
+  capacity: number,
+  rows: number | null | undefined,
+  columns: number | null | undefined
+): { width: number; height: number } {
+  const s = (shape ?? "").toLowerCase();
+  const n = Math.max(capacity, 1);
+  let width: number;
+  let height: number;
+  if (s === "grid") {
+    const cols = Math.max(1, columns ?? Math.ceil(Math.sqrt(n)));
+    const r = Math.max(1, rows ?? Math.ceil(n / cols));
+    const cell = 26;
+    width = Math.max(88, cols * cell + 20);
+    height = Math.max(72, r * cell + 28);
+  } else if (s === "rectangular") {
+    width = Math.min(300, Math.max(160, 120 + n * 12));
+    height = Math.round(width / 2);
+  } else {
+    const size = Math.min(200, Math.max(96, 56 + n * 8));
+    width = size;
+    height = size;
+  }
+  // Status label under the card
+  return { width, height: height + 22 };
+}
+
 /** Approximate on-floor size (%) for collision, based on shape and floor pixel size. */
 export function estimateTableFootprintPct(
   shape: string,
@@ -97,27 +129,9 @@ export function estimateTableFootprintPct(
 ): { w: number; h: number } {
   const safeW = Math.max(floorWidthPx, 1);
   const safeH = Math.max(floorHeightPx, 1);
-  const s = (shape ?? "").toLowerCase();
-
-  let pxW: number;
-  let pxH: number;
-
-  if (s === "grid") {
-    const cols = Math.max(1, columns ?? (Math.ceil(Math.sqrt(capacity)) || 1));
-    const r = Math.max(1, rows ?? (Math.ceil(capacity / cols) || 1));
-    pxW = cols * 28 + 40;
-    pxH = r * 28 + 56;
-  } else if (s === "rectangular") {
-    const along = Math.max(4, capacity);
-    pxW = Math.min(280, Math.max(140, 100 + along * 10));
-    pxH = Math.min(160, Math.max(72, 56 + along * 4));
-  } else {
-    const size = Math.min(220, Math.max(96, 64 + capacity * 8));
-    pxW = size;
-    pxH = size + 28;
-  }
-
-  const gapPx = 16;
+  const { width: pxW, height: pxH } = tableVisualSizePx(shape, capacity, rows, columns);
+  // Small clearance so tables can sit near each other without jumpy rejection.
+  const gapPx = 10;
   return {
     w: ((pxW + gapPx) / safeW) * 100,
     h: ((pxH + gapPx) / safeH) * 100,
@@ -127,7 +141,7 @@ export function estimateTableFootprintPct(
 export function footprintsOverlap(
   a: TableFootprint,
   b: TableFootprint,
-  paddingPct = 0.4
+  paddingPct = 0.25
 ): boolean {
   const ax1 = a.x - a.w / 2 - paddingPct;
   const ax2 = a.x + a.w / 2 + paddingPct;

@@ -14,11 +14,14 @@ function RsvpRedirect() {
 
   useEffect(() => {
     if (!id) return;
+    // Card-first invite experience. Only deep-link into a tab when explicitly requested.
     const q = new URLSearchParams();
-    q.set("continue", "1");
-    if (tab === "comments" || tab === "chat" || tab === "rsvp") q.set("tab", tab);
-    else q.set("tab", "rsvp");
-    router.replace(`/invite/${id}?${q.toString()}`);
+    if (tab === "comments" || tab === "chat" || tab === "rsvp") {
+      q.set("tab", tab);
+      q.set("continue", "1");
+    }
+    const qs = q.toString();
+    router.replace(qs ? `/invite/${id}?${qs}` : `/invite/${id}`);
   }, [id, tab, router]);
 
   return (

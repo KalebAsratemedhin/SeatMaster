@@ -5,6 +5,7 @@ import { commentsApi } from "./api/commentsApi";
 import { chatApi } from "./api/chatApi";
 import { dashboardApi } from "./api/dashboardApi";
 import { ticketApi } from "./api/ticketApi";
+import { usersApi } from "./api/usersApi";
 import authReducer from "./slices/authSlice";
 
 export const makeStore = () => {
@@ -17,6 +18,7 @@ export const makeStore = () => {
       [chatApi.reducerPath]: chatApi.reducer,
       [dashboardApi.reducerPath]: dashboardApi.reducer,
       [ticketApi.reducerPath]: ticketApi.reducer,
+      [usersApi.reducerPath]: usersApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().concat(
@@ -25,7 +27,8 @@ export const makeStore = () => {
         commentsApi.middleware,
         chatApi.middleware,
         dashboardApi.middleware,
-        ticketApi.middleware
+        ticketApi.middleware,
+        usersApi.middleware
       ),
   });
 };

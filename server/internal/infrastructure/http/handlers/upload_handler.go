@@ -1,153 +1,71 @@
 package handlers
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/storage"
 )
 
 const maxBannerSize = 10 << 20 // 10MB
-var allowedBannerTypes = map[string]bool{
+const maxAvatarSize = 5 << 20  // 5MB
+
+var allowedImageTypes = map[string]bool{
 	"image/jpeg": true, "image/jpg": true, "image/png": true,
 	"image/gif": true, "image/webp": true,
 }
 
 type UploadHandler struct {
-	uploadDir string
-	baseURL   string
+	uploader storage.ImageUploader
 }
 
-func NewUploadHandler(uploadDir, baseURL string) *UploadHandler {
-	return &UploadHandler{uploadDir: uploadDir, baseURL: strings.TrimSuffix(baseURL, "/")}
+func NewUploadHandler(uploader storage.ImageUploader) *UploadHandler {
+	return &UploadHandler{uploader: uploader}
 }
 
 func (h *UploadHandler) UploadBanner(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
-	if err := r.ParseMultipartForm(maxBannerSize); err != nil {
-		respondWithError(w, http.StatusBadRequest, "file too large or invalid form")
-		return
-	}
-
-	file, header, err := r.FormFile("banner")
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "missing file: use form key 'banner'")
-		return
-	}
-	defer file.Close()
-
-	ct := header.Header.Get("Content-Type")
-	if !allowedBannerTypes[ct] {
-		respondWithError(w, http.StatusBadRequest, "invalid file type: use JPEG, PNG, GIF, or WebP")
-		return
-	}
-
-	ext := ".jpg"
-	switch {
-	case strings.Contains(ct, "png"):
-		ext = ".png"
-	case strings.Contains(ct, "gif"):
-		ext = ".gif"
-	case strings.Contains(ct, "webp"):
-		ext = ".webp"
-	}
-
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to generate filename")
-		return
-	}
-	name := hex.EncodeToString(b) + ext
-	dir := filepath.Join(h.uploadDir, "banners")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to create upload directory")
-		return
-	}
-	path := filepath.Join(dir, name)
-
-	dst, err := os.Create(path)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to save file")
-		return
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		os.Remove(path)
-		respondWithError(w, http.StatusInternalServerError, "failed to save file")
-		return
-	}
-
-	url := fmt.Sprintf("%s/uploads/banners/%s", h.baseURL, name)
-	respondWithJSON(w, http.StatusOK, map[string]string{"url": url})
-}
-
-const maxAvatarSize = 5 << 20 // 5MB
-var allowedAvatarTypes = map[string]bool{
-	"image/jpeg": true, "image/jpg": true, "image/png": true,
-	"image/gif": true, "image/webp": true,
+	h.upload(w, r, "banner", "banners", maxBannerSize)
 }
 
 func (h *UploadHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	h.upload(w, r, "avatar", "avatars", maxAvatarSize)
+}
+
+func (h *UploadHandler) upload(w http.ResponseWriter, r *http.Request, formKey, folder string, maxSize int64) {
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	if err := r.ParseMultipartForm(maxAvatarSize); err != nil {
+	if err := r.ParseMultipartForm(maxSize); err != nil {
 		respondWithError(w, http.StatusBadRequest, "file too large or invalid form")
 		return
 	}
-	file, header, err := r.FormFile("avatar")
+	file, header, err := r.FormFile(formKey)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "missing file: use form key 'avatar'")
+		respondWithError(w, http.StatusBadRequest, "missing file: use form key '"+formKey+"'")
 		return
 	}
 	defer file.Close()
+
 	ct := header.Header.Get("Content-Type")
-	if !allowedAvatarTypes[ct] {
+	if !allowedImageTypes[ct] {
 		respondWithError(w, http.StatusBadRequest, "invalid file type: use JPEG, PNG, GIF, or WebP")
 		return
 	}
-	ext := ".jpg"
-	switch {
-	case strings.Contains(ct, "png"):
-		ext = ".png"
-	case strings.Contains(ct, "gif"):
-		ext = ".gif"
-	case strings.Contains(ct, "webp"):
-		ext = ".webp"
-	}
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to generate filename")
-		return
-	}
-	name := hex.EncodeToString(b) + ext
-	dir := filepath.Join(h.uploadDir, "avatars")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to create upload directory")
-		return
-	}
-	path := filepath.Join(dir, name)
-	dst, err := os.Create(path)
+
+	// Bound read to maxSize even if multipart lied.
+	limited := io.LimitReader(file, maxSize+1)
+	url, err := h.uploader.UploadImage(r.Context(), limited, folder, ct)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to save file")
+		log.Printf("error: upload %s: %v", folder, err)
+		respondWithError(w, http.StatusInternalServerError, "failed to upload file")
 		return
 	}
-	defer dst.Close()
-	if _, err := io.Copy(dst, file); err != nil {
-		os.Remove(path)
-		respondWithError(w, http.StatusInternalServerError, "failed to save file")
+	if strings.TrimSpace(url) == "" {
+		respondWithError(w, http.StatusInternalServerError, "failed to upload file")
 		return
 	}
-	url := fmt.Sprintf("%s/uploads/avatars/%s", h.baseURL, name)
 	respondWithJSON(w, http.StatusOK, map[string]string{"url": url})
 }

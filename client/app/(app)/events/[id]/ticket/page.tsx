@@ -8,9 +8,10 @@ import { useSelector } from "react-redux";
 import { useGetTicketQuery } from "@/lib/api/ticketApi";
 import { useGetEventQuery } from "@/lib/api/eventsApi";
 import { downloadTicketPng } from "@/lib/renderTicketPng";
+import { useTicketSeatLabels } from "@/lib/ticketSeatLabels";
 import type { RootState } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Loader2, Download } from "lucide-react";
+import { Armchair, Calendar, MapPin, Loader2, Download } from "lucide-react";
 
 const QRCodeSVG = dynamic(
   () => import("qrcode.react").then((m) => m.QRCodeSVG),
@@ -27,6 +28,7 @@ export default function EventTicketPage() {
     skip: !id || !token,
   });
   const { data: event } = useGetEventQuery(id, { skip: !id });
+  const seats = useTicketSeatLabels(id, ticket);
 
   const handleDownload = async () => {
     if (!ticket || downloading) return;
@@ -36,6 +38,7 @@ export default function EventTicketPage() {
         {
           ...ticket,
           display_event_name: event?.name ?? ticket.event_name,
+          ...seats,
         },
         `ticket-${event?.name ?? ticket.event_name ?? id}`
       );
@@ -122,6 +125,19 @@ export default function EventTicketPage() {
                   </p>
                 </div>
               </div>
+              {seats.seats_display && (
+                <div className="flex items-start gap-2">
+                  <Armchair className="size-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Seat
+                    </p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {seats.seats_display}
+                    </p>
+                  </div>
+                </div>
+              )}
               {ticket.location && (
                 <div className="flex items-center gap-2">
                   <MapPin className="size-5 text-primary shrink-0" />
