@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   useGetEventSeatingQuery,
   useGetMyInvitationsQuery,
@@ -18,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { getErrorMessage } from "@/lib/api/errors";
 import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
 import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
+import { EventGuestTicketPanel } from "@/components/events/event-guest-ticket-panel";
+import { ticketApi } from "@/lib/api/ticketApi";
 import { CalendarDays, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,6 +48,7 @@ function RsvpFormFields({
 }) {
   const id = event.id;
   const router = useRouter();
+  const dispatch = useDispatch();
   const token = useSelector((s: RootState) => s.auth.token);
   const { data: seating = [] } = useGetEventSeatingQuery(id, { skip: !id });
 
@@ -57,7 +60,9 @@ function RsvpFormFields({
   const [selectedSeatIds, setSelectedSeatIds] = useState(initialSeatIds);
   const [plusOne, setPlusOne] = useState(initialPlusOne);
   const [dietary, setDietary] = useState("");
+  const [justConfirmed, setJustConfirmed] = useState(false);
   const maxSeats = plusOne ? 2 : 1;
+  const showTicket = inviteStatus === "confirmed" || justConfirmed;
 
   const [respondToInvite, { isLoading: isSubmitting, error: submitError }] =
     useRespondToInviteMutation();
@@ -92,7 +97,14 @@ function RsvpFormFields({
     })
       .unwrap()
       .then(() => {
-        toast.success(attendance === "confirmed" ? "Confirmed" : "Saved");
+        if (attendance === "confirmed") {
+          setJustConfirmed(true);
+          dispatch(ticketApi.util.invalidateTags([{ type: "Ticket", id }]));
+          toast.success("Confirmed");
+        } else {
+          setJustConfirmed(false);
+          toast.success("Saved");
+        }
       })
       .catch(() => {});
   };
@@ -168,12 +180,9 @@ function RsvpFormFields({
         </div>
       )}
 
-      {inviteStatus === "confirmed" && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 p-4">
-          <p className="text-sm font-medium text-primary">You&apos;re confirmed.</p>
-          <Button asChild size="sm">
-            <Link href={`/events/${id}/ticket`}>Get ticket</Link>
-          </Button>
+      {showTicket && token && (
+        <div className="mb-7">
+          <EventGuestTicketPanel eventId={id} />
         </div>
       )}
 

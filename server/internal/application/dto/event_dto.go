@@ -52,6 +52,48 @@ type InviteEventRequest struct {
 	Email string `json:"email"`
 }
 
+// BulkInviteRequest is the body for POST .../invites/bulk.
+type BulkInviteRequest struct {
+	Emails []string `json:"emails"`
+}
+
+// InviteJobQueuedResponse is returned as 202 when a bulk/import job is accepted.
+type InviteJobQueuedResponse struct {
+	JobID  string `json:"job_id"`
+	Queued int    `json:"queued"`
+	Status string `json:"status"`
+}
+
+// InviteJobErrorItem is one failure inside a job status payload.
+type InviteJobErrorItem struct {
+	Email string `json:"email"`
+	Error string `json:"error"`
+}
+
+// InviteJobStatusResponse is GET .../invites/jobs/{jobId}.
+type InviteJobStatusResponse struct {
+	JobID  string               `json:"job_id"`
+	Status string               `json:"status"`
+	Total  int                  `json:"total"`
+	Sent   int                  `json:"sent"`
+	Failed int                  `json:"failed"`
+	Errors []InviteJobErrorItem `json:"errors"`
+}
+
+// AttendeeRecommendationItem is one row from past-attendee recommendations.
+type AttendeeRecommendationItem struct {
+	Email         string `json:"email"`
+	DisplayName   string `json:"display_name"`
+	LastEventName string `json:"last_event_name"`
+	LastEventDate string `json:"last_event_date"`
+}
+
+// PaginatedAttendeeRecommendationsResponse for GET /events/attendees/recommendations.
+type PaginatedAttendeeRecommendationsResponse struct {
+	Items []*AttendeeRecommendationItem `json:"items"`
+	Total int64                         `json:"total"`
+}
+
 // EventInviteResponse is returned when listing invites for an event.
 type EventInviteResponse struct {
 	ID           string  `json:"id"`

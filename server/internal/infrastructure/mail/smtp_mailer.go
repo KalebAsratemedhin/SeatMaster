@@ -41,16 +41,16 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func (m *smtpMailer) SendInviteEmail(ctx context.Context, toEmail, eventName, rsvpURL string) error {
+func (m *smtpMailer) SendInviteEmail(ctx context.Context, toEmail, eventName, inviteURL string) error {
 	if m.host == "" || m.username == "" || m.password == "" {
 		return nil // no-op when not configured
 	}
-	// If rsvpURL is relative, make it absolute
-	if rsvpURL != "" && !strings.HasPrefix(rsvpURL, "http") {
-		rsvpURL = strings.TrimSuffix(m.frontendURL, "/") + rsvpURL
+	// If inviteURL is relative, make it absolute
+	if inviteURL != "" && !strings.HasPrefix(inviteURL, "http") {
+		inviteURL = strings.TrimSuffix(m.frontendURL, "/") + inviteURL
 	}
 	subject := fmt.Sprintf("You're invited to %s", eventName)
-	body := fmt.Sprintf("You have been invited to %s.\n\nRSVP here: %s\n", eventName, rsvpURL)
+	body := fmt.Sprintf("You're invited to %s.\n\nView your invitation: %s\n", eventName, inviteURL)
 	msg := []byte("To: " + toEmail + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"Content-Type: text/plain; charset=UTF-8\r\n" +

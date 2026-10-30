@@ -238,6 +238,8 @@ export function LocationPickerMap({
   const [flyTarget, setFlyTarget] = useState<L.LatLngTuple | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const searchNearRef = useRef(searchNear);
+  searchNearRef.current = searchNear;
 
   const trimmedQuery = query.trim();
   const canSearch = trimmedQuery.length >= 2;
@@ -247,18 +249,26 @@ export function LocationPickerMap({
   );
 
   const handler = useCallback(
-    (lat: number, lng: number) => onLocationChange(lat, lng),
+    (lat: number, lng: number) => {
+      setOpen(false);
+      onLocationChange(lat, lng);
+    },
     [onLocationChange]
   );
 
+  // Re-search only when the query changes — not when the pin moves (that was reopening the dropdown over the map).
   useEffect(() => {
-    if (!canSearch) return;
+    if (!canSearch) {
+      setFetchedResults([]);
+      setOpen(false);
+      return;
+    }
 
     let cancelled = false;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setSearching(true);
-      searchPlaces(trimmedQuery, searchNear)
+      searchPlaces(trimmedQuery, searchNearRef.current)
         .then((list) => {
           if (cancelled) return;
           setFetchedResults(list);
@@ -276,7 +286,7 @@ export function LocationPickerMap({
       cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [canSearch, trimmedQuery, searchNear]);
+  }, [canSearch, trimmedQuery]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -303,14 +313,14 @@ export function LocationPickerMap({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Search places (e.g. Bole, Meskel Square)…"
-          className="pl-9 pr-9 rounded-xl"
+          className="h-9 rounded-xl border-border bg-card pl-9 pr-9 text-foreground !shadow-none focus-visible:ring-1 focus-visible:ring-ring/40"
           autoComplete="off"
         />
         {searching && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
         )}
         {open && results.length > 0 && (
-          <ul className="absolute z-30 mt-1 w-full max-h-64 overflow-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
+          <ul className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-sm">
             {results.map((r) => (
               <li key={r.id}>
                 <button
@@ -325,7 +335,7 @@ export function LocationPickerMap({
           </ul>
         )}
         {open && canSearch && !searching && results.length === 0 && (
-          <div className="absolute z-30 mt-1 w-full rounded-xl border border-border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-lg">
+          <div className="absolute z-30 mt-1 w-full rounded-xl border border-border bg-popover px-3 py-2 text-sm text-muted-foreground shadow-sm">
             No places found. Try a different name or click the map.
           </div>
         )}
@@ -334,8 +344,9 @@ export function LocationPickerMap({
         Search (Ethiopia-first, then worldwide) or click the map. Scroll-zoom after clicking the map.
       </p>
       <div
-        className="rounded-lg overflow-hidden border border-input isolate"
+        className="isolate overflow-hidden rounded-2xl border border-border"
         style={{ height, width: "100%" }}
+        onMouseDown={() => setOpen(false)}
       >
         <MapContainer
           center={position}

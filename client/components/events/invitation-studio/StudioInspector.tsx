@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,11 @@ import type { LayerItem } from "@/lib/fabricInvitationActions";
 import { isObjectLocked } from "@/lib/fabricInvitationActions";
 import { BrushControls, GradientPairButtons } from "./studioUi";
 import type { BoardSize, FabricObject, Tool } from "./types";
+
+function hexOr(value: unknown, fallback: string): string {
+  const s = String(value ?? "");
+  return s.startsWith("#") ? s : fallback;
+}
 
 export type StudioInspectorProps = {
   open: boolean;
@@ -45,6 +51,7 @@ export type StudioInspectorProps = {
   toggleLockSelected: () => void;
   deleteSelected: () => void;
   patchActive: (patch: Record<string, unknown>) => void;
+  syncInspector: () => void;
   fillGradFrom: string;
   fillGradTo: string;
   setFillGradFrom: (v: string) => void;
@@ -98,6 +105,7 @@ export function StudioInspector(props: StudioInspectorProps) {
     toggleLockSelected,
     deleteSelected,
     patchActive,
+    syncInspector,
     fillGradFrom,
     fillGradTo,
     setFillGradFrom,
@@ -122,13 +130,39 @@ export function StudioInspector(props: StudioInspectorProps) {
     setBrushWidth,
   } = props;
 
-  if (!open) return null;
-
-  const isText =
+  const isText = Boolean(
     selected &&
-    (selected.type === "textbox" || selected.type === "i-text" || selected.type === "text");
-  const isShape =
-    selected && ["rect", "ellipse", "triangle", "path", "line"].includes(selected.type || "");
+      (selected.type === "textbox" || selected.type === "i-text" || selected.type === "text")
+  );
+  const isShape = Boolean(
+    selected && ["rect", "ellipse", "triangle", "path", "line"].includes(selected.type || "")
+  );
+
+  // Local drafts (like fill/gradient): continuous controls must not remount or rebind from Fabric each frame.
+  const [fillColor, setFillColor] = useState("#cccccc");
+  const [strokeColor, setStrokeColor] = useState("#000000");
+  const [opacity, setOpacity] = useState(1);
+  const [fontSize, setFontSize] = useState("24");
+  const [fontWeight, setFontWeight] = useState("400");
+  const [charSpacing, setCharSpacing] = useState("0");
+  const [lineHeight, setLineHeight] = useState("1.16");
+  const [strokeWidth, setStrokeWidth] = useState("1");
+
+  useEffect(() => {
+    if (!selected) return;
+    const fillFallback = isText ? "#000000" : "#cccccc";
+    setFillColor(hexOr(selected.fill, fillFallback));
+    setStrokeColor(hexOr(selected.stroke, "#000000"));
+    setOpacity(selected.opacity ?? 1);
+    setFontSize(String(selected.fontSize ?? 24));
+    setFontWeight(String(Number(selected.fontWeight) || 400));
+    setCharSpacing(String(selected.charSpacing ?? 0));
+    setLineHeight(String(selected.lineHeight ?? 1.16));
+    setStrokeWidth(String(selected.strokeWidth ?? 1));
+    // inspectorRev: re-sync after undo/discrete actions without remounting the tree
+  }, [selected, inspectorRev, isText]);
+
+  if (!open) return null;
 
   return (
     <aside className="w-[min(100%,288px)] shrink-0 overflow-y-auto border-l border-black/5 bg-[#fbfaf7] p-3 space-y-4 dark:border-white/10 dark:bg-slate-900">
@@ -247,10 +281,7 @@ export function StudioInspector(props: StudioInspectorProps) {
       </div>
 
       {selected ? (
-        <div
-          key={inspectorRev}
-          className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-3"
-        >
+        <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Inspector · {selected.type}
           </p>
@@ -359,15 +390,20 @@ export function StudioInspector(props: StudioInspectorProps) {
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Opacity</Label>
+            <Label className="text-xs">Opacity · {Math.round(opacity * 100)}%</Label>
             <Input
               type="range"
               min={0}
               max={1}
               step={0.05}
-              value={selected.opacity ?? 1}
-              onChange={(e) => patchActive({ opacity: Number(e.target.value) })}
+              value={opacity}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setOpacity(next);
+                patchActive({ opacity: next });
+              }}
               onMouseUp={() => pushHistory()}
+              onTouchEnd={() => pushHistory()}
             />
           </div>
 
@@ -390,6 +426,7 @@ export function StudioInspector(props: StudioInspectorProps) {
                   value={String(selected.fontFamily || "DM Sans")}
                   onValueChange={(v) => {
                     patchActive({ fontFamily: v });
+                    syncInspector();
                     pushHistory();
                   }}
                 >
@@ -419,9 +456,15 @@ export function StudioInspector(props: StudioInspectorProps) {
                   <Input
                     type="number"
                     className="h-8 text-xs"
-                    value={selected.fontSize ?? 24}
-                    onChange={(e) => patchActive({ fontSize: Number(e.target.value) || 12 })}
-                    onBlur={() => pushHistory()}
+                    value={fontSize}
+                    onChange={(e) => {
+                      setFontSize(e.target.value);
+                      patchActive({ fontSize: Number(e.target.value) || 12 });
+                    }}
+                    onBlur={() => {
+                      syncInspector();
+                      pushHistory();
+                    }}
                   />
                 </div>
                 <div className="space-y-1">
@@ -430,11 +473,15 @@ export function StudioInspector(props: StudioInspectorProps) {
                     type="number"
                     className="h-8 text-xs"
                     step={100}
-                    value={Number(selected.fontWeight) || 400}
-                    onChange={(e) =>
-                      patchActive({ fontWeight: String(Number(e.target.value) || 400) })
-                    }
-                    onBlur={() => pushHistory()}
+                    value={fontWeight}
+                    onChange={(e) => {
+                      setFontWeight(e.target.value);
+                      patchActive({ fontWeight: String(Number(e.target.value) || 400) });
+                    }}
+                    onBlur={() => {
+                      syncInspector();
+                      pushHistory();
+                    }}
                   />
                 </div>
               </div>
@@ -444,12 +491,11 @@ export function StudioInspector(props: StudioInspectorProps) {
                   <Input
                     type="color"
                     className="h-8 p-1"
-                    value={
-                      String(selected.fill || "#000000").startsWith("#")
-                        ? String(selected.fill)
-                        : "#000000"
-                    }
-                    onChange={(e) => patchActive({ fill: e.target.value })}
+                    value={fillColor}
+                    onChange={(e) => {
+                      setFillColor(e.target.value);
+                      patchActive({ fill: e.target.value });
+                    }}
                     onBlur={() => pushHistory()}
                   />
                 </div>
@@ -459,6 +505,7 @@ export function StudioInspector(props: StudioInspectorProps) {
                     value={selected.textAlign || "left"}
                     onValueChange={(v) => {
                       patchActive({ textAlign: v });
+                      syncInspector();
                       pushHistory();
                     }}
                   >
@@ -481,6 +528,7 @@ export function StudioInspector(props: StudioInspectorProps) {
                     checked={selected.fontStyle === "italic"}
                     onChange={(e) => {
                       patchActive({ fontStyle: e.target.checked ? "italic" : "normal" });
+                      syncInspector();
                       pushHistory();
                     }}
                   />
@@ -492,6 +540,7 @@ export function StudioInspector(props: StudioInspectorProps) {
                     checked={Boolean(selected.underline)}
                     onChange={(e) => {
                       patchActive({ underline: e.target.checked });
+                      syncInspector();
                       pushHistory();
                     }}
                   />
@@ -503,6 +552,7 @@ export function StudioInspector(props: StudioInspectorProps) {
                     checked={Boolean(selected.linethrough)}
                     onChange={(e) => {
                       patchActive({ linethrough: e.target.checked });
+                      syncInspector();
                       pushHistory();
                     }}
                   />
@@ -514,9 +564,15 @@ export function StudioInspector(props: StudioInspectorProps) {
                 <Input
                   type="number"
                   className="h-8 text-xs"
-                  value={selected.charSpacing ?? 0}
-                  onChange={(e) => patchActive({ charSpacing: Number(e.target.value) || 0 })}
-                  onBlur={() => pushHistory()}
+                  value={charSpacing}
+                  onChange={(e) => {
+                    setCharSpacing(e.target.value);
+                    patchActive({ charSpacing: Number(e.target.value) || 0 });
+                  }}
+                  onBlur={() => {
+                    syncInspector();
+                    pushHistory();
+                  }}
                 />
               </div>
               <div className="space-y-1">
@@ -525,9 +581,15 @@ export function StudioInspector(props: StudioInspectorProps) {
                   type="number"
                   className="h-8 text-xs"
                   step={0.05}
-                  value={selected.lineHeight ?? 1.16}
-                  onChange={(e) => patchActive({ lineHeight: Number(e.target.value) || 1 })}
-                  onBlur={() => pushHistory()}
+                  value={lineHeight}
+                  onChange={(e) => {
+                    setLineHeight(e.target.value);
+                    patchActive({ lineHeight: Number(e.target.value) || 1 });
+                  }}
+                  onBlur={() => {
+                    syncInspector();
+                    pushHistory();
+                  }}
                 />
               </div>
             </>
@@ -554,12 +616,11 @@ export function StudioInspector(props: StudioInspectorProps) {
                 <Input
                   type="color"
                   className="h-8 p-1"
-                  value={
-                    String(selected.fill || "#cccccc").startsWith("#")
-                      ? String(selected.fill)
-                      : "#cccccc"
-                  }
-                  onChange={(e) => patchActive({ fill: e.target.value })}
+                  value={fillColor}
+                  onChange={(e) => {
+                    setFillColor(e.target.value);
+                    patchActive({ fill: e.target.value });
+                  }}
                   onBlur={() => pushHistory()}
                 />
               </div>
@@ -568,12 +629,11 @@ export function StudioInspector(props: StudioInspectorProps) {
                 <Input
                   type="color"
                   className="h-8 p-1"
-                  value={
-                    String(selected.stroke || "#000000").startsWith("#")
-                      ? String(selected.stroke)
-                      : "#000000"
-                  }
-                  onChange={(e) => patchActive({ stroke: e.target.value })}
+                  value={strokeColor}
+                  onChange={(e) => {
+                    setStrokeColor(e.target.value);
+                    patchActive({ stroke: e.target.value });
+                  }}
                   onBlur={() => pushHistory()}
                 />
               </div>
@@ -582,9 +642,15 @@ export function StudioInspector(props: StudioInspectorProps) {
                 <Input
                   type="number"
                   className="h-8 text-xs"
-                  value={selected.strokeWidth ?? 1}
-                  onChange={(e) => patchActive({ strokeWidth: Number(e.target.value) || 0 })}
-                  onBlur={() => pushHistory()}
+                  value={strokeWidth}
+                  onChange={(e) => {
+                    setStrokeWidth(e.target.value);
+                    patchActive({ strokeWidth: Number(e.target.value) || 0 });
+                  }}
+                  onBlur={() => {
+                    syncInspector();
+                    pushHistory();
+                  }}
                 />
               </div>
               <div className="space-y-1">

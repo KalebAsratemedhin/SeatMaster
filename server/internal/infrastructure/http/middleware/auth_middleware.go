@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 
@@ -32,18 +33,21 @@ func (m *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
+			log.Printf("error %d: Authorization header required", http.StatusUnauthorized)
 			http.Error(w, "Authorization header required", http.StatusUnauthorized)
 			return
 		}
 
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
+			log.Printf("error %d: Invalid authorization header format", http.StatusUnauthorized)
 			http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
 			return
 		}
 
 		claims, err := m.jwt.ValidateToken(parts[1])
 		if err != nil {
+			log.Printf("error %d: Invalid token", http.StatusUnauthorized)
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
@@ -51,6 +55,7 @@ func (m *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 		if m.userExists != nil {
 			ok, err := m.userExists(r.Context(), claims.UserID)
 			if err != nil || !ok {
+				log.Printf("error %d: Invalid token (user missing)", http.StatusUnauthorized)
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}

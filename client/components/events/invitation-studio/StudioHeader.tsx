@@ -16,6 +16,9 @@ import {
 
 type StudioHeaderProps = {
   eventId: string;
+  /** When opened from create wizard, return here instead of the event page. */
+  backHref?: string | null;
+  backLabel?: string;
   zoom: number;
   onZoomOut: () => void;
   onZoomIn: () => void;
@@ -32,6 +35,8 @@ type StudioHeaderProps = {
 
 export function StudioHeader({
   eventId,
+  backHref,
+  backLabel,
   zoom,
   onZoomOut,
   onZoomIn,
@@ -45,6 +50,7 @@ export function StudioHeader({
   onUndo,
   onRedo,
 }: StudioHeaderProps) {
+  const eventBack = backHref?.startsWith("/") ? backHref : `/events/${eventId}`;
   return (
     <header className="z-20 flex h-14 shrink-0 items-center gap-5 border-b border-black/5 bg-[#f7f4ee]/95 px-5 font-sans backdrop-blur sm:gap-7 sm:px-7 dark:border-white/10 dark:bg-slate-900/95">
       <Link
@@ -64,9 +70,9 @@ export function StudioHeader({
           asChild
           className="gap-2 px-3 font-sans text-slate-700 dark:text-slate-200"
         >
-          <Link href={`/events/${eventId}`}>
+          <Link href={eventBack}>
             <ArrowLeft className="size-4" />
-            <span className="hidden sm:inline">Event</span>
+            <span className="hidden sm:inline">{backLabel || "Event"}</span>
           </Link>
         </Button>
         <p className="hidden text-sm font-medium text-slate-600 md:block dark:text-slate-300">

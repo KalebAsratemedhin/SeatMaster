@@ -14,14 +14,18 @@ import (
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/services"
 )
 
+const maxBulkInviteEmails = 500
+
 type EventUseCase struct {
-	eventRepo       repositories.EventRepository
-	eventInviteRepo repositories.EventInviteRepository
-	eventTableRepo  repositories.EventTableRepository
-	eventSeatRepo   repositories.EventSeatRepository
+	eventRepo          repositories.EventRepository
+	eventInviteRepo    repositories.EventInviteRepository
+	eventTableRepo     repositories.EventTableRepository
+	eventSeatRepo      repositories.EventSeatRepository
 	invitationCardRepo repositories.EventInvitationCardRepository
-	userRepo        repositories.UserRepository
-	mailer          services.Mailer
+	inviteJobRepo      repositories.InviteJobRepository
+	inviteJobQueue     services.InviteJobQueue
+	userRepo           repositories.UserRepository
+	mailer             services.Mailer
 }
 
 func NewEventUseCase(
@@ -30,6 +34,8 @@ func NewEventUseCase(
 	eventTableRepo repositories.EventTableRepository,
 	eventSeatRepo repositories.EventSeatRepository,
 	invitationCardRepo repositories.EventInvitationCardRepository,
+	inviteJobRepo repositories.InviteJobRepository,
+	inviteJobQueue services.InviteJobQueue,
 	userRepo repositories.UserRepository,
 	mailer services.Mailer,
 ) *EventUseCase {
@@ -42,9 +48,16 @@ func NewEventUseCase(
 		eventTableRepo:     eventTableRepo,
 		eventSeatRepo:      eventSeatRepo,
 		invitationCardRepo: invitationCardRepo,
+		inviteJobRepo:      inviteJobRepo,
+		inviteJobQueue:     inviteJobQueue,
 		userRepo:           userRepo,
 		mailer:             mailer,
 	}
+}
+
+// SetInviteJobQueue wires the durable queue after construction (River needs the usecase as worker).
+func (uc *EventUseCase) SetInviteJobQueue(q services.InviteJobQueue) {
+	uc.inviteJobQueue = q
 }
 
 type noOpMailer struct{}
@@ -104,14 +117,6 @@ func (uc *EventUseCase) attachInvitationPreviews(ctx context.Context, events ...
 }
 
 func (uc *EventUseCase) CreateEvent(ctx context.Context, ownerID string, req dto.CreateEventRequest) (*dto.EventResponse, error) {
-	exists, err := uc.eventRepo.ExistsByName(ctx, req.Name)
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return nil, errors.New("event with this name already exists")
-	}
-
 	eventDate, err := time.Parse("2006-01-02", req.EventDate)
 	if err != nil {
 		return nil, err
@@ -489,14 +494,33 @@ func (uc *EventUseCase) GetTicketData(ctx context.Context, eventID, userID strin
 		endTime = endTime[:5]
 	}
 	return &dto.TicketResponse{
-		TicketID:  invite.ID,
-		GuestName: guestName,
-		EventName: event.Name,
-		EventDate: event.EventDate.Format("2006-01-02"),
-		StartTime: startTime,
-		EndTime:   endTime,
-		Location:  event.Location,
+		TicketID:       invite.ID,
+		GuestName:      guestName,
+		EventName:      event.Name,
+		EventDate:      event.EventDate.Format("2006-01-02"),
+		StartTime:      startTime,
+		EndTime:        endTime,
+		Location:       event.Location,
+		SeatLabel:      uc.resolveSeatLabel(ctx, invite.SeatID),
+		GuestSeatLabel: uc.resolveSeatLabel(ctx, invite.GuestSeatID),
 	}, nil
+}
+
+// resolveSeatLabel returns "{table.name} · Seat {seat.label}" or nil if missing.
+func (uc *EventUseCase) resolveSeatLabel(ctx context.Context, seatID *string) *string {
+	if seatID == nil || *seatID == "" {
+		return nil
+	}
+	seat, err := uc.eventSeatRepo.FindByID(ctx, *seatID)
+	if err != nil || seat == nil {
+		return nil
+	}
+	table, err := uc.eventTableRepo.FindByID(ctx, seat.EventTableID)
+	if err != nil || table == nil {
+		return nil
+	}
+	label := fmt.Sprintf("%s · Seat %s", table.Name, seat.Label)
+	return &label
 }
 
 // ListPublicEvents returns public events for discovery (no auth). search is optional; limit/offset for pagination.
@@ -519,6 +543,12 @@ func (uc *EventUseCase) ListPublicEvents(ctx context.Context, search string, lim
 	return out, nil
 }
 
+var (
+	errInviteAlreadyExists = errors.New("this email is already invited to this event")
+	errInviteEmailRequired = errors.New("email is required")
+	errInviteInvalidEmail  = errors.New("invalid email")
+)
+
 // InviteUserToEvent invites a guest (by email) to an event. Email may belong to an existing user or not; if not, they receive the invite by email and can RSVP after signing up.
 func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID string, email string) (*dto.EventInviteResponse, error) {
 	event, err := uc.eventRepo.FindByID(ctx, eventID)
@@ -528,28 +558,39 @@ func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID 
 	if event.OwnerID != ownerID {
 		return nil, errors.New("you are not the owner of this event")
 	}
-	if email == "" {
-		return nil, errors.New("email is required")
+	invite, err := uc.createInviteAndSendEmail(ctx, event, email)
+	if err != nil {
+		return nil, err
 	}
-	email = strings.TrimSpace(strings.ToLower(email))
+	return uc.toEventInviteResponse(invite), nil
+}
 
-	existsByEmail, err := uc.eventInviteRepo.ExistsByEventAndEmail(ctx, eventID, email)
+func (uc *EventUseCase) createInviteAndSendEmail(ctx context.Context, event *entities.Event, email string) (*entities.EventInvite, error) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" {
+		return nil, errInviteEmailRequired
+	}
+	if !isValidInviteEmail(email) {
+		return nil, errInviteInvalidEmail
+	}
+
+	existsByEmail, err := uc.eventInviteRepo.ExistsByEventAndEmail(ctx, event.ID, email)
 	if err != nil {
 		return nil, err
 	}
 	if existsByEmail {
-		return nil, errors.New("this email is already invited to this event")
+		return nil, errInviteAlreadyExists
 	}
 
 	var invite *entities.EventInvite
 	user, err := uc.userRepo.FindByEmail(ctx, email)
 	if err == nil {
-		existsByUser, _ := uc.eventInviteRepo.ExistsByEventAndUser(ctx, eventID, user.ID)
+		existsByUser, _ := uc.eventInviteRepo.ExistsByEventAndUser(ctx, event.ID, user.ID)
 		if existsByUser {
-			return nil, errors.New("user is already invited to this event")
+			return nil, errInviteAlreadyExists
 		}
 		invite = &entities.EventInvite{
-			EventID:   eventID,
+			EventID:   event.ID,
 			UserID:    &user.ID,
 			Email:     user.Email,
 			Status:    "pending",
@@ -558,7 +599,7 @@ func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID 
 		}
 	} else {
 		invite = &entities.EventInvite{
-			EventID:   eventID,
+			EventID:   event.ID,
 			UserID:    nil,
 			Email:     email,
 			Status:    "pending",
@@ -573,10 +614,21 @@ func (uc *EventUseCase) InviteUserToEvent(ctx context.Context, ownerID, eventID 
 		return nil, err
 	}
 
-	rsvpPath := fmt.Sprintf("/events/%s/rsvp", eventID)
-	_ = uc.mailer.SendInviteEmail(ctx, invite.Email, event.Name, rsvpPath)
+	invitePath := fmt.Sprintf("/invite/%s", event.ID)
+	_ = uc.mailer.SendInviteEmail(ctx, invite.Email, event.Name, invitePath)
+	return invite, nil
+}
 
-	return uc.toEventInviteResponse(invite), nil
+func isValidInviteEmail(email string) bool {
+	if len(email) < 3 || len(email) > 254 {
+		return false
+	}
+	at := strings.LastIndex(email, "@")
+	if at < 1 || at == len(email)-1 {
+		return false
+	}
+	dot := strings.LastIndex(email[at+1:], ".")
+	return dot > 0
 }
 
 // ListEventInvites returns invites for an event. Only the event owner can list.

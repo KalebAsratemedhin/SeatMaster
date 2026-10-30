@@ -77,6 +77,7 @@ export type StudioLibraryProps = {
   onBrushColor: (c: string) => void;
   onBrushWidth: (w: number) => void;
   onUploadFile: (file: File | undefined) => void;
+  onPhotoAsCard?: () => void;
   onAddSticker: (s: StickerItem) => void;
   onApplyPattern: (pattern: PatternItem, mode: "background" | "underlay" | "fill") => void;
   onApplyFont: (family: string) => void;
@@ -147,6 +148,7 @@ export function StudioLibraryPanel({
   onBrushColor,
   onBrushWidth,
   onUploadFile,
+  onPhotoAsCard,
   onAddSticker,
   onApplyPattern,
   onApplyFont,
@@ -212,6 +214,16 @@ export function StudioLibraryPanel({
                 </button>
               ))}
             </div>
+            {onPhotoAsCard && (
+              <button
+                type="button"
+                onClick={onPhotoAsCard}
+                className="flex w-full items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-left text-[11px] font-medium text-slate-700 ring-1 ring-black/5 hover:ring-black/15 dark:bg-slate-800 dark:text-slate-200 dark:ring-white/10"
+              >
+                <Upload className="size-4 shrink-0" />
+                Use photo as full card
+              </button>
+            )}
             {tool === "draw" && (
               <BrushControls
                 brushColor={brushColor}

@@ -6,6 +6,7 @@ import {
   type EventResponse,
 } from "@/lib/api/eventsApi";
 import { CARD_ARTBOARD, parseCardDocument } from "@/lib/invitationCardDocument";
+import { fabricDocumentHasEphemeralImages } from "@/lib/fabricInvitationActions";
 import { ensureInvitationFontsLoaded } from "@/lib/invitationCardFonts";
 import { loadInvitationOntoCanvas } from "@/lib/loadInvitationOntoCanvas";
 import { Loader2 } from "lucide-react";
@@ -59,15 +60,25 @@ export function InvitationCardThumb({
   const { data: card, isLoading, isFetching, isError } = useGetInvitationCardQuery(event.id);
   const fetching = isLoading || isFetching;
   const cardData = isError ? null : card ?? null;
+
+  // Durable server preview — works for photo cards even when fabric JSON had blob: srcs.
+  const serverPreview =
+    cardData?.preview_url?.trim() || event.invitation_preview_url?.trim() || null;
+
+  const doc = cardData ? parseCardDocument(cardData.document) : null;
+  const ephemeralDoc = Boolean(doc?.fabric && fabricDocumentHasEphemeralImages(doc.fabric));
+  // Skip Fabric when we already have a preview, or when the document can't rehydrate images.
+  const shouldFabricRender = !fetching && !serverPreview && !ephemeralDoc && !isError;
+
   const stamp = cardData?.updated_at || `event:${event.updated_at}`;
   const key = cacheKey(event.id, stamp);
-  const cachedUrl = !fetching ? thumbCache.get(key) ?? null : null;
+  const cachedUrl = shouldFabricRender ? thumbCache.get(key) ?? null : null;
 
   const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
   const [renderFailed, setRenderFailed] = useState(false);
 
   useEffect(() => {
-    if (fetching || cachedUrl) return;
+    if (!shouldFabricRender || cachedUrl) return;
 
     let cancelled = false;
     (async () => {
@@ -88,9 +99,9 @@ export function InvitationCardThumb({
     return () => {
       cancelled = true;
     };
-  }, [fetching, cachedUrl, cardData, event, key]);
+  }, [shouldFabricRender, cachedUrl, cardData, event, key]);
 
-  const displayUrl = cachedUrl ?? renderedUrl;
+  const displayUrl = serverPreview || cachedUrl || renderedUrl;
 
   if (displayUrl) {
     return (
@@ -99,12 +110,12 @@ export function InvitationCardThumb({
         src={displayUrl}
         alt=""
         draggable={false}
-        className={`h-full w-full object-contain ${className}`}
+        className={`h-full w-full object-cover ${className}`}
       />
     );
   }
 
-  if (!renderFailed && (fetching || !displayUrl)) {
+  if (!renderFailed && (fetching || shouldFabricRender)) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="size-4 animate-spin text-slate-400" />

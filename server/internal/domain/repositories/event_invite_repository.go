@@ -21,4 +21,6 @@ type EventInviteRepository interface {
 	Update(ctx context.Context, invite *entities.EventInvite) error
 	ListRecentByOwnerID(ctx context.Context, ownerID string, limit int) ([]*entities.EventInvite, error)
 	CountByOwnerIDGroupByStatus(ctx context.Context, ownerID string) (total int64, confirmed int64, declined int64, pending int64, err error)
+	// ListAttendeeRecommendations returns distinct past guests from events owned by ownerID.
+	ListAttendeeRecommendations(ctx context.Context, ownerID, search, excludeEventID string, limit, offset int) ([]*entities.AttendeeRecommendation, int64, error)
 }

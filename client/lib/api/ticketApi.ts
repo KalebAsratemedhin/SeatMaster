@@ -9,6 +9,9 @@ export type TicketResponse = {
   start_time: string;
   end_time: string;
   location: string;
+  /** Present after REQ-005 */
+  seat_label?: string | null;
+  guest_seat_label?: string | null;
 };
 
 export const ticketApi = createApi({

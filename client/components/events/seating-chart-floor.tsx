@@ -7,6 +7,7 @@ import {
   footprintsOverlap,
   rectSeatPositions,
   roundSeatPositions,
+  tableVisualSizePx,
   type TableFootprint,
 } from "@/lib/seatingLayout";
 
@@ -20,6 +21,15 @@ type SeatingChartFloorProps = {
   onDeleteTable?: (tableId: string) => void;
   onReorder?: (orderedTableIds: string[]) => void;
   onPositionChange?: (tableId: string, x: number, y: number) => void;
+  /** Duplicate a table (shape/capacity); parent creates via API. */
+  onDuplicateTable?: (source: EventTableResponse) => void;
+};
+
+type TableClipboard = {
+  shape: EventTableResponse["shape"];
+  capacity: number;
+  rows?: number | null;
+  columns?: number | null;
 };
 
 type DragState = {
@@ -28,6 +38,9 @@ type DragState = {
   y: number;
   originX: number;
   originY: number;
+  /** Table center − pointer at grab, so large grids don’t jump to the cursor. */
+  grabOffsetX: number;
+  grabOffsetY: number;
   valid: boolean;
 };
 
@@ -36,26 +49,14 @@ function sortedSeats(t: EventTableResponse) {
 }
 
 function tableVisualSize(t: EventTableResponse) {
-  const shape = (t.shape ?? "").toLowerCase();
-  const n = Math.max(t.capacity, t.seats.length, 1);
-  if (shape === "grid") {
-    const cols = Math.max(1, t.columns ?? Math.ceil(Math.sqrt(n)));
-    const rows = Math.max(1, t.rows ?? Math.ceil(n / cols));
-    // Square-ish cells so the grid looks even
-    const cell = 26;
-    return {
-      width: Math.max(88, cols * cell + 20),
-      height: Math.max(72, rows * cell + 28),
-    };
-  }
-  if (shape === "rectangular") {
-    // Keep ~2:1 aspect; grow with capacity so perimeter seats have room
-    const width = Math.min(300, Math.max(160, 120 + n * 12));
-    const height = Math.round(width / 2);
-    return { width, height };
-  }
-  const size = Math.min(200, Math.max(96, 56 + n * 8));
-  return { width: size, height: size };
+  const full = tableVisualSizePx(
+    t.shape,
+    Math.max(t.capacity, t.seats.length, 1),
+    t.rows,
+    t.columns
+  );
+  // Card body only (footprint helper includes status row).
+  return { width: full.width, height: full.height - 22 };
 }
 
 export function SeatingChartFloor({
@@ -68,6 +69,7 @@ export function SeatingChartFloor({
   onDeleteTable,
   onReorder,
   onPositionChange,
+  onDuplicateTable,
 }: SeatingChartFloorProps) {
   const floorRef = useRef<HTMLDivElement>(null);
   const [floorSize, setFloorSize] = useState({ w: 800, h: 500 });
@@ -75,12 +77,17 @@ export function SeatingChartFloor({
   const [positionOverrides, setPositionOverrides] = useState<
     Record<string, { x: number; y: number }>
   >({});
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [clipboard, setClipboard] = useState<TableClipboard | null>(null);
   const canMove = showDelete && !!onPositionChange;
   const canReorder = showDelete && !!onReorder && !onPositionChange;
+  const canEditLayout = showDelete && (!!onPositionChange || !!onDuplicateTable);
 
   const dragActiveRef = useRef(false);
   const restingFootprintsRef = useRef<Map<string, TableFootprint>>(new Map());
   const dragRef = useRef<DragState | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  const pendingDragRef = useRef<DragState | null>(null);
 
   useEffect(() => {
     dragActiveRef.current = drag != null;
@@ -186,34 +193,115 @@ export function SeatingChartFloor({
     restingFootprintsRef.current = restingFootprints;
   }, [restingFootprints]);
 
-  const clientToFloorPct = useCallback((clientX: number, clientY: number) => {
-    const el = floorRef.current;
-    if (!el) return { x: 50, y: 50 };
-    const rect = el.getBoundingClientRect();
-    const x = ((clientX - rect.left) / Math.max(rect.width, 1)) * 100;
-    const y = ((clientY - rect.top) / Math.max(rect.height, 1)) * 100;
+  const clampFloorPct = useCallback((x: number, y: number) => {
     return {
-      x: Math.max(4, Math.min(96, x)),
-      y: Math.max(6, Math.min(94, y)),
+      x: Math.max(6, Math.min(94, x)),
+      y: Math.max(8, Math.min(92, y)),
     };
   }, []);
 
+  const clientToFloorPct = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = floorRef.current;
+      if (!el) return { x: 50, y: 50 };
+      const rect = el.getBoundingClientRect();
+      const x = ((clientX - rect.left) / Math.max(rect.width, 1)) * 100;
+      const y = ((clientY - rect.top) / Math.max(rect.height, 1)) * 100;
+      return clampFloorPct(x, y);
+    },
+    [clampFloorPct]
+  );
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, tableId: string, x: number, y: number) => {
-      if (!canMove) return;
-      if ((e.target as HTMLElement).closest("button")) return;
+      e.stopPropagation();
+      if (!canMove) {
+        if (canEditLayout) setSelectedTableId(tableId);
+        return;
+      }
+      if ((e.target as HTMLElement).closest("button")) {
+        if (canEditLayout) setSelectedTableId(tableId);
+        return;
+      }
       e.preventDefault();
+      const pointer = clientToFloorPct(e.clientX, e.clientY);
+      setSelectedTableId(tableId);
       setDrag({
         tableId,
         x,
         y,
         originX: x,
         originY: y,
+        grabOffsetX: x - pointer.x,
+        grabOffsetY: y - pointer.y,
         valid: true,
       });
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
     },
-    [canMove]
+    [canMove, canEditLayout, clientToFloorPct]
   );
+
+  const clearSelection = useCallback(() => {
+    setSelectedTableId(null);
+  }, []);
+
+  const copySelected = useCallback(() => {
+    const t = tables.find((x) => x.id === selectedTableId);
+    if (!t) return;
+    setClipboard({
+      shape: t.shape,
+      capacity: t.capacity,
+      rows: t.rows,
+      columns: t.columns,
+    });
+  }, [tables, selectedTableId]);
+
+  const pasteClipboard = useCallback(() => {
+    if (!clipboard || !onDuplicateTable) return;
+    const source = tables.find((x) => x.id === selectedTableId) ?? tables[0];
+    if (!source) return;
+    onDuplicateTable({
+      ...source,
+      shape: clipboard.shape,
+      capacity: clipboard.capacity,
+      rows: clipboard.rows ?? undefined,
+      columns: clipboard.columns ?? undefined,
+    });
+  }, [clipboard, onDuplicateTable, tables, selectedTableId]);
+
+  useEffect(() => {
+    if (!canEditLayout) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "Escape") {
+        setSelectedTableId(null);
+        return;
+      }
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        copySelected();
+      }
+      if (mod && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        pasteClipboard();
+      }
+      if (mod && e.key.toLowerCase() === "d" && selectedTableId && onDuplicateTable) {
+        e.preventDefault();
+        const t = tables.find((x) => x.id === selectedTableId);
+        if (t) onDuplicateTable(t);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canEditLayout, copySelected, pasteClipboard, selectedTableId, onDuplicateTable, tables]);
 
   const dragTableId = drag?.tableId ?? null;
 
@@ -232,16 +320,36 @@ export function SeatingChartFloor({
       return false;
     };
 
+    const flushDrag = () => {
+      dragRafRef.current = null;
+      const next = pendingDragRef.current;
+      if (!next) return;
+      setDrag(next);
+    };
+
     const onMove = (e: PointerEvent) => {
       const current = dragRef.current;
       if (!current) return;
-      const { x, y } = clientToFloorPct(e.clientX, e.clientY);
-      const valid = !overlaps(current.tableId, x, y);
-      setDrag((prev) => (prev ? { ...prev, x, y, valid } : null));
+      const pointer = clientToFloorPct(e.clientX, e.clientY);
+      const next = clampFloorPct(
+        pointer.x + current.grabOffsetX,
+        pointer.y + current.grabOffsetY
+      );
+      const valid = !overlaps(current.tableId, next.x, next.y);
+      pendingDragRef.current = { ...current, x: next.x, y: next.y, valid };
+      if (dragRafRef.current == null) {
+        dragRafRef.current = requestAnimationFrame(flushDrag);
+      }
     };
 
     const onUp = () => {
-      const current = dragRef.current;
+      if (dragRafRef.current != null) {
+        cancelAnimationFrame(dragRafRef.current);
+        dragRafRef.current = null;
+        if (pendingDragRef.current) setDrag(pendingDragRef.current);
+      }
+      const current = pendingDragRef.current ?? dragRef.current;
+      pendingDragRef.current = null;
       setDrag(null);
       if (!current) return;
       if (!current.valid) return;
@@ -258,23 +366,21 @@ export function SeatingChartFloor({
       onPositionChange?.(current.tableId, current.x, current.y);
     };
 
-    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, { passive: true });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     return () => {
+      if (dragRafRef.current != null) cancelAnimationFrame(dragRafRef.current);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [dragTableId, canMove, clientToFloorPct, onPositionChange]);
+  }, [dragTableId, canMove, clientToFloorPct, clampFloorPct, onPositionChange]);
 
-  // Size floor from resting positions only — live drag must not grow/shrink the floor.
-  const maxX =
-    baseItems.length > 0 ? Math.max(...baseItems.map((i) => i.x), 60) : 60;
-  const maxY =
-    baseItems.length > 0 ? Math.max(...baseItems.map((i) => i.y), 50) : 50;
-  const floorMinHeight = Math.max(420, (maxY / 100) * 1000 + 80);
-  const floorMinWidth = Math.max(480, (maxX / 100) * 800 + 80);
+  // Fixed canvas size — growing the floor with table positions reflows % math and
+  // makes large grids feel like they’re shoving space around.
+  const floorMinHeight = 560;
+  const floorMinWidth = 720;
 
   const renderTableCard = (t: EventTableResponse, isDragging: boolean, dragValid: boolean) => {
     const seats = sortedSeats(t);
@@ -467,11 +573,16 @@ export function SeatingChartFloor({
         style={{ maxHeight: "min(70vh, 600px)" }}
       >
         <div
-          className="w-full bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] bg-size-[20px_20px] flex flex-col"
+          className="flex w-full flex-col bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[20px_20px] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)]"
           style={{
             backgroundColor: "var(--chart-bg, #f6f7f8)",
             minHeight: Math.max(400, floorMinHeight + 60),
             minWidth: floorMinWidth,
+          }}
+          onPointerDown={(e) => {
+            if (!canEditLayout) return;
+            if ((e.target as HTMLElement).closest("[data-table-id]")) return;
+            clearSelection();
           }}
         >
           <div className="sticky top-0 left-0 right-0 z-20 flex justify-center shrink-0 py-2 px-4 sm:px-6 bg-[#f6f7f8] dark:bg-[#111318]">
@@ -483,18 +594,24 @@ export function SeatingChartFloor({
           </div>
           <div
             ref={floorRef}
-            className="relative flex-1 w-full pb-8 touch-none"
+            className="relative w-full flex-1 touch-none pb-8"
             style={{ minHeight: floorMinHeight }}
           >
             {items.map(({ t, x, y }) => {
               const isDragging = drag?.tableId === t.id;
               const dragValid = drag?.valid ?? true;
+              const isSelected = selectedTableId === t.id;
               return (
                 <div
                   key={t.id}
+                  data-table-id={t.id}
                   className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 ${
                     isDragging ? "z-30" : ""
-                  } ${isDragging ? "" : "transition-[left,top] duration-150 ease-out"}`}
+                  } ${
+                    drag || isDragging
+                      ? ""
+                      : "transition-[left,top] duration-150 ease-out"
+                  } ${isSelected && canEditLayout ? "ring-2 ring-primary/60 ring-offset-2 rounded-xl" : ""}`}
                   style={{ left: `${x}%`, top: `${y}%` }}
                   onPointerDown={(e) => handlePointerDown(e, t.id, x, y)}
                 >
@@ -524,16 +641,49 @@ export function SeatingChartFloor({
         {selectable && (
           <p className="text-[#617589] text-xs">Click an available seat to select it.</p>
         )}
-        {(canMove || canReorder) && (
-          <p className="text-[#617589] text-xs">
-            {canMove
-              ? "Drag tables to place them. Overlapping positions are blocked."
-              : "Drag tables or sitting areas to reorder."}
-          </p>
-        )}
-        {drag && !drag.valid && (
-          <p className="text-red-600 text-xs font-medium">Too close to another table</p>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {canEditLayout && onDuplicateTable && (
+            <>
+              <button
+                type="button"
+                className="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
+                disabled={!selectedTableId}
+                onClick={copySelected}
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
+                disabled={!clipboard}
+                onClick={pasteClipboard}
+              >
+                Paste
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:hover:bg-gray-800"
+                disabled={!selectedTableId}
+                onClick={() => {
+                  const t = tables.find((x) => x.id === selectedTableId);
+                  if (t) onDuplicateTable(t);
+                }}
+              >
+                Duplicate
+              </button>
+            </>
+          )}
+          {(canMove || canReorder) && (
+            <p className="text-[#617589] text-xs">
+              {canMove
+                ? "Drag to place · click empty floor or Esc to deselect · ⌘/Ctrl+C/V copy-paste"
+                : "Drag tables or sitting areas to reorder."}
+            </p>
+          )}
+          {drag && !drag.valid && (
+            <p className="text-red-600 text-xs font-medium">Too close to another table</p>
+          )}
+        </div>
       </div>
     </div>
   );

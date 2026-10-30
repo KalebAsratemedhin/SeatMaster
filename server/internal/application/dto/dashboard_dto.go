@@ -49,11 +49,13 @@ type DashboardEventSummary struct {
 
 // TicketResponse is returned by GET /events/:id/ticket for a confirmed guest.
 type TicketResponse struct {
-	TicketID   string         `json:"ticket_id"`   // invite ID, encode in QR for check-in
-	GuestName  string         `json:"guest_name"`
-	EventName  string         `json:"event_name"`
-	EventDate  string         `json:"event_date"`
-	StartTime  string         `json:"start_time"`
-	EndTime    string         `json:"end_time"`
-	Location   string         `json:"location"`
+	TicketID       string  `json:"ticket_id"` // invite ID, encode in QR for check-in
+	GuestName      string  `json:"guest_name"`
+	EventName      string  `json:"event_name"`
+	EventDate      string  `json:"event_date"`
+	StartTime      string  `json:"start_time"`
+	EndTime        string  `json:"end_time"`
+	Location       string  `json:"location"`
+	SeatLabel      *string `json:"seat_label"`       // e.g. "Table 1 · Seat A"; null if unassigned
+	GuestSeatLabel *string `json:"guest_seat_label"` // plus-one seat; null if none
 }

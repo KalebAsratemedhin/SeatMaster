@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/application/usecases"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/database"
@@ -12,8 +16,10 @@ import (
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/middleware"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/http/ws"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/mail"
+	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/queue"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/repositories"
 	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/security"
+	"github.com/KalebAsratemedhin/seatmaster/internal/infrastructure/storage"
 
 	"github.com/joho/godotenv"
 )
@@ -49,10 +55,32 @@ func main() {
 	eventChatThreadRepo := repositories.NewEventChatThreadRepository(db.GetDB())
 	eventChatMessageRepo := repositories.NewEventChatMessageRepository(db.GetDB())
 	invitationCardRepo := repositories.NewEventInvitationCardRepository(db.GetDB())
+	inviteJobRepo := repositories.NewInviteJobRepository(db.GetDB())
 
 	authUseCase := usecases.NewAuthUseCase(userRepo, jwtManager, passwordManager)
 	mailer := mail.NewSMTPMailer()
-	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, invitationCardRepo, userRepo, mailer)
+	eventUseCase := usecases.NewEventUseCase(eventRepo, eventInviteRepo, eventTableRepo, eventSeatRepo, invitationCardRepo, inviteJobRepo, nil, userRepo, mailer)
+
+	ctx := context.Background()
+	riverClient, err := queue.NewClient(ctx, database.DSN(), eventUseCase)
+	if err != nil {
+		log.Fatal("Failed to initialize job queue:", err)
+	}
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = riverClient.Stop(stopCtx)
+	}()
+	eventUseCase.SetInviteJobQueue(riverClient)
+
+	if err := riverClient.Start(ctx); err != nil {
+		log.Fatal("Failed to start job queue:", err)
+	}
+	if err := eventUseCase.RecoverIncompleteInviteJobs(ctx); err != nil {
+		log.Printf("error: invite job recovery: %v", err)
+	}
+	log.Println("Job queue started")
+
 	dashboardUseCase := usecases.NewDashboardUseCase(eventRepo, eventInviteRepo, userRepo)
 	profileUseCase := usecases.NewProfileUseCase(userRepo, eventRepo, authUseCase, passwordManager)
 	commentUseCase := usecases.NewCommentUseCase(eventRepo, eventInviteRepo, eventCommentRepo, userRepo)
@@ -77,22 +105,40 @@ func main() {
 	if baseURL == "" {
 		baseURL = "http://localhost:8080"
 	}
-	uploadHandler := handlers.NewUploadHandler(uploadDir, baseURL)
+	var imageUploader storage.ImageUploader
+	if cld, err := storage.NewCloudinaryUploaderFromEnv(); err == nil {
+		imageUploader = cld
+		log.Println("Uploads: Cloudinary")
+	} else {
+		imageUploader = storage.NewLocalUploader(uploadDir, baseURL)
+		log.Printf("Uploads: local disk (%v)", err)
+	}
+	uploadHandler := handlers.NewUploadHandler(imageUploader)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager, userRepo.ExistsByID)
 
 	router := httpHandler.NewRouter(authHandler, eventHandler, uploadHandler, profileHandler, commentHandler, chatHandler, chatWSHandler, dashboardHandler, invitationCardHandler, authMiddleware)
 	muxRouter := router.SetupRoutes(uploadDir)
-	handler := middleware.CORS(muxRouter)
-
+	handler := middleware.RequestLogger(middleware.CORS(muxRouter))
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	log.Printf("Server starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Failed to start server:", err)
-	}
+	srv := &http.Server{Addr: ":" + port, Handler: handler}
+	go func() {
+		log.Printf("Server starting on port %s", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("Failed to start server:", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+	log.Println("Shutting down...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutdownCtx)
 }

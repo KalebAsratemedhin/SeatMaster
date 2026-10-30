@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/entities"
 	"github.com/KalebAsratemedhin/seatmaster/internal/domain/repositories"
@@ -159,6 +160,77 @@ func (r *eventInviteRepositoryImpl) ListRecentByOwnerID(ctx context.Context, own
 		Limit(limit).
 		Find(&invites).Error
 	return invites, err
+}
+
+func (r *eventInviteRepositoryImpl) ListAttendeeRecommendations(ctx context.Context, ownerID, search, excludeEventID string, limit, offset int) ([]*entities.AttendeeRecommendation, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	search = strings.TrimSpace(search)
+	excludeEventID = strings.TrimSpace(excludeEventID)
+
+	baseFrom := `
+		FROM event_invites ei
+		INNER JOIN events e ON e.id = ei.event_id AND e.owner_id = ?
+		LEFT JOIN users u ON u.id = ei.user_id
+		WHERE ei.email <> ''
+	`
+	args := []interface{}{ownerID}
+	if search != "" {
+		like := "%" + strings.ToLower(search) + "%"
+		baseFrom += ` AND (
+			LOWER(ei.email) LIKE ? OR
+			LOWER(COALESCE(TRIM(CONCAT(u.first_name, ' ', u.last_name)), '')) LIKE ?
+		)`
+		args = append(args, like, like)
+	}
+	if excludeEventID != "" {
+		baseFrom += ` AND LOWER(ei.email) NOT IN (
+			SELECT LOWER(email) FROM event_invites WHERE event_id = ? AND email <> ''
+		)`
+		args = append(args, excludeEventID)
+	}
+
+	ranked := `
+		WITH ranked AS (
+			SELECT
+				ei.email AS email,
+				COALESCE(NULLIF(TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))), ''), ei.email) AS display_name,
+				e.name AS last_event_name,
+				e.event_date AS last_event_date,
+				ROW_NUMBER() OVER (
+					PARTITION BY LOWER(ei.email)
+					ORDER BY e.event_date DESC NULLS LAST, ei.created_at DESC
+				) AS rn
+			` + baseFrom + `
+		)
+	`
+
+	var total int64
+	countSQL := ranked + ` SELECT COUNT(*) FROM ranked WHERE rn = 1`
+	if err := r.db.WithContext(ctx).Raw(countSQL, args...).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	listSQL := ranked + `
+		SELECT email, display_name, last_event_name, last_event_date
+		FROM ranked WHERE rn = 1
+		ORDER BY last_event_date DESC NULLS LAST, email ASC
+		LIMIT ? OFFSET ?
+	`
+	listArgs := append(append([]interface{}{}, args...), limit, offset)
+	var rows []entities.AttendeeRecommendation
+	if err := r.db.WithContext(ctx).Raw(listSQL, listArgs...).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	out := make([]*entities.AttendeeRecommendation, len(rows))
+	for i := range rows {
+		out[i] = &rows[i]
+	}
+	return out, total, nil
 }
 
 func (r *eventInviteRepositoryImpl) CountByOwnerIDGroupByStatus(ctx context.Context, ownerID string) (total int64, confirmed int64, declined int64, pending int64, err error) {

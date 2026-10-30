@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -10,17 +10,34 @@ import {
   useUpdateEventMutation,
   useGetEventQuery,
   useGetEventInvitesQuery,
-  useInviteToEventMutation,
+  useGetInvitationCardQuery,
+  useBulkInviteToEventMutation,
 } from "@/lib/api/eventsApi";
 import type { EventResponse } from "@/lib/api/eventsApi";
 import type { RootState } from "@/lib/store";
 import { getInitialsFromEmail } from "@/lib/user-display";
 import { formatEventDate, formatEventTimeRange } from "@/lib/eventDateTime";
+import {
+  mergeGuestEmails,
+  parseEmailsFromSpreadsheet,
+  splitEmailCandidates,
+} from "@/lib/parseGuestEmails";
+import { GuestAttendeeRecommendations } from "@/components/events/guest-attendee-recommendations";
+import { InviteDeliveryIssues } from "@/components/events/invite-delivery-issues";
+import { rememberInviteJob } from "@/lib/inviteJobStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -32,10 +49,14 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
+  ImageIcon,
   UserPlus,
   X,
   Loader2,
+  Sparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 
 const LocationPickerMapDynamic = dynamic(
   () =>
@@ -61,8 +82,8 @@ const VISIBILITY_OPTIONS = [
 export const WIZARD_STEPS = [
   { id: "details", label: "Details" },
   { id: "guest_list", label: "Guests" },
+  { id: "invitation_card", label: "Card" },
   { id: "invitations", label: "Invite" },
-  { id: "review", label: "Review" },
 ] as const;
 
 export type WizardStepId = (typeof WIZARD_STEPS)[number]["id"];
@@ -98,8 +119,10 @@ const EMPTY_FORM: EventFormState = {
 const fieldClass =
   "rounded-xl border-border bg-card shadow-none text-foreground";
 
-function isWizardStep(value: string | null): value is WizardStepId {
-  return WIZARD_STEPS.some((s) => s.id === value);
+function normalizeWizardStep(value: string | null): WizardStepId | null {
+  if (value === "review") return "invitation_card"; // legacy step id
+  if (WIZARD_STEPS.some((s) => s.id === value)) return value as WizardStepId;
+  return null;
 }
 
 function stepIndex(id: WizardStepId): number {
@@ -126,10 +149,6 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (
     error &&
@@ -145,20 +164,24 @@ function apiErrorMessage(error: unknown, fallback: string): string {
 function WizardProgress({
   current,
   eventId,
+  allowAllSteps,
   onSelect,
 }: {
   current: WizardStepId;
   eventId: string | null;
+  allowAllSteps?: boolean;
   onSelect: (step: WizardStepId) => void;
 }) {
   const index = stepIndex(current);
   return (
-    <nav aria-label="Create event steps" className="mb-10">
+    <nav aria-label="Event setup steps" className="mb-10">
       <ol className="flex items-center gap-1 sm:gap-2">
         {WIZARD_STEPS.map((step, i) => {
           const done = i < index;
           const active = i === index;
-          const reachable = step.id === "details" || (Boolean(eventId) && i <= index + 1);
+          const reachable =
+            step.id === "details" ||
+            (Boolean(eventId) && (allowAllSteps || i <= index + 1));
           return (
             <li key={step.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
               <button
@@ -235,18 +258,32 @@ function FooterActions({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function EventCreateWizard() {
+export type EventCreateWizardProps = {
+  /** Edit route: reuse the same multi-step shell for an existing event. */
+  mode?: "create" | "edit";
+  /** Required when mode is "edit". */
+  eventId?: string;
+};
+
+export function EventCreateWizard({
+  mode = "create",
+  eventId: eventIdFromProps,
+}: EventCreateWizardProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const token = useSelector((state: RootState) => state.auth.token);
+  const isEdit = mode === "edit";
 
-  const eventIdParam = searchParams.get("eventId");
+  const eventIdParam = isEdit ? eventIdFromProps ?? null : searchParams.get("eventId");
   const stepParam = searchParams.get("step");
 
   const [eventId, setEventId] = useState<string | null>(eventIdParam);
   const [step, setStep] = useState<WizardStepId>(() => {
-    if (eventIdParam && isWizardStep(stepParam)) return stepParam;
+    if (eventIdParam) {
+      const normalized = normalizeWizardStep(stepParam);
+      if (normalized) return normalized;
+    }
     return "details";
   });
   const [form, setForm] = useState<EventFormState>(EMPTY_FORM);
@@ -256,28 +293,33 @@ export function EventCreateWizard() {
   const [guestError, setGuestError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [inviteSendError, setInviteSendError] = useState<string | null>(null);
-  const [sendResults, setSendResults] = useState<{ email: string; ok: boolean; message?: string }[]>(
-    []
-  );
   const [isSendingInvites, setIsSendingInvites] = useState(false);
+  const [jobRefreshKey, setJobRefreshKey] = useState(0);
 
   const [createEvent, { isLoading: isCreating }] = useCreateEventMutation();
   const [updateEvent, { isLoading: isUpdating }] = useUpdateEventMutation();
-  const [inviteToEvent] = useInviteToEventMutation();
+  const [bulkInvite] = useBulkInviteToEventMutation();
+  const guestFileRef = useRef<HTMLInputElement | null>(null);
+  const [importingGuests, setImportingGuests] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
 
   const { data: event, isLoading: eventLoading } = useGetEventQuery(eventId ?? "", {
     skip: !eventId || !token,
   });
   const { data: invitesData, refetch: refetchInvites } = useGetEventInvitesQuery(
-    { eventId: eventId ?? "", limit: 100, offset: 0 },
+    { eventId: eventId ?? "", limit: 500, offset: 0 },
     { skip: !eventId || !token }
   );
 
   const invites = invitesData?.items ?? [];
-  const invitedEmails = useMemo(
-    () => new Set(invites.map((i) => normalizeEmail(i.email))),
-    [invites]
-  );
+  const invitedByEmail = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const inv of invites) {
+      m.set(normalizeEmail(inv.email), inv.status);
+    }
+    return m;
+  }, [invites]);
+  const invitedEmails = useMemo(() => new Set(invitedByEmail.keys()), [invitedByEmail]);
 
   useEffect(() => {
     if (!token) router.replace("/auth?mode=signin");
@@ -286,8 +328,13 @@ export function EventCreateWizard() {
   useEffect(() => {
     if (!eventIdParam) return;
     setEventId(eventIdParam);
-    if (isWizardStep(stepParam)) setStep(stepParam);
+    const normalized = normalizeWizardStep(stepParam);
+    if (normalized) setStep(normalized);
   }, [eventIdParam, stepParam]);
+
+  const { data: invitationCard } = useGetInvitationCardQuery(eventId ?? "", {
+    skip: !eventId || !token || step !== "invitation_card",
+  });
 
   useEffect(() => {
     if (!event || !eventId || formHydratedFor === eventId) return;
@@ -295,10 +342,16 @@ export function EventCreateWizard() {
     setFormHydratedFor(eventId);
   }, [event, eventId, formHydratedFor]);
 
+  const eventHomeHref = eventId ? `/events/${eventId}` : "/events/discover?mine=1";
+
   const syncUrl = (nextEventId: string | null, nextStep: WizardStepId) => {
     const params = new URLSearchParams();
-    if (nextEventId) params.set("eventId", nextEventId);
-    if (nextEventId || nextStep !== "details") params.set("step", nextStep);
+    if (isEdit) {
+      if (nextStep !== "details") params.set("step", nextStep);
+    } else {
+      if (nextEventId) params.set("eventId", nextEventId);
+      if (nextEventId || nextStep !== "details") params.set("step", nextStep);
+    }
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
@@ -315,14 +368,24 @@ export function EventCreateWizard() {
 
   const handleStepChipClick = (target: WizardStepId) => {
     if (!canEnterStep(target)) return;
-    const targetIdx = stepIndex(target);
-    const currentIdx = stepIndex(step);
-    if (targetIdx > currentIdx + 1) return;
+    if (!isEdit) {
+      const targetIdx = stepIndex(target);
+      const currentIdx = stepIndex(step);
+      if (targetIdx > currentIdx + 1) return;
+    }
     goToStep(target);
   };
 
-  const handleSaveDetails = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const wizardReturnTo = (nextStep: WizardStepId) => {
+    if (isEdit && eventId) {
+      const qs = nextStep === "details" ? "" : `?step=${nextStep}`;
+      return `/events/${eventId}/edit${qs}`;
+    }
+    if (!eventId) return "/events/new";
+    return `/events/new?eventId=${eventId}&step=${nextStep}`;
+  };
+
+  const persistDetails = async (after: "continue" | "close") => {
     setDetailsError(null);
     const payload = {
       name: form.name.trim(),
@@ -341,9 +404,18 @@ export function EventCreateWizard() {
       setDetailsError("Name and date are required.");
       return;
     }
+    if (!payload.message.trim()) {
+      setDetailsError("Description is required.");
+      return;
+    }
     try {
       if (eventId) {
         await updateEvent({ id: eventId, ...payload }).unwrap();
+        if (after === "close") {
+          toast.success("Event saved");
+          router.push(`/events/${eventId}`);
+          return;
+        }
         goToStep("guest_list");
       } else {
         const created = await createEvent(payload).unwrap();
@@ -357,57 +429,87 @@ export function EventCreateWizard() {
     }
   };
 
-  const addPendingEmail = () => {
+  const handleSaveDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await persistDetails("continue");
+  };
+
+  const addPendingEmails = (candidates: string[]) => {
     setGuestError(null);
-    const email = normalizeEmail(guestDraft);
-    if (!email) return;
-    if (!isValidEmail(email)) {
-      setGuestError("Enter a valid email address.");
+    const { added, skippedInvalid, skippedDuplicate } = mergeGuestEmails(
+      pendingEmails,
+      candidates,
+      invitedEmails
+    );
+    if (added.length === 0) {
+      if (skippedInvalid > 0 && skippedDuplicate === 0) {
+        setGuestError("No valid email addresses found.");
+      } else if (skippedDuplicate > 0) {
+        setGuestError("Those emails are already on the list or invited.");
+      }
+      return false;
+    }
+    setPendingEmails((prev) => [...prev, ...added]);
+    const notes: string[] = [`Added ${added.length}`];
+    if (skippedInvalid) notes.push(`${skippedInvalid} invalid skipped`);
+    if (skippedDuplicate) notes.push(`${skippedDuplicate} duplicates skipped`);
+    toast.success(notes.join(" · "));
+    return true;
+  };
+
+  const addPendingFromDraft = () => {
+    const candidates = splitEmailCandidates(guestDraft);
+    if (candidates.length === 0) {
+      setGuestError("No valid email addresses found.");
       return;
     }
-    if (invitedEmails.has(email) || pendingEmails.includes(email)) {
-      setGuestError("That email is already on the list.");
-      return;
+    if (addPendingEmails(candidates)) {
+      setGuestDraft("");
+      setPasteOpen(false);
     }
-    setPendingEmails((prev) => [...prev, email]);
-    setGuestDraft("");
   };
 
   const removePendingEmail = (email: string) => {
     setPendingEmails((prev) => prev.filter((e) => e !== email));
   };
 
+  const handleGuestFileImport = async (file: File | undefined) => {
+    if (!file) return;
+    setImportingGuests(true);
+    setGuestError(null);
+    try {
+      const emails = await parseEmailsFromSpreadsheet(file);
+      addPendingEmails(emails);
+    } catch (err) {
+      setGuestError(err instanceof Error ? err.message : "Could not read spreadsheet");
+    } finally {
+      setImportingGuests(false);
+    }
+  };
+
   const handleSendInvitations = async () => {
     if (!eventId || pendingEmails.length === 0) {
-      goToStep("review");
+      router.push(`/events/${eventId}`);
       return;
     }
-    setIsSendingInvites(true);
+    const toSend = [...pendingEmails];
     setInviteSendError(null);
-    const results: { email: string; ok: boolean; message?: string }[] = [];
-    for (const email of pendingEmails) {
-      try {
-        await inviteToEvent({ eventId, email }).unwrap();
-        results.push({ email, ok: true });
-      } catch (err) {
-        results.push({
-          email,
-          ok: false,
-          message: apiErrorMessage(err, "Failed to invite"),
-        });
-      }
-    }
-    setSendResults(results);
-    const failed = results.filter((r) => !r.ok).map((r) => r.email);
-    setPendingEmails(failed);
-    await refetchInvites();
-    setIsSendingInvites(false);
-    if (failed.length === 0) {
-      goToStep("review");
-    } else {
-      setInviteSendError(
-        `${failed.length} invitation${failed.length === 1 ? "" : "s"} failed. Fix or remove them, then try again.`
+    setIsSendingInvites(true);
+    try {
+      // Backend processes invites asynchronously — queue and continue; don't block the UI.
+      const queued = await bulkInvite({ eventId, emails: toSend }).unwrap();
+      rememberInviteJob(eventId, queued.job_id);
+      setJobRefreshKey((k) => k + 1);
+      setPendingEmails([]);
+      toast.success(
+        `Queued ${queued.queued} invitation${queued.queued === 1 ? "" : "s"} — they'll send in the background.`
       );
+      void refetchInvites();
+      router.push(`/events/${eventId}`);
+    } catch (err) {
+      setInviteSendError(apiErrorMessage(err, "Failed to queue invitations"));
+    } finally {
+      setIsSendingInvites(false);
     }
   };
 
@@ -415,7 +517,7 @@ export function EventCreateWizard() {
 
   if (eventId && eventLoading && !event) {
     return (
-      <div className="mx-auto w-full max-w-3xl py-12">
+      <div className="mx-auto w-full max-w-6xl py-12">
         <p className="text-muted-foreground">Loading event…</p>
       </div>
     );
@@ -428,141 +530,153 @@ export function EventCreateWizard() {
   const stepMeta = WIZARD_STEPS[stepIndex(activeStep)];
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-12">
+    <div className="mx-auto w-full max-w-6xl pb-12">
       <Link
-        href="/events/discover?mine=1"
+        href={isEdit ? eventHomeHref : "/events/discover?mine=1"}
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-primary"
       >
         <ArrowLeft className="size-3.5" />
-        Events
+        {isEdit ? "Back to event" : "Events"}
       </Link>
 
       <header className="mb-8">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">
-          Step {stepIndex(activeStep) + 1} of {WIZARD_STEPS.length}
+          {isEdit ? "Edit" : "Create"} · Step {stepIndex(activeStep) + 1} of{" "}
+          {WIZARD_STEPS.length}
         </p>
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground">
-          {eventId ? "Continue setup" : "Create event"}
+          {isEdit ? "Edit event" : eventId ? "Continue setup" : "Create event"}
         </h1>
         <p className="mt-2 text-base text-muted-foreground">
-          {activeStep === "details" && "Name it, set the time and place, then continue."}
-          {activeStep === "guest_list" && "Add guest emails now — you can invite more later."}
-          {activeStep === "invitations" && "Send invites when you’re ready, or skip for now."}
-          {activeStep === "review" && "A quick check before you open the event."}
+          {activeStep === "details" &&
+            (isEdit
+              ? "Update the basics, time, and place."
+              : "Name it, set the time and place, then continue.")}
+          {activeStep === "guest_list" && "Build your guest list — import, search, or paste emails."}
+          {activeStep === "invitation_card" &&
+            "Design the card guests see first — or upload a finished design."}
+          {activeStep === "invitations" &&
+            "Queue invites when you’re ready — sending continues in the background."}
         </p>
       </header>
 
-      <WizardProgress current={activeStep} eventId={eventId} onSelect={handleStepChipClick} />
+      <WizardProgress
+        current={activeStep}
+        eventId={eventId}
+        allowAllSteps={isEdit}
+        onSelect={handleStepChipClick}
+      />
 
       {activeStep === "details" && (
-        <form onSubmit={handleSaveDetails} className="space-y-10">
-          <section className="space-y-5">
-            <h2 className="font-display text-lg font-semibold text-foreground">
-              Basics
-            </h2>
-            <Field label="Event name *" htmlFor="name">
-              <Input
-                id="name"
-                required
-                placeholder="Summer garden party"
-                value={form.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                className={fieldClass}
-              />
-            </Field>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label="Type" htmlFor="event_type">
-                <Select
-                  value={form.event_type || undefined}
-                  onValueChange={(v) => setForm((prev) => ({ ...prev, event_type: v }))}
-                >
-                  <SelectTrigger id="event_type" className={fieldClass}>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EVENT_TYPES.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Visibility" htmlFor="visibility">
-                <Select
-                  value={form.visibility}
-                  onValueChange={(visibility) => setForm((prev) => ({ ...prev, visibility }))}
-                >
-                  <SelectTrigger id="visibility" className={fieldClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VISIBILITY_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <Field label="Description" htmlFor="message" hint="Optional">
-              <textarea
-                id="message"
-                className={`flex min-h-[96px] w-full border px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 ${fieldClass}`}
-                placeholder="A short note for your guests"
-                value={form.message}
-                onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
-              />
-            </Field>
-          </section>
+        <form onSubmit={handleSaveDetails} className="space-y-8">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start">
+            <div className="space-y-8">
+              <section className="space-y-5">
+                <h2 className="font-display text-lg font-semibold text-foreground">Basics</h2>
+                <Field label="Event name *" htmlFor="name">
+                  <Input
+                    id="name"
+                    required
+                    placeholder="Summer garden party"
+                    value={form.name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                    className={fieldClass}
+                  />
+                </Field>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="Type" htmlFor="event_type">
+                    <Select
+                      value={form.event_type || undefined}
+                      onValueChange={(v) => setForm((prev) => ({ ...prev, event_type: v }))}
+                    >
+                      <SelectTrigger id="event_type" className={fieldClass}>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EVENT_TYPES.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Visibility" htmlFor="visibility">
+                    <Select
+                      value={form.visibility}
+                      onValueChange={(visibility) => setForm((prev) => ({ ...prev, visibility }))}
+                    >
+                      <SelectTrigger id="visibility" className={fieldClass}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {VISIBILITY_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+                <Field label="Description *" htmlFor="message">
+                  <textarea
+                    id="message"
+                    required
+                    className={`flex min-h-[96px] w-full border px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 ${fieldClass}`}
+                    placeholder="A short note for your guests"
+                    value={form.message}
+                    onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value }))}
+                  />
+                </Field>
+              </section>
 
-          <section className="space-y-5 border-t border-border pt-10">
-            <h2 className="font-display text-lg font-semibold text-foreground">
-              When
-            </h2>
-            <Field label="Date *" htmlFor="event_date">
-              <DatePicker
-                value={form.event_date}
-                onChange={(event_date) => setForm((prev) => ({ ...prev, event_date }))}
-                placeholder="Pick a date"
-                className={fieldClass}
-              />
-            </Field>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <Field label="Starts" htmlFor="start_time">
-                <TimePicker
-                  value={form.start_time}
-                  onChange={(start_time) => setForm((prev) => ({ ...prev, start_time }))}
-                  placeholder="Start time"
-                  className={fieldClass}
-                />
-              </Field>
-              <Field label="Ends" htmlFor="end_time">
-                <TimePicker
-                  value={form.end_time}
-                  onChange={(end_time) => setForm((prev) => ({ ...prev, end_time }))}
-                  placeholder="End time"
-                  className={fieldClass}
-                />
-              </Field>
-            </div>
-          </section>
+              <section className="space-y-5 border-t border-border pt-8">
+                <h2 className="font-display text-lg font-semibold text-foreground">When</h2>
+                <Field label="Date *" htmlFor="event_date">
+                  <DatePicker
+                    value={form.event_date}
+                    onChange={(event_date) => setForm((prev) => ({ ...prev, event_date }))}
+                    placeholder="Pick a date"
+                    className={fieldClass}
+                  />
+                </Field>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="Starts" htmlFor="start_time">
+                    <TimePicker
+                      value={form.start_time}
+                      onChange={(start_time) => setForm((prev) => ({ ...prev, start_time }))}
+                      placeholder="Start time"
+                      className={fieldClass}
+                    />
+                  </Field>
+                  <Field label="Ends" htmlFor="end_time">
+                    <TimePicker
+                      value={form.end_time}
+                      onChange={(end_time) => setForm((prev) => ({ ...prev, end_time }))}
+                      placeholder="End time"
+                      className={fieldClass}
+                    />
+                  </Field>
+                </div>
+              </section>
 
-          <section className="space-y-5 border-t border-border pt-10">
-            <h2 className="font-display text-lg font-semibold text-foreground">
-              Where
-            </h2>
-            <Field label="Venue" htmlFor="location" hint="Optional">
-              <Input
-                id="location"
-                placeholder="Venue or neighborhood"
-                value={form.location}
-                onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
-                className={fieldClass}
-              />
-            </Field>
-            <div className="overflow-hidden rounded-2xl ring-1 ring-border">
+              <section className="space-y-5 border-t border-border pt-8">
+                <h2 className="font-display text-lg font-semibold text-foreground">Venue</h2>
+                <Field label="Venue name" htmlFor="location" hint="Optional">
+                  <Input
+                    id="location"
+                    placeholder="Venue or neighborhood"
+                    value={form.location}
+                    onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
+                    className={fieldClass}
+                  />
+                </Field>
+              </section>
+            </div>
+
+            <section className="space-y-3 lg:sticky lg:top-6">
+              <h2 className="font-display text-lg font-semibold text-foreground">Map</h2>
               <LocationPickerMapDynamic
                 latitude={form.latitude}
                 longitude={form.longitude}
@@ -576,21 +690,32 @@ export function EventCreateWizard() {
                       : {}),
                   }))
                 }
-                height="240px"
+                height="min(420px, 55vh)"
               />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Tap the map to set the pin. You can refine the invitation card later.
-            </p>
-          </section>
+              <p className="text-xs text-muted-foreground">
+                Search or tap the map to set the pin.
+              </p>
+            </section>
+          </div>
 
           {detailsError && <p className="text-sm text-destructive">{detailsError}</p>}
 
           <FooterActions>
             <Button type="button" variant="ghost" asChild className="rounded-xl">
-              <Link href="/events/discover?mine=1">Cancel</Link>
+              <Link href={isEdit ? eventHomeHref : "/events/discover?mine=1"}>Cancel</Link>
             </Button>
             <div className="flex-1" />
+            {isEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl"
+                disabled={savingDetails}
+                onClick={() => void persistDetails("close")}
+              >
+                {savingDetails ? "Saving…" : "Save & close"}
+              </Button>
+            ) : null}
             <Button
               type="submit"
               disabled={savingDetails}
@@ -603,7 +728,7 @@ export function EventCreateWizard() {
                 </>
               ) : (
                 <>
-                  Continue
+                  {isEdit ? "Save & continue" : "Continue"}
                   <ChevronRight className="ml-1 size-4" />
                 </>
               )}
@@ -615,34 +740,113 @@ export function EventCreateWizard() {
       {activeStep === "guest_list" && eventId && (
         <div className="space-y-8">
           <section className="space-y-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="min-w-0 flex-1">
-                <Field label="Guest email" htmlFor="guest-email">
-                  <Input
-                    id="guest-email"
-                    type="email"
-                    placeholder="guest@example.com"
-                    value={guestDraft}
-                    onChange={(e) => {
-                      setGuestDraft(e.target.value);
-                      setGuestError(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addPendingEmail();
-                      }
-                    }}
-                    className={fieldClass}
-                  />
-                </Field>
-              </div>
-              <Button type="button" onClick={addPendingEmail} className="h-10 rounded-xl px-5">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                className="h-10 rounded-xl px-5"
+                onClick={() => {
+                  setGuestError(null);
+                  setPasteOpen(true);
+                }}
+              >
                 <UserPlus className="mr-2 size-4" />
-                Add
+                Add emails
+              </Button>
+              <input
+                ref={guestFileRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={(e) => {
+                  void handleGuestFileImport(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-xl px-5"
+                disabled={importingGuests}
+                onClick={() => guestFileRef.current?.click()}
+              >
+                {importingGuests ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="mr-2 size-4" />
+                )}
+                Import Excel/CSV
               </Button>
             </div>
-            {guestError && <p className="text-sm text-destructive">{guestError}</p>}
+            {guestError && !pasteOpen && (
+              <p className="text-sm text-destructive">{guestError}</p>
+            )}
+
+            <Dialog
+              open={pasteOpen}
+              onOpenChange={(open) => {
+                setPasteOpen(open);
+                if (!open) {
+                  setGuestDraft("");
+                  setGuestError(null);
+                }
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add guest emails</DialogTitle>
+                  <DialogDescription>
+                    Paste many at once — comma, space, or new line.
+                  </DialogDescription>
+                </DialogHeader>
+                <textarea
+                  id="guest-email"
+                  rows={6}
+                  autoFocus
+                  placeholder={"guest@example.com\nfriend@example.com, plus@example.com"}
+                  value={guestDraft}
+                  onChange={(e) => {
+                    setGuestDraft(e.target.value);
+                    setGuestError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      addPendingFromDraft();
+                    }
+                  }}
+                  className={`flex min-h-[140px] w-full border px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-0 ${fieldClass}`}
+                />
+                {guestError && <p className="text-sm text-destructive">{guestError}</p>}
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl"
+                    onClick={() => setPasteOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-xl"
+                    disabled={!guestDraft.trim()}
+                    onClick={addPendingFromDraft}
+                  >
+                    <UserPlus className="mr-2 size-4" />
+                    Add to queue
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <InviteDeliveryIssues eventId={eventId} refreshKey={jobRefreshKey} />
+
+            <GuestAttendeeRecommendations
+              excludeEventId={eventId}
+              alreadyQueued={new Set(pendingEmails.map(normalizeEmail))}
+              invitedByEmail={invitedByEmail}
+              onAddEmails={addPendingEmails}
+            />
 
             {pendingEmails.length > 0 && (
               <div>
@@ -703,6 +907,137 @@ export function EventCreateWizard() {
               type="button"
               variant="outline"
               className="rounded-xl"
+              onClick={() => goToStep("invitation_card")}
+            >
+              Skip
+            </Button>
+            <Button
+              type="button"
+              className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
+              onClick={() => goToStep("invitation_card")}
+            >
+              Continue
+              <ChevronRight className="ml-1 size-4" />
+            </Button>
+          </FooterActions>
+        </div>
+      )}
+
+      {activeStep === "invitation_card" && eventId && (
+        <div className="space-y-8">
+          <section className="overflow-hidden rounded-3xl bg-primary px-6 py-8 text-primary-foreground sm:px-8">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary-foreground/60">
+              {form.name || event?.name || "Your event"}
+            </p>
+            <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              Invitation card
+            </h2>
+            <p className="mt-3 max-w-xl text-sm text-primary-foreground/75">
+              {formatEventDate(form.event_date)} ·{" "}
+              {formatEventTimeRange(form.start_time, form.end_time)}
+              {form.location ? ` · ${form.location}` : ""}
+            </p>
+          </section>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="flex flex-col gap-4 rounded-2xl bg-card p-5 ring-1 ring-border">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Sparkles className="size-5" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-semibold text-foreground">Design in studio</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Templates, text, stickers, and full artboard controls.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="mt-auto rounded-xl"
+                onClick={() =>
+                  router.push(
+                    `/events/${eventId}/invitation-card?returnTo=${encodeURIComponent(
+                      wizardReturnTo("invitation_card")
+                    )}`
+                  )
+                }
+              >
+                Open invitation studio
+                <ChevronRight className="ml-1 size-4" />
+              </Button>
+            </div>
+            <div className="flex flex-col gap-4 rounded-2xl bg-card p-5 ring-1 ring-border">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <ImageIcon className="size-5" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  Use an existing design
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Upload a finished card image — it becomes the full invitation artboard.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-auto rounded-xl"
+                onClick={() =>
+                  router.push(
+                    `/events/${eventId}/invitation-card?mode=photo-card&returnTo=${encodeURIComponent(
+                      wizardReturnTo("invitation_card")
+                    )}`
+                  )
+                }
+              >
+                Upload card image
+                <ChevronRight className="ml-1 size-4" />
+              </Button>
+            </div>
+          </div>
+
+          {invitationCard?.preview_url ? (
+            <div className="overflow-hidden rounded-2xl bg-muted/40 p-4 ring-1 ring-border">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Current card preview
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={invitationCard.preview_url}
+                alt="Invitation preview"
+                className="mx-auto max-h-72 w-auto rounded-lg object-contain shadow-md"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No card saved yet — guests will see a starter template until you design or upload one.
+              You can skip and finish later from the event page.
+            </p>
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            {invites.length} guest{invites.length === 1 ? "" : "s"} invited
+            {pendingEmails.length > 0
+              ? ` · ${pendingEmails.length} email${pendingEmails.length === 1 ? "" : "s"} still queued`
+              : ""}
+            {" · "}
+            {typeLabel}
+          </p>
+
+          <FooterActions>
+            <Button
+              type="button"
+              variant="ghost"
+              className="rounded-xl"
+              onClick={() => goToStep("guest_list")}
+            >
+              <ChevronLeft className="mr-1 size-4" />
+              Back
+            </Button>
+            <div className="flex-1" />
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
               onClick={() => goToStep("invitations")}
             >
               Skip
@@ -712,7 +1047,7 @@ export function EventCreateWizard() {
               className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
               onClick={() => goToStep("invitations")}
             >
-              Continue
+              Continue to invite
               <ChevronRight className="ml-1 size-4" />
             </Button>
           </FooterActions>
@@ -725,25 +1060,23 @@ export function EventCreateWizard() {
             {pendingEmails.length === 0 ? (
               <div className="rounded-2xl bg-card px-5 py-8 text-sm text-muted-foreground ring-1 ring-border">
                 {invites.length > 0
-                  ? `${invites.length} guest${invites.length === 1 ? "" : "s"} already invited. You can continue.`
-                  : "No emails queued. Add guests on the previous step, or continue and invite later."}
+                  ? `${invites.length} guest${invites.length === 1 ? "" : "s"} already invited. You can finish.`
+                  : "No emails queued. Go back to Guests to add people, or finish and invite later from the event page."}
               </div>
             ) : (
               <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card ring-1 ring-border">
-                {pendingEmails.map((email) => {
-                  const result = sendResults.find((r) => r.email === email);
-                  return (
-                    <li key={email} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-                      <span>{email}</span>
-                      {result && !result.ok && (
-                        <span className="text-xs text-destructive">{result.message}</span>
-                      )}
-                    </li>
-                  );
-                })}
+                {pendingEmails.map((email) => (
+                  <li key={email} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                    <span>{email}</span>
+                  </li>
+                ))}
               </ul>
             )}
             {inviteSendError && <p className="text-sm text-destructive">{inviteSendError}</p>}
+            <p className="text-xs text-muted-foreground">
+              Invites are queued on the server and emailed in the background — you won&apos;t wait here
+              for each message to send.
+            </p>
           </section>
 
           <FooterActions>
@@ -751,7 +1084,7 @@ export function EventCreateWizard() {
               type="button"
               variant="ghost"
               className="rounded-xl"
-              onClick={() => goToStep("guest_list")}
+              onClick={() => goToStep("invitation_card")}
               disabled={isSendingInvites}
             >
               <ChevronLeft className="mr-1 size-4" />
@@ -762,10 +1095,10 @@ export function EventCreateWizard() {
               type="button"
               variant="outline"
               className="rounded-xl"
-              onClick={() => goToStep("review")}
+              onClick={() => router.push(`/events/${eventId}`)}
               disabled={isSendingInvites}
             >
-              Skip
+              Skip · Open event
             </Button>
             <Button
               type="button"
@@ -776,120 +1109,19 @@ export function EventCreateWizard() {
               {isSendingInvites ? (
                 <>
                   <Loader2 className="mr-1 size-4 animate-spin" />
-                  Sending…
+                  Queuing…
                 </>
               ) : pendingEmails.length > 0 ? (
                 <>
-                  Send {pendingEmails.length}
+                  Queue {pendingEmails.length} invite{pendingEmails.length === 1 ? "" : "s"}
                   <ChevronRight className="ml-1 size-4" />
                 </>
               ) : (
                 <>
-                  Continue
+                  Finish · Open event
                   <ChevronRight className="ml-1 size-4" />
                 </>
               )}
-            </Button>
-          </FooterActions>
-        </div>
-      )}
-
-      {activeStep === "review" && eventId && (
-        <div className="space-y-8">
-          <section className="overflow-hidden rounded-3xl bg-primary px-6 py-8 text-primary-foreground sm:px-8">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary-foreground/60">
-              Your event
-            </p>
-            <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-              {form.name || event?.name || "Untitled event"}
-            </h2>
-            <p className="mt-3 text-sm text-primary-foreground/75">
-              {formatEventDate(form.event_date)} ·{" "}
-              {formatEventTimeRange(form.start_time, form.end_time)}
-            </p>
-            {form.location ? (
-              <p className="mt-1 text-sm text-primary-foreground/75">{form.location}</p>
-            ) : null}
-          </section>
-
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Type
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-foreground">{typeLabel}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Visibility
-              </dt>
-              <dd className="mt-1 text-sm font-medium capitalize text-foreground">
-                {form.visibility}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Guests
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-foreground">
-                {invites.length} invited
-                {pendingEmails.length > 0 ? (
-                  <span className="font-normal text-muted-foreground">
-                    {" "}
-                    · {pendingEmails.length} not sent yet
-                  </span>
-                ) : null}
-              </dd>
-            </div>
-            {form.message ? (
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Description
-                </dt>
-                <dd className="mt-1 whitespace-pre-wrap text-sm text-foreground/80">
-                  {form.message}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-
-          {invites.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Guest list
-              </p>
-              <ul className="columns-1 gap-x-8 text-sm text-muted-foreground sm:columns-2">
-                {invites.map((inv) => (
-                  <li key={inv.id} className="break-inside-avoid py-0.5">
-                    {inv.email}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <p className="text-sm text-muted-foreground">
-            Next, design an invitation card from the event page — that&apos;s what guests see first.
-          </p>
-
-          <FooterActions>
-            <Button
-              type="button"
-              variant="ghost"
-              className="rounded-xl"
-              onClick={() => goToStep("invitations")}
-            >
-              <ChevronLeft className="mr-1 size-4" />
-              Back
-            </Button>
-            <div className="flex-1" />
-            <Button
-              type="button"
-              className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90"
-              onClick={() => router.push(`/events/${eventId}`)}
-            >
-              Open event
-              <ChevronRight className="ml-1 size-4" />
             </Button>
           </FooterActions>
         </div>
