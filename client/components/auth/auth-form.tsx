@@ -53,7 +53,9 @@ export function AuthForm() {
         ? await register({ email, password, first_name: firstName.trim(), last_name: lastName.trim() }).unwrap()
         : await login({ email, password }).unwrap();
       dispatch(setCredentials({ token: res.token, user: res.user }));
-      router.push("/");
+      const redirect = searchParams.get("redirect");
+      const isSafeRedirect = !!redirect && redirect.startsWith("/") && !redirect.startsWith("//");
+      router.replace(isSafeRedirect ? redirect : "/dashboard");
     } catch (err: unknown) {
       const message = err && typeof err === "object" && "data" in err
         ? (err as { data?: { error?: string } }).data?.error

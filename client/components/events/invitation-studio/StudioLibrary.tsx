@@ -169,7 +169,7 @@ export function StudioLibraryPanel({
       : INVITATION_PATTERNS.filter((p) => p.category === patternCat);
 
   return (
-    <aside className="flex w-[min(100%,300px)] shrink-0 flex-col border-r border-black/5 bg-[#fbfaf7] dark:border-white/10 dark:bg-slate-900">
+    <aside className="absolute inset-y-0 left-14 z-30 flex w-[min(calc(100%-3.5rem),300px)] shrink-0 flex-col border-r shadow-xl lg:static lg:z-auto lg:w-[300px] lg:shadow-none border-black/5 bg-[#fbfaf7] dark:border-white/10 dark:bg-slate-900">
       <div className="flex items-center justify-between border-b border-black/5 px-3 py-2.5 dark:border-white/10">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
           {libraryNav.find((n) => n.id === panel)?.label}

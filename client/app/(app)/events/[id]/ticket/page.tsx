@@ -85,8 +85,8 @@ export default function EventTicketPage() {
       </nav>
 
       <div className="flex flex-col items-center gap-6">
-        <div className="w-full flex flex-row overflow-hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl">
-          <div className="flex-[2.5] flex flex-col px-6 sm:px-8 py-8 border-r border-dashed border-slate-200 dark:border-slate-700">
+        <div className="w-full flex flex-col sm:flex-row overflow-hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl">
+          <div className="min-w-0 sm:flex-[2.5] flex flex-col px-5 sm:px-8 py-6 sm:py-8 border-b sm:border-b-0 sm:border-r border-dashed border-slate-200 dark:border-slate-700">
             <div className="mb-8 flex items-center gap-3">
               <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                 <Calendar className="size-8" />
@@ -105,7 +105,7 @@ export default function EventTicketPage() {
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                   Guest Name
                 </p>
-                <h2 className="text-3xl font-black text-primary">{ticket.guest_name}</h2>
+                <h2 className="break-words text-2xl sm:text-3xl font-black text-primary">{ticket.guest_name}</h2>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -149,7 +149,7 @@ export default function EventTicketPage() {
             </div>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/50 px-3 py-6 relative">
-            <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-around py-4 z-10">
+            <div className="absolute left-0 top-0 bottom-0 hidden sm:flex flex-col justify-around py-4 z-10">
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}

@@ -88,6 +88,8 @@ export const WIZARD_STEPS = [
 
 export type WizardStepId = (typeof WIZARD_STEPS)[number]["id"];
 
+const pendingEmailsKey = (eventId: string) => `seatmaster:wizard-pending-emails:${eventId}`;
+
 type EventFormState = {
   name: string;
   banner_url: string;
@@ -174,7 +176,7 @@ function WizardProgress({
 }) {
   const index = stepIndex(current);
   return (
-    <nav aria-label="Event setup steps" className="mb-10">
+    <nav aria-label="Event setup steps" className="mb-6 sm:mb-10">
       <ol className="flex items-center gap-1 sm:gap-2">
         {WIZARD_STEPS.map((step, i) => {
           const done = i < index;
@@ -289,6 +291,8 @@ export function EventCreateWizard({
   const [form, setForm] = useState<EventFormState>(EMPTY_FORM);
   const [formHydratedFor, setFormHydratedFor] = useState<string | null>(null);
   const [pendingEmails, setPendingEmails] = useState<string[]>([]);
+  // Which event's saved list has been restored — don't overwrite storage before that.
+  const [pendingRestoredFor, setPendingRestoredFor] = useState<string | null>(null);
   const [guestDraft, setGuestDraft] = useState("");
   const [guestError, setGuestError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
@@ -342,6 +346,34 @@ export function EventCreateWizard({
     setFormHydratedFor(eventId);
   }, [event, eventId, formHydratedFor]);
 
+  // Unsent guest emails survive leaving the wizard (e.g. the Card step opens the studio).
+  useEffect(() => {
+    if (!eventId || pendingRestoredFor === eventId) return;
+    try {
+      const raw = sessionStorage.getItem(pendingEmailsKey(eventId));
+      const saved = raw ? (JSON.parse(raw) as unknown) : null;
+      if (Array.isArray(saved)) {
+        const emails = saved.filter((e): e is string => typeof e === "string");
+        if (emails.length > 0) {
+          setPendingEmails((prev) => [...new Set([...prev, ...emails])]);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    setPendingRestoredFor(eventId);
+  }, [eventId, pendingRestoredFor]);
+
+  useEffect(() => {
+    if (!eventId || pendingRestoredFor !== eventId) return;
+    try {
+      if (pendingEmails.length === 0) sessionStorage.removeItem(pendingEmailsKey(eventId));
+      else sessionStorage.setItem(pendingEmailsKey(eventId), JSON.stringify(pendingEmails));
+    } catch {
+      /* ignore quota */
+    }
+  }, [eventId, pendingEmails, pendingRestoredFor]);
+
   const eventHomeHref = eventId ? `/events/${eventId}` : "/events/discover?mine=1";
 
   const syncUrl = (nextEventId: string | null, nextStep: WizardStepId) => {
@@ -353,7 +385,10 @@ export function EventCreateWizard({
       if (nextEventId || nextStep !== "details") params.set("step", nextStep);
     }
     const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    // Native history update: Next syncs useSearchParams without remounting the page.
+    // router.replace changes the page segment key (search params) and remounts the
+    // wizard, wiping unsent guest emails held in local state.
+    window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
   };
 
   const goToStep = (next: WizardStepId) => {
@@ -450,10 +485,6 @@ export function EventCreateWizard({
       return false;
     }
     setPendingEmails((prev) => [...prev, ...added]);
-    const notes: string[] = [`Added ${added.length}`];
-    if (skippedInvalid) notes.push(`${skippedInvalid} invalid skipped`);
-    if (skippedDuplicate) notes.push(`${skippedDuplicate} duplicates skipped`);
-    toast.success(notes.join(" · "));
     return true;
   };
 
@@ -501,9 +532,7 @@ export function EventCreateWizard({
       rememberInviteJob(eventId, queued.job_id);
       setJobRefreshKey((k) => k + 1);
       setPendingEmails([]);
-      toast.success(
-        `Queued ${queued.queued} invitation${queued.queued === 1 ? "" : "s"} — they'll send in the background.`
-      );
+      toast.success(queued.queued === 1 ? "Invitation sent" : "Invitations sent");
       void refetchInvites();
       router.push(`/events/${eventId}`);
     } catch (err) {
@@ -517,7 +546,7 @@ export function EventCreateWizard({
 
   if (eventId && eventLoading && !event) {
     return (
-      <div className="mx-auto w-full max-w-6xl py-12">
+      <div className="mx-auto w-full max-w-6xl px-3 py-12 sm:px-5 lg:px-2">
         <p className="text-muted-foreground">Loading event…</p>
       </div>
     );
@@ -530,21 +559,21 @@ export function EventCreateWizard({
   const stepMeta = WIZARD_STEPS[stepIndex(activeStep)];
 
   return (
-    <div className="mx-auto w-full max-w-6xl pb-12">
+    <div className="mx-auto w-full max-w-6xl px-3 pb-8 sm:px-5 sm:pb-12 lg:px-2">
       <Link
         href={isEdit ? eventHomeHref : "/events/discover?mine=1"}
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-primary"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground sm:mb-6 transition hover:text-primary"
       >
         <ArrowLeft className="size-3.5" />
         {isEdit ? "Back to event" : "Events"}
       </Link>
 
-      <header className="mb-8">
+      <header className="mb-6 sm:mb-8">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">
           {isEdit ? "Edit" : "Create"} · Step {stepIndex(activeStep) + 1} of{" "}
           {WIZARD_STEPS.length}
         </p>
-        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {isEdit ? "Edit event" : eventId ? "Continue setup" : "Create event"}
         </h1>
         <p className="mt-2 text-base text-muted-foreground">
@@ -569,7 +598,7 @@ export function EventCreateWizard({
 
       {activeStep === "details" && (
         <form onSubmit={handleSaveDetails} className="space-y-8">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start">
+          <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start">
             <div className="space-y-8">
               <section className="space-y-5">
                 <h2 className="font-display text-lg font-semibold text-foreground">Basics</h2>
@@ -631,7 +660,7 @@ export function EventCreateWizard({
                 </Field>
               </section>
 
-              <section className="space-y-5 border-t border-border pt-8">
+              <section className="space-y-5 border-t border-border pt-6 sm:pt-8">
                 <h2 className="font-display text-lg font-semibold text-foreground">When</h2>
                 <Field label="Date *" htmlFor="event_date">
                   <DatePicker
@@ -661,7 +690,7 @@ export function EventCreateWizard({
                 </div>
               </section>
 
-              <section className="space-y-5 border-t border-border pt-8">
+              <section className="space-y-5 border-t border-border pt-6 sm:pt-8">
                 <h2 className="font-display text-lg font-semibold text-foreground">Venue</h2>
                 <Field label="Venue name" htmlFor="location" hint="Optional">
                   <Input
@@ -925,7 +954,7 @@ export function EventCreateWizard({
 
       {activeStep === "invitation_card" && eventId && (
         <div className="space-y-8">
-          <section className="overflow-hidden rounded-3xl bg-primary px-6 py-8 text-primary-foreground sm:px-8">
+          <section className="overflow-hidden rounded-3xl bg-primary px-5 py-6 text-primary-foreground sm:px-8 sm:py-8">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary-foreground/60">
               {form.name || event?.name || "Your event"}
             </p>

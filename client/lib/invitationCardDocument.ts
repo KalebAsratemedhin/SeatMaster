@@ -195,7 +195,13 @@ export async function applyVirtualTemplateToCanvas(
   const dateLine = formatEventDate(event.event_date);
   const timeLine = formatEventTimeRange(event.start_time, event.end_time);
   const place = event.location || "";
-  const message = event.message || "";
+  // Keep long descriptions from spilling past the card panel.
+  const MAX_MESSAGE = 280;
+  const rawMessage = (event.message || "").trim();
+  const message =
+    rawMessage.length > MAX_MESSAGE
+      ? `${rawMessage.slice(0, MAX_MESSAGE - 1).trimEnd()}…`
+      : rawMessage;
 
   canvas.clear();
   canvas.backgroundColor = "#ffffff";
@@ -211,6 +217,16 @@ export async function applyVirtualTemplateToCanvas(
     });
     canvas.add(t);
     return t;
+  };
+
+  /** Adds the event description at `top`; returns the y just below it (or `top` if none). */
+  const addMessage = (
+    top: number,
+    opts: ConstructorParameters<typeof Textbox>[1]
+  ): number => {
+    if (!message) return top;
+    const t = addText(message, { left: W / 2, top, fontSize: 20, lineHeight: 1.35, ...opts });
+    return top + t.getScaledHeight();
   };
 
   if (templateId === "blank") {
@@ -413,6 +429,11 @@ export async function applyVirtualTemplateToCanvas(
         fill: "#78716c",
       });
     }
+    addMessage(place ? 760 : 680, {
+      width: W - 260,
+      fontFamily: "Lora",
+      fill: "#57534e",
+    });
     canvas.requestRenderAll();
     return;
   }
@@ -560,7 +581,12 @@ export async function applyVirtualTemplateToCanvas(
         fill: "#be123c",
       });
     }
-    await placeSticker("tw-1f381", W / 2, 820, 110);
+    const blushMsgEnd = addMessage(place ? 720 : 640, {
+      width: W - 300,
+      fontFamily: "Lora",
+      fill: "#881337",
+    });
+    await placeSticker("tw-1f381", W / 2, Math.max(820, blushMsgEnd + 90), 110);
     await placeSticker("tw-2764", 200, 220, 64);
     await placeSticker("tw-2764", W - 200, 220, 64);
     canvas.requestRenderAll();
@@ -619,7 +645,13 @@ export async function applyVirtualTemplateToCanvas(
         fill: "#78716c",
       });
     }
-    await placeSticker("tw-1f48e", W / 2, 780, 100);
+    const midnightMsgEnd = addMessage(place ? 660 : 590, {
+      width: W - 280,
+      fontFamily: "Cormorant Garamond",
+      fontSize: 22,
+      fill: "#d6d3d1",
+    });
+    await placeSticker("tw-1f48e", W / 2, Math.max(780, midnightMsgEnd + 80), 100);
     canvas.requestRenderAll();
     return;
   }
@@ -674,9 +706,15 @@ export async function applyVirtualTemplateToCanvas(
         fill: "#c7d2fe",
       });
     }
-    await placeSticker("tw-1f389", 180, 900, 90);
-    await placeSticker("tw-1f388", W / 2, 920, 100);
-    await placeSticker("tw-1f38a", W - 180, 900, 90);
+    const partyMsgEnd = addMessage(place ? 760 : 680, {
+      width: W - 300,
+      fontFamily: "DM Sans",
+      fill: "#e0e7ff",
+    });
+    const partyStickerY = Math.max(900, partyMsgEnd + 80);
+    await placeSticker("tw-1f389", 180, partyStickerY, 90);
+    await placeSticker("tw-1f388", W / 2, partyStickerY + 20, 100);
+    await placeSticker("tw-1f38a", W - 180, partyStickerY, 90);
     canvas.requestRenderAll();
     return;
   }
@@ -738,8 +776,15 @@ export async function applyVirtualTemplateToCanvas(
       fill: "#78716c",
     });
   }
-  await placeSticker("tw-1f490", W / 2, 860, 100);
-  await placeSticker("tw-1f48d", W / 2, 980, 72);
+  const weddingMsgEnd = addMessage(place ? 770 : 700, {
+    width: W - 320,
+    fontFamily: "Cormorant Garamond",
+    fontSize: 22,
+    fill: "#57534e",
+  });
+  const bouquetY = Math.max(860, weddingMsgEnd + 80);
+  await placeSticker("tw-1f490", W / 2, bouquetY, 100);
+  await placeSticker("tw-1f48d", W / 2, bouquetY + 120, 72);
   canvas.requestRenderAll();
 }
 
@@ -750,6 +795,8 @@ export async function loadDocumentOntoCanvas(
   const bg = doc.background || "#ffffff";
   if (doc.engine === "fabric" && doc.fabric && typeof doc.fabric === "object") {
     await canvas.loadFromJSON(doc.fabric);
+    const { sharpenCanvasPatterns } = await import("@/lib/fabricInvitationActions");
+    await sharpenCanvasPatterns(canvas);
     // Keep gradient/object fills restored by fabric JSON; only fall back to solid string.
     if (canvas.backgroundColor == null || canvas.backgroundColor === "") {
       canvas.backgroundColor = bg;

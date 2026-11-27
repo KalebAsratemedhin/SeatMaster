@@ -16,20 +16,80 @@ function loadHtmlImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * Pattern tiles are tiny SVGs; `createPattern` rasterizes them at their intrinsic
+ * size, so any view rendered above 1× (retina, guest full view) upscales a bitmap
+ * and blurs. Rasterize at PATTERN_RES× and scale back down via patternTransform.
+ */
+const PATTERN_RES = 4;
+
+function rasterizePatternImage(img: HTMLImageElement): HTMLCanvasElement {
+  const w = img.naturalWidth || img.width || 1;
+  const h = img.naturalHeight || img.height || 1;
+  const c = document.createElement("canvas");
+  c.width = Math.round(w * PATTERN_RES);
+  c.height = Math.round(h * PATTERN_RES);
+  c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+
+async function createSharpPattern(dataUrl: string) {
+  const { Pattern } = await import("fabric");
+  const img = await loadHtmlImage(dataUrl);
+  return new Pattern({
+    source: rasterizePatternImage(img),
+    repeat: "repeat",
+    patternTransform: [1 / PATTERN_RES, 0, 0, 1 / PATTERN_RES, 0, 0],
+  });
+}
+
+function isLowResSvgPattern(fill: any): boolean {
+  if (!fill || fill.type !== "pattern" || fill.patternTransform) return false;
+  const src = fill.source?.src;
+  return typeof src === "string" && src.startsWith("data:image/svg");
+}
+
+/**
+ * Upgrade patterns from older saves (raw SVG tile sources) to high-res tiles and
+ * disable object caching on pattern-filled objects (full-bleed caches exceed
+ * Fabric's size cap and get downscaled). Call after loadFromJSON.
+ */
+export async function sharpenCanvasPatterns(canvas: any): Promise<void> {
+  if (!canvas) return;
+  if (isLowResSvgPattern(canvas.backgroundColor)) {
+    try {
+      canvas.backgroundColor = await createSharpPattern(canvas.backgroundColor.source.src);
+    } catch {
+      /* keep original */
+    }
+  }
+  const visit = async (objects: any[]) => {
+    for (const obj of objects) {
+      if (obj?.fill?.type === "pattern") {
+        if (isLowResSvgPattern(obj.fill)) {
+          try {
+            obj.set("fill", await createSharpPattern(obj.fill.source.src));
+          } catch {
+            /* keep original */
+          }
+        }
+        obj.set({ objectCaching: false, dirty: true });
+      }
+      if (typeof obj?.getObjects === "function") await visit(obj.getObjects());
+    }
+  };
+  await visit(canvas.getObjects?.() ?? []);
+}
+
 /** Apply a repeating pattern as the canvas background (with solid backdrop). */
 export async function applyPatternToCanvasBackground(
   canvas: any,
   pattern: PatternItem,
   opts?: { color?: string; opacity?: number; backdrop?: string }
 ) {
-  const { Pattern } = await import("fabric");
   const backdrop = opts?.backdrop ?? pattern.backdrop;
   const dataUrl = patternDataUrl(pattern, opts?.color, opts?.opacity);
-  const source = await loadHtmlImage(dataUrl);
-  canvas.backgroundColor = new Pattern({
-    source,
-    repeat: "repeat",
-  });
+  canvas.backgroundColor = await createSharpPattern(dataUrl);
   canvas.__patternBackdrop = backdrop;
   canvas.requestRenderAll();
 }
@@ -40,16 +100,8 @@ export async function applyPatternFill(
   pattern: PatternItem,
   opts?: { color?: string; opacity?: number }
 ) {
-  const { Pattern } = await import("fabric");
   const dataUrl = patternDataUrl(pattern, opts?.color, opts?.opacity);
-  const source = await loadHtmlImage(dataUrl);
-  target.set(
-    "fill",
-    new Pattern({
-      source,
-      repeat: "repeat",
-    })
-  );
+  target.set({ fill: await createSharpPattern(dataUrl), objectCaching: false });
   target.setCoords?.();
 }
 
@@ -59,16 +111,16 @@ export async function addPatternUnderlay(
   pattern: PatternItem,
   opts?: { color?: string; opacity?: number; backdrop?: string }
 ) {
-  const { Rect, Pattern } = await import("fabric");
+  const { Rect } = await import("fabric");
   const dataUrl = patternDataUrl(pattern, opts?.color, opts?.opacity);
-  const source = await loadHtmlImage(dataUrl);
-  const fill = new Pattern({ source, repeat: "repeat" });
+  const fill = await createSharpPattern(dataUrl);
   const underlay = new Rect({
     left: 0,
     top: 0,
     width: CARD_ARTBOARD.width,
     height: CARD_ARTBOARD.height,
     fill,
+    objectCaching: false,
     selectable: false,
     evented: false,
     name: `pattern:${pattern.id}`,
@@ -428,8 +480,61 @@ export async function applyObjectGradientFill(
   obj.set("fill", fill);
 }
 
+const BACKDROP_PREFIX = "pattern-backdrop:";
+
+function findBackdropRects(canvas: any): any[] {
+  return ((canvas?.getObjects?.() ?? []) as any[]).filter(
+    (o) => typeof o?.name === "string" && o.name.startsWith(BACKDROP_PREFIX)
+  );
+}
+
+/** Normalize any CSS color to #rrggbb for `<input type="color">`; null if not a plain color. */
+function toHexColor(color: unknown): string | null {
+  if (typeof color !== "string" || !color.trim()) return null;
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = "#000000";
+  ctx.fillStyle = color;
+  const v = ctx.fillStyle;
+  if (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) return v;
+  const m = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/i.exec(String(v));
+  if (!m) return null;
+  return `#${[m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * The colors the sidebar Background controls should show for the current canvas.
+ * Pattern templates paint their color on a full-bleed backdrop rect, which wins
+ * over canvas.backgroundColor visually, so prefer it.
+ */
+export function readCanvasBackgroundColors(canvas: any): {
+  solid: string | null;
+  gradient: { from: string; to: string } | null;
+} {
+  if (!canvas) return { solid: null, gradient: null };
+  const backdrop = findBackdropRects(canvas)[0];
+  const backdropHex = toHexColor(backdrop?.fill);
+  if (backdropHex) return { solid: backdropHex, gradient: null };
+
+  const bg = canvas.backgroundColor;
+  if (typeof bg === "string") return { solid: toHexColor(bg), gradient: null };
+  if (bg?.type === "pattern") {
+    return { solid: toHexColor(canvas.__patternBackdrop), gradient: null };
+  }
+  const stops = Array.isArray(bg?.colorStops) ? bg.colorStops : null;
+  if (stops && stops.length > 0) {
+    const sorted = [...stops].sort((a: any, b: any) => (a.offset ?? 0) - (b.offset ?? 0));
+    const from = toHexColor(sorted[0]?.color);
+    const to = toHexColor(sorted[sorted.length - 1]?.color);
+    return { solid: from, gradient: from && to ? { from, to } : null };
+  }
+  return { solid: null, gradient: null };
+}
+
 export async function setCanvasBackgroundSolid(canvas: any, color: string) {
   canvas.backgroundColor = color;
+  // Pattern templates cover the canvas with a backdrop rect — recolor it too, or the change is invisible.
+  findBackdropRects(canvas).forEach((r) => r.set("fill", color));
   canvas.requestRenderAll();
 }
 
@@ -443,10 +548,12 @@ export async function setCanvasBackgroundGradient(
     { offset: 0, color: from },
     { offset: 1, color: to },
   ];
-  canvas.backgroundColor =
+  const make = () =>
     kind === "radial"
-      ? await createRadialGradient({ colorStops: stops })
-      : await createLinearGradient({ colorStops: stops });
+      ? createRadialGradient({ colorStops: stops })
+      : createLinearGradient({ colorStops: stops });
+  canvas.backgroundColor = await make();
+  for (const r of findBackdropRects(canvas)) r.set("fill", await make());
   canvas.requestRenderAll();
 }
 
@@ -601,11 +708,26 @@ export async function persistEphemeralFabricImages(
 
 /** True when a saved fabric document still points at session-only image URLs. */
 export function fabricDocumentHasEphemeralImages(fabric: unknown): boolean {
-  try {
-    return JSON.stringify(fabric ?? "").includes('"blob:') || JSON.stringify(fabric ?? "").includes('"data:image');
-  } catch {
-    return false;
-  }
+  // Only blob: URLs die with the session. data: URLs (pattern tiles, inline images)
+  // are self-contained and rehydrate fine — treating them as ephemeral forced every
+  // template card onto the raster preview instead of a sharp live render.
+  const hasBlobImage = (objects: unknown): boolean =>
+    Array.isArray(objects) &&
+    objects.some((o) => {
+      if (!o || typeof o !== "object") return false;
+      const obj = o as { type?: string; src?: unknown; objects?: unknown };
+      if (
+        typeof obj.type === "string" &&
+        obj.type.toLowerCase() === "image" &&
+        typeof obj.src === "string" &&
+        obj.src.startsWith("blob:")
+      ) {
+        return true;
+      }
+      return hasBlobImage(obj.objects);
+    });
+  if (!fabric || typeof fabric !== "object") return false;
+  return hasBlobImage((fabric as { objects?: unknown }).objects);
 }
 
 export type LayerItem = {

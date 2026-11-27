@@ -44,6 +44,7 @@ import {
   sendToBack,
   setCanvasBackgroundGradient,
   setCanvasBackgroundSolid,
+  readCanvasBackgroundColors,
   setObjectLocked,
   cloneObjectJson,
 } from "@/lib/fabricInvitationActions";
@@ -129,6 +130,16 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
   const [panel, setPanel] = useState<LibraryPanel>("templates");
   const [libraryOpen, setLibraryOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
+
+  // Small screens: start with side panels closed and fit the artboard to the viewport.
+  useLayoutEffect(() => {
+    if (window.matchMedia("(min-width: 1024px)").matches) return;
+    setLibraryOpen(false);
+    setInspectorOpen(false);
+    const available = window.innerWidth - 56 /* rail */ - 32 /* stage padding */;
+    const fit = Math.floor((available / CARD_ARTBOARD.width) * 20) / 20;
+    setZoom(Math.min(0.4, Math.max(0.2, fit)));
+  }, []);
   const [patternCat, setPatternCat] = useState<string>("all");
   const [initError, setInitError] = useState<string | null>(null);
   const [shellMounted, setShellMounted] = useState(false);
@@ -164,10 +175,20 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
     [pushHistory]
   );
 
+  const syncBackgroundControls = useCallback(() => {
+    const { solid, gradient } = readCanvasBackgroundColors(fabricRef.current);
+    if (solid) setBgSolid(solid);
+    if (gradient) {
+      setBgGradFrom(gradient.from);
+      setBgGradTo(gradient.to);
+    }
+  }, []);
+
   const handleSelectionFromCanvas = useCallback((obj: FabricObject | null) => {
     setSelected(obj);
     setInspectorRev((n) => n + 1);
-    if (obj) setInspectorOpen(true);
+    // Below lg the inspector overlays the canvas — don't pop it over every tap.
+    if (obj && window.matchMedia("(min-width: 1024px)").matches) setInspectorOpen(true);
   }, []);
 
   useFabricStudio({
@@ -183,7 +204,7 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
     setReady,
     setInitError,
     setBoardSize,
-    setBgSolid,
+    syncBackgroundControls,
     hydratedRef,
     event,
     card,
@@ -210,14 +231,16 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
   const handleUndo = useCallback(async () => {
     await undo();
     const canvas = fabricRef.current;
+    syncBackgroundControls();
     refreshSelection(canvas?.getActiveObject() ?? null);
-  }, [undo, refreshSelection]);
+  }, [undo, refreshSelection, syncBackgroundControls]);
 
   const handleRedo = useCallback(async () => {
     await redo();
     const canvas = fabricRef.current;
+    syncBackgroundControls();
     refreshSelection(canvas?.getActiveObject() ?? null);
-  }, [redo, refreshSelection]);
+  }, [redo, refreshSelection, syncBackgroundControls]);
 
   const addObjectAndSelect = useCallback(
     (obj: FabricObject) => {
@@ -384,6 +407,7 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
         const img = await loadFullBleedCardImage(url, boardSize, file.name);
         canvas.clear();
         await setCanvasBackgroundSolid(canvas, "#ffffff");
+        syncBackgroundControls();
         canvas.add(img);
         sendToBack(canvas, img);
         canvas.discardActiveObject();
@@ -394,7 +418,7 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
         toast.error("Could not place card photo");
       }
     },
-    [boardSize, refreshSelection]
+    [boardSize, refreshSelection, syncBackgroundControls]
   );
 
   useEffect(() => {
@@ -472,11 +496,12 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
       await runWithoutHistory(async () => {
         await applyVirtualTemplateToCanvas(canvas, id, event);
       });
+      syncBackgroundControls();
       pushHistory();
       setSelected(null);
       setTool("select");
     },
-    [event, pushHistory, runWithoutHistory]
+    [event, pushHistory, runWithoutHistory, syncBackgroundControls]
   );
 
   const requestApplyTemplate = useCallback(
@@ -590,12 +615,21 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
 
       let previewUrl: string | null = null;
       try {
-        const dataUrl = canvas.toDataURL({
-          format: "png",
-          multiplier: 0.45,
-          enableRetinaScaling: false,
-        }) as string;
-        const previewBlob = await (await fetch(dataUrl)).blob();
+        // Full artboard resolution so the preview stays sharp on retina / full-size views.
+        const exportPreview = async (format: "png" | "jpeg") => {
+          const dataUrl = canvas.toDataURL({
+            format,
+            quality: 0.92,
+            multiplier: 1,
+            enableRetinaScaling: false,
+          }) as string;
+          return (await fetch(dataUrl)).blob();
+        };
+        let previewBlob = await exportPreview("png");
+        // Photo-heavy cards can make large PNGs; fall back to JPEG under the 10MB upload cap.
+        if (previewBlob.size > 9 * 1024 * 1024) {
+          previewBlob = await exportPreview("jpeg");
+        }
         previewUrl = await uploadInvitationPreview(previewBlob);
       } catch {
         /* preview optional */
@@ -789,7 +823,7 @@ export function InvitationCardWorkspace({ eventId }: { eventId: string }) {
         onRedo={() => void handleRedo()}
       />
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         <StudioLibraryRail
           panel={panel}
           libraryOpen={libraryOpen}

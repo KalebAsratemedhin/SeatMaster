@@ -93,10 +93,6 @@ export function EventInvitesPanel({ eventId, seatIdToLabel }: EventInvitesPanelP
       return false;
     }
     setPending((prev) => [...prev, ...added]);
-    const notes = [`Added ${added.length}`];
-    if (skippedInvalid) notes.push(`${skippedInvalid} invalid skipped`);
-    if (skippedDuplicate) notes.push(`${skippedDuplicate} duplicates skipped`);
-    toast.success(notes.join(" · "));
     return true;
   };
 
@@ -133,9 +129,7 @@ export function EventInvitesPanel({ eventId, seatIdToLabel }: EventInvitesPanelP
       const queued = await bulkInvite({ eventId, emails: pending }).unwrap();
       rememberInviteJob(eventId, queued.job_id);
       setPending([]);
-      toast.success(
-        `Queued ${queued.queued} invitation${queued.queued === 1 ? "" : "s"} — sending in the background.`
-      );
+      toast.success(queued.queued === 1 ? "Invitation sent" : "Invitations sent");
       void refetch();
     } catch (err) {
       setError(apiErrorMessage(err, "Failed to queue invitations"));
@@ -305,7 +299,7 @@ export function EventInvitesPanel({ eventId, seatIdToLabel }: EventInvitesPanelP
         <h3 className="text-sm font-semibold text-foreground">
           Invited · {total}
         </h3>
-        <div className="overflow-hidden rounded-2xl ring-1 ring-border">
+        <div className="overflow-x-auto rounded-2xl ring-1 ring-border">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">

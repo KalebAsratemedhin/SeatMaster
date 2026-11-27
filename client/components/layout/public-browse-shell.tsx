@@ -9,18 +9,18 @@ import { HeaderSearch } from "@/components/layout/site-header";
 export function PublicBrowseShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-[var(--surface-warm)] dark:bg-[var(--brand-navy)] text-slate-800 dark:text-white">
-      <header className="z-50 flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm dark:border-slate-700/50 dark:bg-[var(--brand-navy)]/95 md:px-8">
+      <header className="z-50 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-sm dark:border-slate-700/50 dark:bg-[var(--brand-navy)]/95 md:flex-nowrap md:gap-4 md:px-8">
         <Link href="/" className="shrink-0" aria-label="SeatMaster home">
           <Logo />
         </Link>
-        <div className="mx-auto flex min-w-0 max-w-xl flex-1 justify-center">
+        <div className="order-last w-full md:order-none md:mx-auto md:flex md:min-w-0 md:max-w-xl md:flex-1 md:justify-center">
           <HeaderSearch placeholder="Search events..." className="w-full" />
         </div>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
             <Link href="/discover">Events</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
             <Link href="/auth?mode=signin">Sign in</Link>
           </Button>
           <Button

@@ -165,7 +165,7 @@ export function StudioInspector(props: StudioInspectorProps) {
   if (!open) return null;
 
   return (
-    <aside className="w-[min(100%,288px)] shrink-0 overflow-y-auto border-l border-black/5 bg-[#fbfaf7] p-3 space-y-4 dark:border-white/10 dark:bg-slate-900">
+    <aside className="absolute inset-y-0 right-0 z-30 w-[min(100%,288px)] shrink-0 overflow-y-auto border-l shadow-xl lg:static lg:z-auto lg:shadow-none border-black/5 bg-[#fbfaf7] p-3 space-y-4 dark:border-white/10 dark:bg-slate-900">
       <div className="space-y-2">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Artboard</p>
         <div className="grid grid-cols-2 gap-2">

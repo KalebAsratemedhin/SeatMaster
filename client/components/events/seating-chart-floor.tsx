@@ -533,7 +533,7 @@ export function SeatingChartFloor({
           {showDelete && onDeleteTable && (
             <button
               type="button"
-              className="absolute -top-1 -right-1 size-6 rounded-full bg-red-500/90 text-white flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+              className="absolute -top-1 -right-1 size-6 rounded-full bg-red-500/90 text-white flex items-center justify-center text-xs hover:bg-red-600 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 transition-opacity z-20"
               onClick={(e) => {
                 e.stopPropagation();
                 onDeleteTable(t.id);

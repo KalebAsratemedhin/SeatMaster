@@ -18,7 +18,8 @@ type UseFabricStudioArgs = {
   setReady: (v: boolean) => void;
   setInitError: (v: string | null) => void;
   setBoardSize: React.Dispatch<React.SetStateAction<BoardSize>>;
-  setBgSolid: (v: string) => void;
+  /** Re-read the canvas background into the sidebar controls. */
+  syncBackgroundControls: () => void;
   hydratedRef: React.MutableRefObject<boolean>;
   event: EventResponse | undefined;
   card: InvitationCardResponse | undefined;
@@ -45,7 +46,7 @@ export function useFabricStudio({
   setReady,
   setInitError,
   setBoardSize,
-  setBgSolid,
+  syncBackgroundControls,
   hydratedRef,
   event,
   card,
@@ -136,9 +137,7 @@ export function useFabricStudio({
       await runWithoutHistory(async () => {
         const result = await loadInvitationOntoCanvas(canvas, event, card ?? null);
         setBoardSize({ width: result.width, height: result.height });
-        if (typeof canvas.backgroundColor === "string") {
-          setBgSolid(canvas.backgroundColor);
-        }
+        syncBackgroundControls();
         // Avoid caret/glyph overlap while editing text under canvas zoom.
         canvas.getObjects().forEach((o: FabricObject) => {
           if (o.type === "textbox" || o.type === "i-text" || o.type === "text") {
@@ -163,7 +162,7 @@ export function useFabricStudio({
     resetHistoryFromCanvas,
     runWithoutHistory,
     setBoardSize,
-    setBgSolid,
+    syncBackgroundControls,
   ]);
 
   useEffect(() => {

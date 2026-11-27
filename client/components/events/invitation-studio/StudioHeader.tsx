@@ -52,10 +52,10 @@ export function StudioHeader({
 }: StudioHeaderProps) {
   const eventBack = backHref?.startsWith("/") ? backHref : `/events/${eventId}`;
   return (
-    <header className="z-20 flex h-14 shrink-0 items-center gap-5 border-b border-black/5 bg-[#f7f4ee]/95 px-5 font-sans backdrop-blur sm:gap-7 sm:px-7 dark:border-white/10 dark:bg-slate-900/95">
+    <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-black/5 bg-[#f7f4ee]/95 px-2 font-sans backdrop-blur sm:gap-7 sm:px-7 dark:border-white/10 dark:bg-slate-900/95">
       <Link
         href="/dashboard"
-        className="shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-amber)]/50"
+        className="hidden shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-amber)]/50 sm:block"
         aria-label="SeatMaster home"
       >
         <Logo />
@@ -68,7 +68,7 @@ export function StudioHeader({
           variant="ghost"
           size="sm"
           asChild
-          className="gap-2 px-3 font-sans text-slate-700 dark:text-slate-200"
+          className="gap-2 px-2 sm:px-3 font-sans text-slate-700 dark:text-slate-200"
         >
           <Link href={eventBack}>
             <ArrowLeft className="size-4" />
@@ -80,28 +80,28 @@ export function StudioHeader({
         </p>
       </div>
 
-      <div className="ml-1 flex items-center gap-0.5 rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-black/5 dark:bg-slate-800/80 dark:ring-white/10">
+      <div className="flex shrink-0 items-center gap-0.5 rounded-full sm:ml-1 bg-white/70 p-1 shadow-sm ring-1 ring-black/5 dark:bg-slate-800/80 dark:ring-white/10">
         <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={onUndo} title="Undo">
           <Undo2 className="size-3.5" />
         </Button>
         <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={onRedo} title="Redo">
           <Redo2 className="size-3.5" />
         </Button>
-        <div className="mx-1.5 h-4 w-px bg-slate-200 dark:bg-slate-600" />
-        <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={onZoomOut}>
+        <div className="mx-1.5 hidden h-4 w-px bg-slate-200 sm:block dark:bg-slate-600" />
+        <Button variant="ghost" size="icon" className="hidden size-8 rounded-full sm:inline-flex" onClick={onZoomOut}>
           <ZoomOut className="size-3.5" />
         </Button>
-        <span className="w-10 text-center text-[11px] tabular-nums text-slate-500">
+        <span className="hidden w-10 text-center text-[11px] tabular-nums text-slate-500 sm:inline">
           {Math.round(zoom * 100)}%
         </span>
-        <Button variant="ghost" size="icon" className="size-8 rounded-full" onClick={onZoomIn}>
+        <Button variant="ghost" size="icon" className="hidden size-8 rounded-full sm:inline-flex" onClick={onZoomIn}>
           <ZoomIn className="size-3.5" />
         </Button>
       </div>
 
       <div className="flex-1" />
 
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
         <Button
           type="button"
           variant="ghost"

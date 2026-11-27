@@ -46,7 +46,9 @@ export async function uploadBanner(file: File): Promise<string> {
 
 /** Uploads an invitation-card thumbnail (reuses the image upload endpoint). */
 export async function uploadInvitationPreview(blob: Blob): Promise<string> {
-  const file = new File([blob], "invitation-preview.png", { type: "image/png" });
+  const type = blob.type === "image/jpeg" ? "image/jpeg" : "image/png";
+  const ext = type === "image/jpeg" ? "jpg" : "png";
+  const file = new File([blob], `invitation-preview.${ext}`, { type });
   return uploadBanner(file);
 }
 

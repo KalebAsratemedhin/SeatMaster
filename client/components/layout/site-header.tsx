@@ -96,11 +96,11 @@ export function SiteHeader() {
   };
 
   const rightContent = (
-    <div className="flex items-center justify-end gap-4 shrink-0 min-w-0">
+    <div className="ml-auto flex items-center justify-end gap-2 shrink-0 min-w-0 sm:gap-4 lg:ml-0">
       {!isLanding && (
         <Link
           href="/"
-          className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[var(--brand-navy)] dark:hover:text-[var(--brand-amber)] transition-colors"
+          className="hidden sm:inline text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-[var(--brand-navy)] dark:hover:text-[var(--brand-amber)] transition-colors"
         >
           Home
         </Link>
@@ -152,6 +152,21 @@ export function SiteHeader() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="z-[9999] w-48">
+            {isLanding && (
+              <>
+                {appNavItems
+                  .filter((i) => i.href !== "/settings")
+                  .map(({ href, label, icon: Icon }) => (
+                    <DropdownMenuItem key={href} asChild className="md:hidden">
+                      <Link href={href} className="cursor-pointer">
+                        <Icon className="mr-2 size-4" />
+                        {label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                <DropdownMenuSeparator className="md:hidden" />
+              </>
+            )}
             <DropdownMenuItem asChild>
               <Link href="/settings" className="cursor-pointer">
                 <Settings className="mr-2 size-4" />
@@ -173,7 +188,8 @@ export function SiteHeader() {
         <>
           <Button
             asChild
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-md"
+            size="sm"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-md sm:h-9 sm:px-4"
           >
             <Link href="/auth?mode=signup">Get Started</Link>
           </Button>
@@ -191,8 +207,8 @@ export function SiteHeader() {
 
   return (
     <header
-      className={`sticky top-0 z-[500] border-b border-slate-200/80 dark:border-slate-700/50 bg-white/95 dark:bg-[var(--brand-navy)]/95 backdrop-blur-sm px-6 md:px-20 py-4 ${
-        !isLanding ? "grid grid-cols-[1fr_auto_1fr] items-center gap-4 lg:flex lg:justify-between" : "flex items-center justify-between gap-4"
+      className={`sticky top-0 z-[500] flex flex-wrap items-center gap-x-3 gap-y-3 border-b border-slate-200/80 dark:border-slate-700/50 bg-white/95 dark:bg-[var(--brand-navy)]/95 backdrop-blur-sm px-4 py-3 sm:px-6 ${
+        isLanding ? "md:flex-nowrap md:gap-4 md:px-20 md:py-4" : "lg:flex-nowrap lg:justify-between lg:gap-4 lg:px-20 lg:py-4"
       }`}
     >
       {isLanding ? (
@@ -200,50 +216,51 @@ export function SiteHeader() {
           <Link href="/" className="shrink-0" aria-label="SeatMaster home">
             <Logo />
           </Link>
-          <div className="flex flex-1 justify-center min-w-0 max-w-xl mx-auto">
+          {/* Phones: search drops to its own full-width row under logo + actions. */}
+          <div className="order-last w-full md:order-none md:mx-auto md:flex md:min-w-0 md:max-w-xl md:flex-1 md:justify-center">
             <HeaderSearch placeholder="Search events..." className="w-full" />
           </div>
           {rightContent}
         </>
       ) : (
         <>
-          <div className="flex min-w-0 items-center gap-2 justify-start lg:flex-1">
-            <HeaderSearch placeholder="Search events..." className="flex-1 min-w-[140px] max-w-[70%]" />
-            {isLoggedIn && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="lg:hidden focus-visible:ring-0 focus-visible:ring-offset-0 shrink-0"
-                    aria-label="Open menu"
-                  >
-                    <Menu className="size-6" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" side="bottom" className="z-[9999] w-56">
-                  {appNavItems.map(({ href, label, icon: Icon }) => (
-                    <DropdownMenuItem key={href} asChild>
-                      <Link
-                        href={href}
-                        className="flex cursor-pointer items-center gap-2"
-                      >
-                        <Icon className="size-4" />
-                        {label}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
+          {isLoggedIn && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="-ml-2 lg:hidden focus-visible:ring-0 focus-visible:ring-offset-0 shrink-0"
+                  aria-label="Open menu"
+                >
+                  <Menu className="size-6" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="bottom" className="z-[9999] w-56">
+                {appNavItems.map(({ href, label, icon: Icon }) => (
+                  <DropdownMenuItem key={href} asChild>
+                    <Link
+                      href={href}
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      <Icon className="size-4" />
+                      {label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Link
             href="/"
-            className="flex justify-center lg:hidden"
+            className="flex shrink-0 lg:hidden"
             aria-label="SeatMaster home"
           >
             <Logo />
           </Link>
+          <div className="order-last w-full lg:order-none lg:flex lg:min-w-0 lg:max-w-xl lg:flex-1">
+            <HeaderSearch placeholder="Search events..." className="w-full" />
+          </div>
           {rightContent}
         </>
       )}

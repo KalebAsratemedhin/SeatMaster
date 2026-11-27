@@ -100,9 +100,9 @@ export function InviteDeliveryIssues({ eventId, refreshKey = 0 }: InviteDelivery
       const queued = await bulkInvite({ eventId, emails }).unwrap();
       rememberInviteJob(eventId, queued.job_id);
       for (const f of failures) forgetInviteJob(eventId, f.jobId);
-      toast.success(`Re-queued ${emails.length} failed invite${emails.length === 1 ? "" : "s"}`);
+      toast.success("Retrying failed invitations");
     } catch {
-      toast.error("Could not re-queue failed invites");
+      toast.error("Could not retry failed invitations");
     }
   };
 
@@ -120,7 +120,7 @@ export function InviteDeliveryIssues({ eventId, refreshKey = 0 }: InviteDelivery
             <p className="mt-0.5 text-xs text-muted-foreground">
               {failures.length > 0
                 ? "These addresses never received email. You can retry them."
-                : "Delivery continues in the background — this clears when jobs finish."}
+                : "This clears once all invitations have gone out."}
             </p>
           </div>
         </div>
@@ -150,7 +150,6 @@ export function InviteDeliveryIssues({ eventId, refreshKey = 0 }: InviteDelivery
               className="flex flex-wrap items-baseline justify-between gap-2 text-muted-foreground"
             >
               <span className="truncate font-medium text-foreground">{f.email}</span>
-              <span className="truncate text-xs">{f.error}</span>
             </li>
           ))}
         </ul>

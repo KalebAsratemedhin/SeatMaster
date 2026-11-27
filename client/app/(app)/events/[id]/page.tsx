@@ -35,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, MapPin, Calendar, Users, Clock, Table2, Plus, Loader2, Share2, MessageSquare, Send, Reply, MoreHorizontal, ImageIcon } from "lucide-react";
+import { Pencil, Trash2, MapPin, Calendar, Users, Clock, Table2, Plus, Loader2, Share2, MessageSquare, Send, ArrowLeft, Reply, MoreHorizontal, ImageIcon } from "lucide-react";
 import { SeatingChartFloor } from "@/components/events/seating-chart-floor";
 import { EventInvitesPanel } from "@/components/events/event-invites-panel";
 import { EventOrganizerAnalytics } from "@/components/events/event-organizer-analytics";
@@ -161,6 +161,8 @@ export default function EventDetailPage() {
     skip: !id || !token || !eventReady || !isOwner,
   });
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  // Phones show the guest list OR the conversation (side-by-side from md up).
+  const [mobileChatListOpen, setMobileChatListOpen] = useState(true);
   const [getOrCreateThread, { data: currentThread }] = useLazyGetOrCreateThreadQuery();
   const threadIdForApi = currentThread?.id ?? selectedThreadId;
   const CHAT_PAGE_SIZE = 100;
@@ -253,7 +255,7 @@ export default function EventDetailPage() {
 
   if (isLoading || (!event && !error)) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-8">
+      <div className="container max-w-3xl mx-auto px-3 sm:px-5 lg:px-2 py-8">
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
@@ -261,7 +263,7 @@ export default function EventDetailPage() {
 
   if (error || !event) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-8">
+      <div className="container max-w-3xl mx-auto px-3 sm:px-5 lg:px-2 py-8">
         <p className="text-destructive">
           Event not found or you don&apos;t have access.
         </p>
@@ -276,7 +278,7 @@ export default function EventDetailPage() {
 
   if (!isOwner) {
     return (
-      <div className="container max-w-3xl mx-auto px-4 py-16 flex flex-col items-center gap-3">
+      <div className="container max-w-3xl mx-auto px-3 sm:px-5 lg:px-2 py-16 flex flex-col items-center gap-3">
         <Loader2 className="size-6 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">Opening invitation…</p>
       </div>
@@ -304,7 +306,7 @@ export default function EventDetailPage() {
 
   return (
     <div className="text-foreground">
-      <div className="mx-auto w-full max-w-7xl flex-1 py-4 lg:py-6">
+      <div className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-5 lg:px-2 lg:py-6">
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
           <div className="min-w-0 flex-1">
             <nav className="mb-6 text-sm text-muted-foreground">
@@ -445,9 +447,9 @@ export default function EventDetailPage() {
                   Public comments visible to everyone with access to this event.
                 </p>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 {token && (
-                  <form onSubmit={(e) => handlePostComment(e)} className="flex gap-3">
+                  <form onSubmit={(e) => handlePostComment(e)} className="flex gap-2 sm:gap-3">
                     <Input
                       placeholder="Write a comment..."
                       value={commentBody}
@@ -471,7 +473,7 @@ export default function EventDetailPage() {
                   ) : (
                     (function renderCommentNodes(nodes: CommentNode[], depth: number) {
                       return nodes.map((node) => (
-                        <div key={node.comment.id} className={depth > 0 ? "ml-6 mt-2 border-l-2 border-slate-200/60 dark:border-slate-600 pl-4" : ""}>
+                        <div key={node.comment.id} className={depth > 0 ? "ml-3 sm:ml-6 mt-2 border-l-2 border-slate-200/60 dark:border-slate-600 pl-3 sm:pl-4" : ""}>
                           <div className="flex gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30 p-4">
                             <Avatar className="size-9 shrink-0 border border-slate-200/60 dark:border-slate-600">
                               <AvatarFallback className="bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-medium">
@@ -501,7 +503,7 @@ export default function EventDetailPage() {
                             </div>
                           </div>
                           {replyingToId === node.comment.id && token && (
-                            <form onSubmit={(e) => handlePostComment(e, node.comment.id)} className="mt-2 flex gap-2 ml-12">
+                            <form onSubmit={(e) => handlePostComment(e, node.comment.id)} className="mt-2 flex flex-wrap gap-2 sm:ml-12">
                               <Input
                                 placeholder="Write a reply..."
                                 value={commentBody}
@@ -529,7 +531,7 @@ export default function EventDetailPage() {
                   <section className="flex h-[min(520px,70vh)] min-h-[360px]">
                     {/* Conversation list (owner) */}
                     {isOwner && (
-                      <aside className="w-[220px] sm:w-[260px] shrink-0 border-r border-slate-200/80 dark:border-slate-700/80 flex flex-col bg-slate-50/80 dark:bg-slate-900/40">
+                      <aside className={`${mobileChatListOpen ? "flex" : "hidden"} w-full md:flex md:w-[260px] shrink-0 md:border-r border-slate-200/80 dark:border-slate-700/80 flex-col bg-slate-50/80 dark:bg-slate-900/40`}>
                         <div className="px-4 py-3 border-b border-slate-200/80 dark:border-slate-700/80">
                           <p className="text-sm font-semibold text-slate-900 dark:text-white">Guests</p>
                         </div>
@@ -543,7 +545,10 @@ export default function EventDetailPage() {
                                 <button
                                   key={t.id}
                                   type="button"
-                                  onClick={() => setSelectedThreadId(t.id)}
+                                  onClick={() => {
+                                    setSelectedThreadId(t.id);
+                                    setMobileChatListOpen(false);
+                                  }}
                                   className={`flex w-full items-center gap-3 px-3 py-3 text-left transition-colors border-l-2 ${
                                     active
                                       ? "border-primary bg-primary/10 dark:bg-primary/15"
@@ -567,10 +572,22 @@ export default function EventDetailPage() {
                     )}
 
                     {/* Message pane */}
-                    <div className="flex-1 min-w-0 flex flex-col bg-white/60 dark:bg-slate-900/20">
+                    <div
+                      className={`${isOwner && mobileChatListOpen ? "hidden md:flex" : "flex"} flex-1 min-w-0 flex-col bg-white/60 dark:bg-slate-900/20`}
+                    >
                       {threadIdForApi ? (
                         <>
                           <header className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/80 dark:border-slate-700/80 shrink-0">
+                            {isOwner && (
+                              <button
+                                type="button"
+                                onClick={() => setMobileChatListOpen(true)}
+                                className="-ml-1 flex size-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 md:hidden dark:hover:bg-slate-800"
+                                aria-label="Back to conversations"
+                              >
+                                <ArrowLeft className="size-4" />
+                              </button>
+                            )}
                             <Avatar className="size-9 shrink-0 border border-slate-200/70 dark:border-slate-600">
                               <AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-xs font-semibold">
                                 {getInitialsFromName(activeChatPeerName)}
@@ -684,7 +701,7 @@ export default function EventDetailPage() {
                     Add tables or sitting areas below; guests can pick a seat when they RSVP.
                   </p>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4">
                   <div className="flex flex-wrap items-end gap-4 mb-6">
                     <form
                       className="flex flex-wrap items-end gap-4"

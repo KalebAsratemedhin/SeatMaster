@@ -47,7 +47,7 @@ export function StudioStage({
         </div>
       )}
       <div
-        className="flex min-h-full min-w-full items-start justify-center p-6 md:p-10"
+        className="flex min-h-full min-w-full items-start justify-center p-4 sm:p-6 md:p-10"
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) onClearSelection();
         }}

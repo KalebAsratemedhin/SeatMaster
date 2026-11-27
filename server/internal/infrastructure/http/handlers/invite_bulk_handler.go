@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -126,7 +127,11 @@ func mapInviteJobError(w http.ResponseWriter, err error) {
 		respondWithError(w, http.StatusForbidden, msg)
 	case msg == "event not found", msg == "invite job not found":
 		respondWithError(w, http.StatusNotFound, msg)
-	default:
+	case msg == "emails is required", strings.HasPrefix(msg, "too many emails"):
 		respondWithError(w, http.StatusBadRequest, msg)
+	default:
+		// Unknown errors may carry DB/queue internals — log them, return a generic message.
+		log.Printf("error: invite request: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "Could not process invitations. Please try again.")
 	}
 }

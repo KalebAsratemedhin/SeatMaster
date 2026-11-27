@@ -32,8 +32,9 @@ function useCardFit(full: boolean) {
       const vh = window.innerHeight;
       if (full) {
         setFit({
-          maxWidth: Math.max(280, vw - 96),
-          maxHeight: Math.max(360, vh - 160),
+          // Phones: arrow sits below the card instead of beside it.
+          maxWidth: Math.max(260, vw - (vw < 640 ? 32 : 96)),
+          maxHeight: Math.max(360, vh - (vw < 640 ? 230 : 160)),
         });
       } else {
         setFit({
@@ -230,7 +231,7 @@ function GuestExperienceInner({ eventId }: { eventId: string }) {
           type="button"
           onClick={handleContinue}
           disabled={flipping}
-          className="absolute right-[12%] top-1/2 z-10 -translate-y-1/2 p-2 text-slate-700 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:pointer-events-none sm:right-[15%] dark:text-slate-200 dark:hover:text-white"
+          className="z-10 p-2 sm:absolute sm:right-[12%] sm:top-1/2 sm:-translate-y-1/2 text-slate-700 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:pointer-events-none sm:right-[15%] dark:text-slate-200 dark:hover:text-white"
           aria-label="Continue to RSVP"
         >
           <ArrowRight className="size-8 sm:size-10" strokeWidth={1.75} />
@@ -264,7 +265,7 @@ function GuestExperienceInner({ eventId }: { eventId: string }) {
               <img
                 src={previewUrl}
                 alt=""
-                className="max-h-[min(480px,70vh)] w-auto max-w-[min(320px,35vw)] rounded-sm bg-white object-contain shadow-[0_20px_60px_-24px_rgba(28,25,23,0.45)] ring-1 ring-black/10"
+                className="max-h-[min(480px,70vh)] w-auto max-w-[min(320px,65vw)] lg:max-w-[min(320px,35vw)] rounded-sm bg-white object-contain shadow-[0_20px_60px_-24px_rgba(28,25,23,0.45)] ring-1 ring-black/10"
               />
             ) : (
               <InvitationCardViewer

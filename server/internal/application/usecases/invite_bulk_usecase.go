@@ -188,7 +188,9 @@ func (uc *EventUseCase) ProcessInviteJob(ctx context.Context, inviteJobID string
 				sent++
 			} else {
 				failed++
-				errs = append(errs, entities.InviteJobErrorItem{Email: email, Error: err.Error()})
+				// Keep provider/DB details in server logs only; the job status is returned to clients.
+				log.Printf("error: invite job %s send to %s: %v", inviteJobID, email, err)
+				errs = append(errs, entities.InviteJobErrorItem{Email: email, Error: "Could not deliver invitation"})
 			}
 		} else {
 			sent++
